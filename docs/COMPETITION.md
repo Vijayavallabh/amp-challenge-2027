@@ -27,6 +27,22 @@ NeurIPS 2026 Competition Track, and the top candidates are synthesized and assay
 | Mar – Apr 2027 | Experimental validation (MIC / HC50) and final analysis |
 | Late 2027 | Benchmarking paper submission |
 
+## No dataset is provided
+
+Verified 2026-09-27 via the Kaggle API: the competition's only data file is a 55-byte `NOTE.md`
+reading *"Welcome! This is a Hackathon with no provided dataset."*
+
+Two consequences:
+
+- **All training data is yours to source and disclose.** Nothing is supplied, so every sequence
+  used for training comes from an external public database — DBAASP, APD3, dbAMP, Peptipedia — and
+  must be listed in `SUBMISSION.md`. Non-public data has to be released permissively to stay
+  eligible for co-authorship.
+- **This is a Kaggle Hackathon, not a leaderboard competition.** There is no scored submission
+  file and the leaderboard is empty; you submit a write-up, which is why the rules say it will be
+  licensed CC BY 4.0 and attributed to your display name. Scoring happens off-Kaggle, in the
+  organizers' computational screening and then the wet lab.
+
 ## Deliverables
 
 **Minimum — benchmark participation.** Teams meeting only these get their experimental results

@@ -12,7 +12,9 @@
       "id": "feat-002",
       "name": "Submission compliance layer",
       "description": "constraints.py encodes every hard rule from the official verifier (alphabet, 8-50 length, uniqueness, 50,000/100 counts, top-list subset, no exact overlap with the reference set, top-100 at or below 80% Levenshtein identity) with tests.",
-      "dependencies": ["feat-001"],
+      "dependencies": [
+        "feat-001"
+      ],
       "status": "done",
       "evidence": "2026-09-27: `uv run pytest -q` -> 45 passed. Mirrors scripts/verify_submission.py, vendored from szczurek-lab/amp-challenge-2027 @ 2026-08-05."
     },
@@ -20,7 +22,9 @@
       "id": "feat-003",
       "name": "Contract-valid baseline generator",
       "description": "`uv run generate` produces a submission that passes every structural check, so a valid entry exists before any modelling work. The model itself is a uniform-random placeholder with no expected activity.",
-      "dependencies": ["feat-002"],
+      "dependencies": [
+        "feat-002"
+      ],
       "status": "done",
       "evidence": "2026-09-27: full run in ~2s. 50,000 records / 50,000 unique / lengths 8-50 / 0 alphabet violations; top.fasta 100 records, all in library. Three fresh processes produced identical md5 (library 6e24c32d5ff6b3988b7a1ef9401f5ab4, top ad0ac45cc621e865636e8bb70b607f24)."
     },
@@ -30,13 +34,15 @@
       "description": "Accept the competition rules on Kaggle so the entry is registered. Requires a human to click through; cannot be automated.",
       "dependencies": [],
       "status": "done",
-      "evidence": "2026-09-27: reported signed up as Kaggle account `j_v_v_07`. NOT independently verified from this machine: the local token in ~/.kaggle/kaggle.json belongs to a different account (`prakashchhipa`), so the API reports userHasEntered=False and returns 403 for that account, which says nothing about j_v_v_07. To verify or use the CLI as the competing account, install the j_v_v_07 API token. See docs/COMPLIANCE.md section 'Account identity'."
+      "evidence": "2026-09-27: VERIFIED via the Kaggle API using the competing account's own access token. Account username `vijayavallabhj`, display name `j_v_v_07`; `userHasEntered=True`, auth_method=ACCESS_TOKEN, 0 submissions so far. Note the machine default token (~/.kaggle/kaggle.json) is a different account (prakashchhipa) and reports False/403 - always check `kaggle config view` first. See docs/COMPLIANCE.md 'Account identity'."
     },
     {
       "id": "feat-005",
       "name": "Training data acquisition and disclosure",
-      "description": "Pull an AMP training corpus from public sources (DBAASP, APD3, dbAMP, Peptipedia), record provenance and licence terms in SUBMISSION.md, and confirm the corpus is publicly redistributable as the full requirements demand.",
-      "dependencies": ["feat-001"],
+      "description": "Pull an AMP training corpus from public sources (DBAASP, APD3, dbAMP, Peptipedia), record provenance and licence terms in SUBMISSION.md, and confirm the corpus is publicly redistributable as the full requirements demand. The competition provides NO dataset (its only data file is a 55-byte note saying so), so everything is externally sourced.",
+      "dependencies": [
+        "feat-001"
+      ],
       "status": "not-started",
       "evidence": ""
     },
@@ -44,7 +50,9 @@
       "id": "feat-006",
       "name": "Generative model behind build_model()",
       "description": "Replace RandomBaseline with a real generative approach reachable through build_model() in generate.py. Weights load from checkpoint/ via resolve_repo_path, sampling is seeded, and output stays byte-identical across runs.",
-      "dependencies": ["feat-005"],
+      "dependencies": [
+        "feat-005"
+      ],
       "status": "not-started",
       "evidence": ""
     },
@@ -52,7 +60,9 @@
       "id": "feat-007",
       "name": "Candidate ranking for the top 100",
       "description": "Implement a real score() so the top-100 list is ranked by predicted potency and selectivity rather than arbitrarily. This is what the competition categories actually measure, and 25 of the top 50 are drawn at random for wet-lab testing.",
-      "dependencies": ["feat-006"],
+      "dependencies": [
+        "feat-006"
+      ],
       "status": "not-started",
       "evidence": ""
     },
@@ -60,7 +70,9 @@
       "id": "feat-008",
       "name": "Official verifier run against the public repo",
       "description": "Run scripts/verify_submission.py against the pushed GitHub URL, which clones a fresh copy, syncs, generates twice, and checks every rule including reproducibility. This is the same script the organizers run.",
-      "dependencies": ["feat-003"],
+      "dependencies": [
+        "feat-003"
+      ],
       "status": "done",
       "evidence": "2026-09-27: `uv run python scripts/verify_submission.py https://github.com/Vijayavallabh/amp-challenge-2027` -> 'All checks passed. Submission is valid!' in 7s. Fresh clone, uv sync, generate twice, all 8 checks including overlap, the 80% similarity screen, and byte-identical reproducibility. Re-run after any change to the generator."
     },
@@ -68,7 +80,9 @@
       "id": "feat-009",
       "name": "Submission write-up",
       "description": "Fill in SUBMISSION.md: method abstract, training data and external databases used, the selection and ranking procedure for the top 100, and any manual intervention or computational filters applied. All four are required deliverables.",
-      "dependencies": ["feat-007"],
+      "dependencies": [
+        "feat-007"
+      ],
       "status": "not-started",
       "evidence": ""
     },
@@ -76,7 +90,11 @@
       "id": "feat-010",
       "name": "Submit",
       "description": "Upload the 50,000-sequence library and ranked top-100 list on Kaggle from the j_v_v_07 account, and attach the write-up. Repository read access for @RasmusML and @szymczakpau is already satisfied by the repo being public. One entry per model and no resubmission, so feat-008 must be green immediately beforehand. Do not submit using the prakashchhipa token present on this machine.",
-      "dependencies": ["feat-004", "feat-008", "feat-009"],
+      "dependencies": [
+        "feat-004",
+        "feat-008",
+        "feat-009"
+      ],
       "status": "not-started",
       "evidence": ""
     }

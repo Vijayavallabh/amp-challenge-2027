@@ -19,8 +19,11 @@ has not started.
 - [x] feat-002 — Compliance layer in `src/amp_challenge_2027/constraints.py`, mirroring the
       official `scripts/verify_submission.py`. 69 tests, covering both the sequence rules and the
       repository-level rules (licence, entry point, pinned environment, defaulted arguments).
-- [x] feat-004 — Kaggle entry reported signed up as `j_v_v_07`. Not verifiable from this machine;
-      see the credential blocker below.
+- [x] feat-004 — Kaggle entry **verified** via the API as `vijayavallabhj` / `j_v_v_07`:
+      `userHasEntered=True`, 0 submissions so far.
+- [x] Confirmed the competition ships **no dataset** — its only data file is a 55-byte note reading
+      "This is a Hackathon with no provided dataset." All training data is externally sourced and
+      must be disclosed, and submission is a write-up rather than a scored file.
 - [x] Rule-by-rule audit written up in `docs/COMPLIANCE.md` — every published rule from the Kaggle
       competition rules, Kaggle's Foundational Rules, and the competition website, mapped to where
       it is enforced and how it is verified.
@@ -46,12 +49,12 @@ has not started.
 
 ## Blockers / Risks
 
-- [ ] **The Kaggle token on this machine is the wrong account.** `~/.kaggle/kaggle.json` belongs to
-      `prakashchhipa`, not `j_v_v_07`. Two consequences: entry status cannot be confirmed from here
-      (the API's `userHasEntered=False` and its 403 describe *that* account), and **nothing may be
-      submitted with this token** — Kaggle prohibits multiple accounts per participant and it would
-      attribute the entry to the wrong person. Install the `j_v_v_07` token, or submit through the
-      web UI as `j_v_v_07`. See `docs/COMPLIANCE.md` § Account identity.
+- [ ] **Two Kaggle accounts are reachable from this machine.** The competing account is
+      `vijayavallabhj` / `j_v_v_07` (entry verified, `userHasEntered=True`). The *default* token at
+      `~/.kaggle/kaggle.json` is a different account (`prakashchhipa`) and reports
+      `userHasEntered=False` with a 403 on data. Run `kaggle config view` and confirm the username
+      before trusting any API answer or submitting anything — Kaggle allows one account per
+      participant. See `docs/COMPLIANCE.md` § Account identity.
 - [ ] **Three days to the deadline.** The committed baseline is valid but scientifically empty.
       Treat it as a floor that guarantees a submittable entry, not as a candidate entry.
 - [ ] **One entry per model.** There is no resubmission to fix a mistake, so feat-008 (the

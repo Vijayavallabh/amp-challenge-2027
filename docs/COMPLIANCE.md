@@ -26,7 +26,7 @@ recorded) · **open** (needs work) · **human** (needs a person) · **n/a**.
 | **Top 100 must be a subset of the submitted 50,000-sequence library** | enforced | `constraints.check_top` verifies membership; `select_top` only ever draws from the library |
 | **Only generative methods are permitted** | open | `RandomBaseline` is generative but a placeholder; state the real method in `SUBMISSION.md` |
 | Questions via the Discussion page, email, or the website | n/a | — |
-| Write-up licensed CC BY 4.0, attributed to the Kaggle display name | verified | display name `j_v_v_07` recorded in `SUBMISSION.md` |
+| Write-up licensed CC BY 4.0, attributed to the Kaggle display name | verified | display name `j_v_v_07` (account `vijayavallabhj`), recorded in `SUBMISSION.md` |
 
 ### Entry count
 
@@ -49,26 +49,32 @@ published rule text across competitions and are the ones that bear on this repo.
 
 | Rule | Status | Notes |
 |---|---|---|
-| **One account per participant**; multiple accounts prohibited | **human — see below** | Submit only from `j_v_v_07` |
+| **One account per participant**; multiple accounts prohibited | verified | Entered as `vijayavallabhj` (`j_v_v_07`); see below |
 | No private sharing of code or data outside teams; public sharing to all participants is fine | verified | The repository is public, which the full requirements also demand |
 | External data permitted only as the competition allows | verified | This competition *requires* disclosure and explicitly points to public AMP databases; see `SUBMISSION.md` |
 | Competition-specific rules yield to the foundational rules on conflict | verified | Noted in *Entry count* above |
 
-### Account identity — unresolved
+### Account identity — resolved
 
-The Kaggle API token on this machine (`~/.kaggle/kaggle.json`) belongs to **`prakashchhipa`**, not
-to `j_v_v_07`. Consequences:
+The competing account is **username `vijayavallabhj`, display name `j_v_v_07`**. Verified
+2026-09-27 against the Kaggle API with that account's own access token:
+`userHasEntered=True`, `auth_method=ACCESS_TOKEN`, 0 submissions so far. The CC BY 4.0 write-up is
+attributed to the **display name**, `j_v_v_07`.
 
-1. Entry status cannot be confirmed from here. Querying the competition as `prakashchhipa` returns
-   `userHasEntered=False` and the data endpoint returns HTTP 403 — that reflects *that* account,
-   and says nothing about `j_v_v_07`.
-2. **Nothing may be submitted using this token.** Submitting through another person's account
-   would breach the one-account rule and would attribute the entry to the wrong person.
+One trap to keep in mind on this machine: the default token at `~/.kaggle/kaggle.json` belongs to a
+**different account** (`prakashchhipa`, the machine owner). Queried through it, this competition
+reports `userHasEntered=False` and returns HTTP 403 for the data endpoint — answers about that
+account, not about ours. So:
 
-To use the Kaggle CLI as the competing account, install that account's own token (Kaggle → Settings
-→ API → Create New Token) at `~/.kaggle/kaggle.json`, or point `KAGGLE_CONFIG_DIR` at a directory
-holding it. The token is a credential — don't commit it; `.gitignore` does not need to cover it
-because it lives outside the repo.
+- Always confirm the authenticated identity before trusting an API answer: `kaggle config view`
+  prints the username in use.
+- **Never enter or submit through the default token.** Kaggle prohibits more than one account per
+  participant, and it would attribute the entry to the wrong person.
+- Select the right account with a `KGAT_`-style token in `KAGGLE_API_TOKEN`, or point
+  `KAGGLE_CONFIG_DIR` at a directory holding the right `kaggle.json`.
+
+Tokens are credentials: keep them out of this repository, which is public. Nothing in the repo
+contains or needs them.
 
 ## Minimum requirements — benchmark participation
 
@@ -129,8 +135,10 @@ the public repo: **all checks passed**.
 Everything open above is downstream of one thing: the repository generates from a placeholder.
 In `feature_list.json` order —
 
-1. `feat-004` — confirm the entry from the `j_v_v_07` account (**human**).
-2. `feat-005` — training corpus, with licensing recorded in `SUBMISSION.md`.
+1. ~~`feat-004` — confirm the entry~~ **done**: verified via the API, `userHasEntered=True`.
+2. `feat-005` — training corpus, with licensing recorded in `SUBMISSION.md`. The competition
+   provides **no dataset at all** (its only data file is a 55-byte note saying so), so every
+   training sequence must come from an external public source and be disclosed.
 3. `feat-006` / `feat-007` — a real generative model and a real ranking function.
 4. `feat-009` — fill in `SUBMISSION.md`; four of its sections are required deliverables.
 5. `feat-008` — re-run the validator, then `feat-010` — submit once.

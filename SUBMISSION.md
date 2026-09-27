@@ -12,14 +12,16 @@ before submitting — see `docs/COMPETITION.md` for the exact wording of the req
 
 - **Team name:** _TBD_
 - **Members and affiliations:** Vijayavallabh (IIT Madras)
-- **Kaggle account:** `j_v_v_07` — the entry must be submitted from this account and no other.
-  The write-up is licensed CC BY 4.0 and attributed to this display name; to change the
-  attribution later, contact support@kaggle.com.
+- **Kaggle account:** `vijayavallabhj`, display name **`j_v_v_07`** — entry confirmed
+  (`userHasEntered=True`, verified 2026-09-27). Submit from this account and no other. The write-up
+  is licensed CC BY 4.0 and attributed to the display name; to change that later, contact
+  support@kaggle.com.
 - **Contact:** be23b041@smail.iitm.ac.in
 - **Repository:** https://github.com/Vijayavallabh/amp-challenge-2027 (public, MIT)
 
-> The Kaggle API token on this machine belongs to a different account (`prakashchhipa`). Do not
-> submit with it. See `docs/COMPLIANCE.md` § Account identity.
+> The *default* Kaggle token on this machine (`~/.kaggle/kaggle.json`) belongs to a different
+> account (`prakashchhipa`). Never submit with it — check `kaggle config view` first. See
+> `docs/COMPLIANCE.md` § Account identity.
 
 ## Abstract
 
@@ -39,8 +41,10 @@ designs novel, and how candidates were prioritized._
 
 ## Training data
 
-Every source must be publicly redistributable under a permissive licence, or released as part of
-the submission. Anything non-public that cannot be released costs co-authorship eligibility.
+The competition provides **no dataset** — its only data file is a note saying so — so every source
+listed here is external and must be disclosed. Each must be publicly redistributable under a
+permissive licence, or released as part of the submission. Anything non-public that cannot be
+released costs co-authorship eligibility.
 
 | Source | Version / accessed | Records used | Licence | Redistributable |
 |---|---|---|---|---|
@@ -94,8 +98,9 @@ Required disclosure. State plainly what was applied, including "none".
 
 Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
 
-- [ ] Competition rules accepted on Kaggle, **from the `j_v_v_07` account** (feat-004)
-- [ ] Submitting from `j_v_v_07`, not from any other account on this machine
+- [x] Competition rules accepted on Kaggle from `vijayavallabhj` / `j_v_v_07` — verified via the
+      API, `userHasEntered=True` (feat-004)
+- [ ] Submitting from `j_v_v_07`, not from the machine's default token account
 - [ ] `./init.sh` green, including the two-run byte-identical check
 - [ ] `scripts/verify_submission.py` run against the **pushed public URL** and passing
 - [ ] Every section above filled in, with no placeholder text left

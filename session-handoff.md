@@ -18,6 +18,7 @@
 - [x] Harness: `AGENTS.md`, `feature_list.json`, `progress.md`, `init.sh`, this file
 - [x] Docs: `README.md`, `docs/COMPETITION.md`, `SUBMISSION.md` skeleton
 - [x] Vendored the official validator and the 39,448-sequence reference set
+- [x] Verified the Kaggle entry (`userHasEntered=True`) and that no dataset is provided
 
 ## Verification Evidence
 
@@ -40,9 +41,9 @@
 
 ## Blockers / Risks
 
-- [ ] **Wrong Kaggle account on this machine** — the token is `prakashchhipa`, the competing
-      account is `j_v_v_07`. Entry status is unverifiable from here, and this token must not be
-      used to submit (one-account rule). See `docs/COMPLIANCE.md` § Account identity.
+- [ ] **Two Kaggle accounts reachable here** — competing account `vijayavallabhj` / `j_v_v_07`
+      (entry verified); the machine default token is `prakashchhipa`. Check `kaggle config view`
+      before trusting an API answer or submitting. See `docs/COMPLIANCE.md` § Account identity.
 - [ ] **Three days left**, and the modelling work has not started.
 - [ ] **One entry per model, no resubmission** — feat-008 is mandatory before feat-010.
 - [ ] **Novelty screen** is the likely failure mode once a model is trained on known AMPs; watch
