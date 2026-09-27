@@ -7,10 +7,11 @@ Competition Track challenge on discovering new antibiotics against drug-resistan
 `uv run generate` produces the two files the organizers validate: a 50,000-sequence library and a
 ranked top-100 list, reproducibly from a fixed seed.
 
-> **Status: initialized, not yet a scientific entry.** The model behind `build_model()` is
-> `RandomBaseline`, a uniform-random placeholder with no expected antimicrobial activity. It is
-> here so a structurally valid submission exists from the first commit. See
-> [feature_list.json](feature_list.json) for what remains.
+> **Status: trained model wired in; ranking still being upgraded.** `uv run generate` now samples
+> from a trained autoregressive Transformer (`checkpoint/generator.pt`), producing novel,
+> cationic/amphipathic peptides. The top-100 is currently ranked by model likelihood as an interim
+> signal — the [APEX](docs/RESEARCH.md) activity oracle replaces it next (feat-013). A
+> `--baseline` flag falls back to the random placeholder. See [feature_list.json](feature_list.json).
 
 ## Quick start
 
@@ -54,7 +55,14 @@ Every flag has a default, so a bare `uv run generate` is a complete run.
 | `--length` | _unset_ | Fix every peptide at exactly this length, overriding the two above |
 | `--out-dir` | `generate` | Output directory |
 | `--reference` | `data/antibacterial.fasta` | Known antibacterial peptides to screen against |
+| `--checkpoint` | `checkpoint/generator.pt` | Trained generator weights |
+| `--temperature` | `1.0` | Sampling temperature (trained generator) |
+| `--top-p` | `1.0` | Nucleus sampling cutoff (trained generator) |
+| `--baseline` | off | Force the random-baseline generator (no checkpoint / no torch needed) |
 | `--skip-validation` | off | Write the files without the local compliance check |
+
+Generation runs on a CUDA GPU when available and falls back to CPU. The full 50k library on CPU is
+slow (tens of minutes); use a GPU for full runs, or `--baseline` / a small `--n-sequences` on CPU.
 
 A quick run while developing:
 
@@ -84,7 +92,7 @@ Do this before submitting. There is one entry per model and no resubmission.
 ├── SUBMISSION.md                   # the required write-up (abstract, data, ranking procedure)
 ├── init.sh                         # install, test, generate, check reproducibility
 ├── feature_list.json, progress.md  # what is done, what is next, with evidence
-├── checkpoint/                     # model weights
+├── checkpoint/generator.pt         # trained generator weights (shipped)
 ├── data/antibacterial.fasta        # 39,448 known antibacterial peptides (reference set)
 ├── scripts/verify_submission.py    # the organizers' validator, vendored
 ├── tests/test_constraints.py       # tests over the compliance layer
@@ -93,7 +101,8 @@ Do this before submitting. There is one entry per model and no resubmission.
     ├── fasta.py                    # FASTA I/O matching the official parser
     ├── data.py                     # training corpus: loading, metadata, disclosure
     ├── paths.py                    # repo-root-aware path resolution
-    ├── model.py                    # PeptideGenerator protocol + RandomBaseline
+    ├── nn.py                       # the AR-Transformer architecture + deterministic sampling
+    ├── model.py                    # PeptideGenerator: TrainedGenerator + RandomBaseline
     └── generate.py                 # the `generate` entry point
 ```
 

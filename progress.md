@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-09-27
-**Active Feature:** feat-011 — wire the trained generator into `generate` (numpy CPU inference)
+**Active Feature:** feat-013 — APEX activity oracle for top-100 ranking (the win lever)
 **Deadline:** 2026-09-30 22:00 UTC (1 October 2026, AOE) — see `docs/COMPETITION.md`
 
 The repository is initialized and produces a structurally valid, reproducible submission. The
@@ -38,6 +38,11 @@ has not started.
       falls from 0.95 (ep10) to 0.50 (ep80) as it memorizes. Early-stopping by val loss saves the
       right checkpoint: `best.pt` has novelty ~0.87, samples valid novel cationic/amphipathic
       peptides on CPU. Weights in `training/runs/` (gitignored).
+- [x] feat-011 — Trained generator WIRED IN. `checkpoint/generator.pt` (gen6, 10.68M) ships; the
+      submission now generates from the trained model, not the placeholder. Deterministic on
+      GPU-if-available else CPU; ranks by model likelihood (interim until APEX). Full gate green:
+      50k byte-identical across two GPU runs, 101 tests. Design driven by `docs/RESEARCH.md`
+      (organizers' baseline = AMP-Diffusion + APEX; our model is CPU-capable, theirs isn't).
 - [x] feat-008 — the organizers' own validator passes against the pushed public repo:
       *"All checks passed. Submission is valid!"* Re-run it after any change to the generator.
 

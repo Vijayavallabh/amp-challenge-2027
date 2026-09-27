@@ -30,10 +30,9 @@ import torch.nn.functional as F
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
-sys.path.insert(0, str(REPO_ROOT / "training"))
 
 from amp_challenge_2027.data import training_sequences  # noqa: E402
-from peptide_lm import (  # noqa: E402
+from amp_challenge_2027.nn import (  # noqa: E402
     PAD, LMConfig, MAX_LEN, PeptideLM, encode, sample,
 )
 

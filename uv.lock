@@ -33,6 +33,7 @@ dependencies = [
     { name = "levenshtein" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "torch" },
 ]
 
 [package.dev-dependencies]
@@ -49,6 +50,7 @@ train = [
 requires-dist = [
     { name = "levenshtein", specifier = ">=0.27.5" },
     { name = "numpy", specifier = ">=2.4.6" },
+    { name = "torch", specifier = ">=2.14.0" },
 ]
 
 [package.metadata.requires-dev]

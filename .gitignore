@@ -21,6 +21,6 @@ submission/
 
 # Training artifacts (offline; weights land in checkpoint/ only when selected)
 training/runs/
-*.pt
+training/**/*.pt
 training/runs_launch.log
 training/*.stdout

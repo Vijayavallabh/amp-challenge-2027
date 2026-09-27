@@ -63,8 +63,8 @@
       "dependencies": [
         "feat-006"
       ],
-      "status": "not-started",
-      "evidence": ""
+      "status": "done",
+      "evidence": "2026-09-27: TrainedGenerator (src/model.py) wired into build_model(); ships checkpoint/generator.pt (gen6, 10.68M params, 41MB, committed). Samples deterministically on GPU-if-available else CPU; ranks by -mean per-residue NLL (interim, until APEX feat-013). build_model falls back to RandomBaseline if checkpoint/torch missing (--baseline forces it). torch promoted to a runtime dep. FULL GATE GREEN: 50k trained generation byte-identical across two GPU runs (library 7f940b99..., top d2b6f1a1...), novelty screen rejected 2925 for top-100, compliance passed, ~2m11s. 101 tests pass (11 new). CI adapted: full-size contract on --baseline, small trained smoke on CPU. Research in docs/RESEARCH.md drove the design (validator has a GPU; our model is CPU-capable, unlike AMP-Diffusion)."
     },
     {
       "id": "feat-012",

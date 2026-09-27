@@ -19,7 +19,7 @@ import numpy as np
 
 from . import constraints as C
 from .fasta import read_sequences, write_fasta
-from .model import PeptideGenerator, RandomBaseline
+from .model import DEFAULT_CHECKPOINT, PeptideGenerator, RandomBaseline, TrainedGenerator
 from .paths import resolve_repo_path
 
 DEFAULT_SEED = 42
@@ -35,11 +35,48 @@ _MAX_ROUNDS = 100
 def build_model(args: argparse.Namespace) -> PeptideGenerator:
     """Return the generator used for a submission.
 
-    This is the one function to change when swapping in a real model. Load weights from
-    ``checkpoint/`` here, using :func:`resolve_repo_path` so the path works regardless of
-    the working directory the organizers run from.
+    Prefers the trained AR-Transformer when its checkpoint is present and ``torch`` imports;
+    otherwise falls back to :class:`RandomBaseline` so a submission is always produced. The
+    choice is printed so a run's provenance is never ambiguous.
     """
-    return RandomBaseline(min_length=args.min_length, max_length=args.max_length)
+    try:
+        checkpoint = resolve_repo_path(args.checkpoint)
+    except FileNotFoundError:
+        checkpoint = None
+
+    if checkpoint is not None and not args.baseline:
+        try:
+            model = TrainedGenerator(
+                checkpoint, min_length=args.min_length, max_length=args.max_length,
+                temperature=args.temperature, top_p=args.top_p,
+            )
+            print(f"Model: {model.name} from {checkpoint} on {model.device}")
+            return model
+        except Exception as exc:  # torch missing, bad checkpoint, no compute -> fall back
+            print(f"WARNING: could not load trained generator ({exc}); using baseline",
+                  file=sys.stderr)
+
+    model = RandomBaseline(min_length=args.min_length, max_length=args.max_length)
+    print(f"Model: {model.name} (fallback placeholder -- no trained checkpoint in use)")
+    return model
+
+
+def set_determinism(seed: int) -> None:
+    """Make sampling reproducible across two runs on the same machine (validator check).
+
+    Seeds torch (CPU and CUDA) and requests deterministic kernels. ``warn_only`` avoids a
+    hard error on any op lacking a deterministic implementation while still pinning the ones
+    that matter; the sampling RNG itself is a seeded generator, so output is stable.
+    """
+    import os
+    os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+    try:
+        import torch
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.use_deterministic_algorithms(True, warn_only=True)
+    except Exception:
+        pass  # torch not installed -> baseline path, nothing to seed
 
 
 def build_library(
@@ -148,6 +185,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="FASTA of known antibacterial peptides (default: %(default)s)")
     parser.add_argument("--skip-validation", action="store_true",
                         help="write the files without running the local compliance check")
+    parser.add_argument("--checkpoint", type=str, default=DEFAULT_CHECKPOINT,
+                        help="trained generator checkpoint (default: %(default)s)")
+    parser.add_argument("--temperature", type=float, default=1.0,
+                        help="sampling temperature for the trained generator (default: %(default)s)")
+    parser.add_argument("--top-p", type=float, default=1.0,
+                        help="nucleus sampling cutoff for the trained generator (default: %(default)s)")
+    parser.add_argument("--baseline", action="store_true",
+                        help="force the random-baseline generator even if a checkpoint exists")
 
     args = parser.parse_args(argv)
     if args.length is not None:
@@ -157,6 +202,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    set_determinism(args.seed)
 
     reference_path = resolve_repo_path(args.reference)
     reference = read_sequences(reference_path)
@@ -165,7 +211,6 @@ def main(argv: list[str] | None = None) -> int:
 
     model = build_model(args)
     rng = np.random.default_rng(args.seed)
-    print(f"Model: {model.name} (seed {args.seed})")
 
     library = build_library(model, args.n_sequences, rng, reference_set)
     library_path = args.out_dir / "library.fasta"

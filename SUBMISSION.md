@@ -30,14 +30,23 @@ designs novel, and how candidates were prioritized._
 
 ## Model
 
-- **Approach:** _e.g. language model, diffusion, VAE, GFlowNet, RL, Bayesian optimization,
-  evolutionary, or a hybrid. **Only generative methods are permitted** — state plainly which
-  generative method this is._
-- **Architecture and size:**
-- **Conditioning or guidance:**
-- **Weights:** _path under `checkpoint/`, and how they were produced_
-- **Entry point:** `uv run generate` → `generate/library.fasta`, `generate/top.fasta`
-- **Seed:** 42 (fixed default; two runs are byte-identical)
+- **Approach:** generative autoregressive language model over the 20-amino-acid alphabet (a
+  generative method, as required). Candidate ranking is being upgraded to the APEX activity oracle
+  (see below and `docs/RESEARCH.md`).
+- **Architecture and size:** decoder-only Transformer (`src/amp_challenge_2027/nn.py`) — 6 layers,
+  d_model 384, 6 heads, ~10.68M parameters, trained from scratch on the AMP corpus.
+- **Conditioning or guidance:** none yet (unconditional sampling with temperature/nucleus controls);
+  property/activity conditioning is planned (feat-012).
+- **Weights:** `checkpoint/generator.pt` — the best-validation checkpoint (early-stopped at epoch 20)
+  of an 8-model ensemble trained one-per-H100; see `docs/MODEL_PLAN.md` and `training/`.
+- **Entry point:** `uv run generate` → `generate/library.fasta`, `generate/top.fasta`. Samples on
+  GPU when available, else CPU. `torch` is a runtime dependency; `--baseline` falls back to a
+  non-neural placeholder.
+- **Seed:** 42 (fixed default). Two runs on the same machine are byte-identical
+  (`torch.use_deterministic_algorithms` + seeded sampling); verified in `./init.sh`.
+- **Note on the generator choice:** the organizers' SOTA baseline (AMP-Diffusion) requires a GPU to
+  generate; this model also runs on CPU, so the submission degrades gracefully. AMP-Diffusion may be
+  added offline as an additional candidate source (feat-012).
 
 ## Training data
 
