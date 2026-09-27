@@ -124,8 +124,8 @@
       "dependencies": [
         "feat-014"
       ],
-      "status": "not-started",
-      "evidence": ""
+      "status": "in-progress",
+      "evidence": "2026-09-27: DRAFTED. SUBMISSION.md filled: abstract, model, training data, library generation, selection & ranking (score=broad_potency-2*P(hemolytic), novelty+diversity screens with actual reject counts 215/69), manual-intervention disclosure (none hand-picked; hemolysis+diversity filters; APEX+HemoPI-2 predictors), reproducibility (official validator PASSED 2026-09-27, all 8 checks). Remaining: team name (participant's choice) + re-run validator immediately before submit."
     },
     {
       "id": "feat-010",
