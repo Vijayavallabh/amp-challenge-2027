@@ -1,0 +1,84 @@
+{
+  "features": [
+    {
+      "id": "feat-001",
+      "name": "uv project bootstrap",
+      "description": "uv-managed package with a committed lock file, Python pinned to 3.11, MIT license, and 'generate' wired as the console entry point exactly as the competition template requires.",
+      "dependencies": [],
+      "status": "done",
+      "evidence": "2026-09-27: `uv init --package`, deps added with `uv add numpy levenshtein` and `uv add --dev pytest`. `uv sync --locked` clean; .python-version=3.11; uv.lock committed; `[project.scripts] generate = amp_challenge_2027.generate:main`."
+    },
+    {
+      "id": "feat-002",
+      "name": "Submission compliance layer",
+      "description": "constraints.py encodes every hard rule from the official verifier (alphabet, 8-50 length, uniqueness, 50,000/100 counts, top-list subset, no exact overlap with the reference set, top-100 at or below 80% Levenshtein identity) with tests.",
+      "dependencies": ["feat-001"],
+      "status": "done",
+      "evidence": "2026-09-27: `uv run pytest -q` -> 45 passed. Mirrors scripts/verify_submission.py, vendored from szczurek-lab/amp-challenge-2027 @ 2026-08-05."
+    },
+    {
+      "id": "feat-003",
+      "name": "Contract-valid baseline generator",
+      "description": "`uv run generate` produces a submission that passes every structural check, so a valid entry exists before any modelling work. The model itself is a uniform-random placeholder with no expected activity.",
+      "dependencies": ["feat-002"],
+      "status": "done",
+      "evidence": "2026-09-27: full run in ~2s. 50,000 records / 50,000 unique / lengths 8-50 / 0 alphabet violations; top.fasta 100 records, all in library. Three fresh processes produced identical md5 (library 6e24c32d5ff6b3988b7a1ef9401f5ab4, top ad0ac45cc621e865636e8bb70b607f24)."
+    },
+    {
+      "id": "feat-004",
+      "name": "Kaggle competition entry",
+      "description": "Accept the competition rules on Kaggle so the entry is registered and the competition data endpoint is reachable. Requires a human to click through; cannot be automated.",
+      "dependencies": [],
+      "status": "blocked",
+      "evidence": "2026-09-27: `kaggle competitions list -s amp-challenge` reports userHasEntered=False, and the data download returns HTTP 403. Blocked on accepting the rules at https://www.kaggle.com/competitions/amp-challenge/rules"
+    },
+    {
+      "id": "feat-005",
+      "name": "Training data acquisition and disclosure",
+      "description": "Pull an AMP training corpus from public sources (DBAASP, APD3, dbAMP, Peptipedia), record provenance and licence terms in SUBMISSION.md, and confirm the corpus is publicly redistributable as the full requirements demand.",
+      "dependencies": ["feat-001"],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-006",
+      "name": "Generative model behind build_model()",
+      "description": "Replace RandomBaseline with a real generative approach reachable through build_model() in generate.py. Weights load from checkpoint/ via resolve_repo_path, sampling is seeded, and output stays byte-identical across runs.",
+      "dependencies": ["feat-005"],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-007",
+      "name": "Candidate ranking for the top 100",
+      "description": "Implement a real score() so the top-100 list is ranked by predicted potency and selectivity rather than arbitrarily. This is what the competition categories actually measure, and 25 of the top 50 are drawn at random for wet-lab testing.",
+      "dependencies": ["feat-006"],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-008",
+      "name": "Official verifier run against the public repo",
+      "description": "Run scripts/verify_submission.py against the pushed GitHub URL, which clones a fresh copy, syncs, generates twice, and checks every rule including reproducibility. This is the same script the organizers run.",
+      "dependencies": ["feat-003"],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-009",
+      "name": "Submission write-up",
+      "description": "Fill in SUBMISSION.md: method abstract, training data and external databases used, the selection and ranking procedure for the top 100, and any manual intervention or computational filters applied. All four are required deliverables.",
+      "dependencies": ["feat-007"],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-010",
+      "name": "Submit",
+      "description": "Upload the 50,000-sequence library and ranked top-100 list on Kaggle, attach the write-up, and grant repository read access to @RasmusML and @szymczakpau. One entry per model, so verify everything first.",
+      "dependencies": ["feat-004", "feat-008", "feat-009"],
+      "status": "not-started",
+      "evidence": ""
+    }
+  ]
+}

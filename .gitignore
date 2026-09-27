@@ -1,0 +1,20 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Generated submission output (regenerate with `uv run generate`)
+generate/
+
+# Local validator scratch space
+submission/
+
+# Test and tooling caches
+.pytest_cache/
+.ruff_cache/

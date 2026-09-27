@@ -1,0 +1,46 @@
+name: verify
+
+# Runs the same path the competition validator takes: sync from the lock file, generate,
+# and confirm a second run is byte-identical. A red build means the submission would be rejected.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Run tests
+        run: uv run pytest -q
+
+      - name: Generate submission
+        run: uv run generate
+
+      - name: Check reproducibility
+        run: |
+          md5sum generate/library.fasta generate/top.fasta > first.md5
+          uv run generate > /dev/null
+          md5sum -c first.md5
+
+      - name: Check submission shape
+        run: |
+          library=$(grep -c '^>' generate/library.fasta)
+          top=$(grep -c '^>' generate/top.fasta)
+          unique=$(grep -v '^>' generate/library.fasta | sort -u | wc -l)
+          echo "library=$library top=$top unique=$unique"
+          test "$library" -eq 50000
+          test "$top" -eq 100
+          test "$unique" -eq 50000
