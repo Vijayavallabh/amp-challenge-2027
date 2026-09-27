@@ -104,8 +104,8 @@
         "feat-011",
         "feat-013"
       ],
-      "status": "not-started",
-      "evidence": ""
+      "status": "in-progress",
+      "evidence": "2026-09-27: APEX ranking wired into generate behind --rank {likelihood,apex} (default likelihood -> shipped submission unchanged/valid). ApexRanker.score = -log10(min-MIC); select_top ranks by it; graceful fallback to likelihood if the oracle can't start. Verified: --rank apex on a 2k pool is byte-identical across two runs; top-20 median min-MIC 4.3 uM (vs likelihood ~178). Diagnostic: APEX favours Arg/Trp/Lys cationic motifs (hemolysis risk + motif redundancy) -> NEXT add SW diversity + hemolysis/selectivity before flipping default. 108 tests pass."
     },
     {
       "id": "feat-008",

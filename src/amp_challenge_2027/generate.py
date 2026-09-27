@@ -19,7 +19,13 @@ import numpy as np
 
 from . import constraints as C
 from .fasta import read_sequences, write_fasta
-from .model import DEFAULT_CHECKPOINT, PeptideGenerator, RandomBaseline, TrainedGenerator
+from .model import (
+    DEFAULT_CHECKPOINT,
+    ApexRanker,
+    PeptideGenerator,
+    RandomBaseline,
+    TrainedGenerator,
+)
 from .paths import resolve_repo_path
 
 DEFAULT_SEED = 42
@@ -58,6 +64,27 @@ def build_model(args: argparse.Namespace) -> PeptideGenerator:
 
     model = RandomBaseline(min_length=args.min_length, max_length=args.max_length)
     print(f"Model: {model.name} (fallback placeholder -- no trained checkpoint in use)")
+    return model
+
+
+def build_ranker(model: PeptideGenerator, args: argparse.Namespace):
+    """Return the object whose ``.score`` ranks the top-100 (the seam ``select_top`` uses).
+
+    ``--rank apex`` ranks by APEX-predicted potency -- the wet-lab-aligned signal, and a large
+    improvement over model likelihood (see ``docs/RESEARCH.md``). If the APEX oracle cannot be
+    started (its isolated env fails to sync, no compute, ...), we fall back to the model's own
+    likelihood ranking so a valid submission is still produced. ``--rank likelihood`` uses the
+    generator's likelihood directly.
+    """
+    if args.rank == "apex":
+        try:
+            ranker = ApexRanker(args.apex_dir)
+            print(f"Ranking: {ranker.name} (APEX-predicted MIC)")
+            return ranker
+        except Exception as exc:  # noqa: BLE001 -- any failure must degrade, not crash
+            print(f"WARNING: APEX ranker unavailable ({exc}); ranking by likelihood",
+                  file=sys.stderr)
+    print(f"Ranking: {model.name} likelihood")
     return model
 
 
@@ -119,20 +146,23 @@ def build_library(
 
 def select_top(
     library: list[str],
-    model: PeptideGenerator,
+    ranker,
     top_k: int,
     reference: list[str],
 ) -> list[str]:
     """Rank the library and return the best ``top_k`` that clear the novelty screen.
 
+    ``ranker`` is anything with a ``.score(sequences) -> list[float]`` (higher = better):
+    the generator itself (likelihood) or :class:`~amp_challenge_2027.model.ApexRanker`.
+
     The top list is held to a stricter standard than the library: no sequence may exceed
     80% Levenshtein identity with any known antibacterial peptide. Candidates that fail
     are skipped and the next-best takes the slot, which is what the rules prescribe.
     """
-    scores = model.score(library)
+    scores = ranker.score(library)
     if len(scores) != len(library):
         raise ValueError(
-            f"model.score returned {len(scores)} scores for {len(library)} sequences"
+            f"ranker.score returned {len(scores)} scores for {len(library)} sequences"
         )
 
     # Sort by descending score, then by sequence to break ties deterministically.
@@ -193,6 +223,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="nucleus sampling cutoff for the trained generator (default: %(default)s)")
     parser.add_argument("--baseline", action="store_true",
                         help="force the random-baseline generator even if a checkpoint exists")
+    parser.add_argument("--rank", choices=("likelihood", "apex"), default="likelihood",
+                        help="how to rank the top-%(default)s list: 'apex' = APEX-predicted MIC "
+                             "(wet-lab-aligned), 'likelihood' = generator likelihood "
+                             "(default: %(default)s)")
+    parser.add_argument("--apex-dir", type=str, default="oracle/apex",
+                        help="APEX oracle project directory, used when --rank apex "
+                             "(default: %(default)s)")
 
     args = parser.parse_args(argv)
     if args.length is not None:
@@ -217,7 +254,8 @@ def main(argv: list[str] | None = None) -> int:
     write_fasta(library, library_path)
     print(f"Library: {len(library)} sequences -> {library_path}")
 
-    top = select_top(library, model, args.top_k, reference)
+    ranker = build_ranker(model, args)
+    top = select_top(library, ranker, args.top_k, reference)
     top_path = args.out_dir / "top.fasta"
     write_fasta(top, top_path)
     print(f"Top list: {len(top)} sequences -> {top_path}")

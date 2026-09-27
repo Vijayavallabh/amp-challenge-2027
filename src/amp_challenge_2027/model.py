@@ -142,3 +142,28 @@ class TrainedGenerator:
     def score(self, sequences: list[str]) -> list[float]:
         nll = self._nn.sequence_nll(self.model, sequences, device=self.device)
         return [-x for x in nll]  # higher is better
+
+
+class ApexRanker:
+    """Ranks candidates by APEX-predicted antimicrobial potency (higher = more potent).
+
+    A *ranker*, not a generator: it only implements ``score`` (the seam ``select_top`` uses),
+    delegating to :class:`~amp_challenge_2027.oracle.ApexScorer`. The score is
+    ``-log10(best-pathogen MIC)`` -- the aggregate the validation in ``docs/RESEARCH.md`` found
+    most discriminating. Scoring is deterministic (APEX on CPU, ``.eval()``), so the two-run
+    byte comparison still holds. Used for the top-100 ranking, which is what the wet lab tests;
+    the library itself is unaffected.
+    """
+
+    name = "apex-mic"
+
+    def __init__(self, apex_dir: str | Path = "oracle/apex", *, device: str = "cpu") -> None:
+        from .oracle import ApexScorer  # lazy: keeps model.py importable without the oracle
+
+        self._oracle = ApexScorer(apex_dir, device=device)
+
+    def score(self, sequences: list[str]) -> list[float]:
+        from .oracle import potency_score
+
+        mic = self._oracle.predict_mic(sequences)
+        return potency_score(mic).tolist()
