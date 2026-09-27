@@ -104,6 +104,12 @@ pre-filtered to the competition constraints (20 standard residues, length 8–50
   is highly valid and diverse, so the library fills in a few over-drawn rounds (over-draw factor
   1.2). Rejections are duplicates, the rare invalid sequence, and any exact match to the reference
   set. The library is 50,000 unique valid sequences; a fresh run reproduces it byte-for-byte.
+- **Library characterization (for the phase-1 diversity/novelty/physicochemical screen):** highly
+  **diverse** (median pairwise Levenshtein identity 0.24; 0.1% of pairs above 0.6), highly **novel**
+  (median max-identity to any known AMP 0.23, 90th percentile 0.40, none above 0.80), and
+  physicochemically **AMP-like** — 77% net-positive charge (matching the training corpus), length
+  8–50 (mean 18), moderate hydrophobicity. So the library is not merely valid but distributionally
+  realistic and non-redundant.
 
 ## Selection and ranking of the top 100
 
