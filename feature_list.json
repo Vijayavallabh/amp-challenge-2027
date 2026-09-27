@@ -48,8 +48,38 @@
     },
     {
       "id": "feat-006",
-      "name": "Generative model behind build_model()",
-      "description": "Replace RandomBaseline with a real generative approach reachable through build_model() in generate.py. Train on data.training_sequences(); the model MUST generalize beyond the corpus because that corpus is also the novelty screen reference (see docs/DATA.md). Weights load from checkpoint/ via resolve_repo_path (now in paths.py), sampling is seeded, output byte-identical across runs.",
+      "name": "Generator: training scaffold + AR Transformer",
+      "description": "From-scratch autoregressive Transformer LM over the 20-AA alphabet, defined in the package (nn.py) so inference is torch-only, deterministic and CPU-runnable. Trained on data.training_sequences() across all 8 H100s. Novelty via temperature/nucleus sampling. See docs/MODEL_PLAN.md. Must generalize past the corpus (it doubles as the novelty screen).",
+      "dependencies": [
+        "feat-005"
+      ],
+      "status": "done",
+      "evidence": "2026-09-27: 8-model AR-Transformer ensemble (10.68M params each, d_model=384/6 layers) trained one-per-H100 in ~135s wall via training/launch_ensemble.py. Best-val checkpoints all at epoch 20 (val_loss 1.83-1.89); val loss rises after ~epoch 20 while novelty falls (0.95@ep10 -> 0.50@ep80) -- clear overfitting on 37k seqs, so best.pt (early-stopped by val loss) is the checkpoint to use: novelty ~0.87, uniq ~0.96. best.pt reloads and samples valid novel peptides on CPU (86.4% exact-novel; outputs are cationic/amphipathic, e.g. KLALKLALKALKLALKAA). Confirms the torch-train -> CPU-infer path. Weights in training/runs/ (gitignored); export to checkpoint/ npz is feat-011."
+    },
+    {
+      "id": "feat-011",
+      "name": "Deterministic sampling wired into generate",
+      "description": "Load trained weights from checkpoint/ and sample deterministically on CPU inside generate; swap build_model() to the trained generator. Submission stays valid throughout -- swap only after the full gate + official validator + a novelty/diversity check on real output pass.",
+      "dependencies": [
+        "feat-006"
+      ],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-012",
+      "name": "Scale up generator: conditioning + ensemble",
+      "description": "Property-condition the generator (length, net-charge bucket, predicted-activity bucket) and train an ensemble across seeds/sizes; optional ESM-2 fine-tune as a second generator, used offline. Extensive H100 utilization.",
+      "dependencies": [
+        "feat-006"
+      ],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-007",
+      "name": "Acquire & disclose labeled MIC/HC50 data",
+      "description": "Source labeled data for the ranking oracle: MIC per strain (DBAASP) and hemolysis/HC50 (HemoPI, DBAASP hemolytic). Licensing diligence required -- everything must be publicly redistributable for co-authorship; each source gets a docs/DATA.md row with its terms before use. This is the highest-leverage data because top-100 ranking is what gets wet-lab tested.",
       "dependencies": [
         "feat-005"
       ],
@@ -57,11 +87,22 @@
       "evidence": ""
     },
     {
-      "id": "feat-007",
-      "name": "Candidate ranking for the top 100",
-      "description": "Implement a real score() so the top-100 list is ranked by predicted potency and selectivity rather than arbitrarily. This is what the competition categories actually measure, and 25 of the top 50 are drawn at random for wet-lab testing.",
+      "id": "feat-013",
+      "name": "Oracle ensemble: activity + hemolysis predictors",
+      "description": "Fine-tune ESM-2 into an antibacterial/MIC head and a hemolysis/HC50 head, as an ensemble for robust ranking. Report AUROC/accuracy on held-out data. This is the ranking function for the top 100 and the guide for directed generation.",
       "dependencies": [
-        "feat-006"
+        "feat-007"
+      ],
+      "status": "not-started",
+      "evidence": ""
+    },
+    {
+      "id": "feat-014",
+      "name": "Oracle-guided selection & diversity",
+      "description": "Oversample millions of candidates, filter valid+novel, score with the oracle ensemble, and select a diverse high-activity/low-hemolysis top 100 and a diverse novel 50k library. Identity-cluster to avoid near-duplicate top-100 entries.",
+      "dependencies": [
+        "feat-011",
+        "feat-013"
       ],
       "status": "not-started",
       "evidence": ""
@@ -81,7 +122,7 @@
       "name": "Submission write-up",
       "description": "Fill in SUBMISSION.md: method abstract, training data and external databases used, the selection and ranking procedure for the top 100, and any manual intervention or computational filters applied. All four are required deliverables.",
       "dependencies": [
-        "feat-007"
+        "feat-014"
       ],
       "status": "not-started",
       "evidence": ""

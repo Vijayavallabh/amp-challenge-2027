@@ -18,3 +18,9 @@ submission/
 # Test and tooling caches
 .pytest_cache/
 .ruff_cache/
+
+# Training artifacts (offline; weights land in checkpoint/ only when selected)
+training/runs/
+*.pt
+training/runs_launch.log
+training/*.stdout

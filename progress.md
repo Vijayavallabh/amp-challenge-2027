@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-09-27
-**Active Feature:** feat-006 — Generative model behind build_model()
+**Active Feature:** feat-011 — wire the trained generator into `generate` (numpy CPU inference)
 **Deadline:** 2026-09-30 22:00 UTC (1 October 2026, AOE) — see `docs/COMPETITION.md`
 
 The repository is initialized and produces a structurally valid, reproducible submission. The
@@ -33,6 +33,11 @@ has not started.
       BSD-3, the organizers' own aggregation of dbAMP/DRAMP/DBAASP/CAMP/APD/+8) loaded via
       `src/amp_challenge_2027/data.py` with full metadata and a deterministic, valid, deduplicated
       `training_sequences()` accessor. Data card in `docs/DATA.md`; disclosed in `SUBMISSION.md`.
+- [x] feat-006 — Generator ensemble trained. 8 AR-Transformers (10.68M params) one-per-H100 in
+      ~135s. **Finding:** overfits fast on 37k seqs — val loss best at epoch 20 (~1.85), novelty
+      falls from 0.95 (ep10) to 0.50 (ep80) as it memorizes. Early-stopping by val loss saves the
+      right checkpoint: `best.pt` has novelty ~0.87, samples valid novel cationic/amphipathic
+      peptides on CPU. Weights in `training/runs/` (gitignored).
 - [x] feat-008 — the organizers' own validator passes against the pushed public repo:
       *"All checks passed. Submission is valid!"* Re-run it after any change to the generator.
 
