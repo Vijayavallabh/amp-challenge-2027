@@ -15,8 +15,20 @@ import numpy as np
 import pytest
 
 from amp_challenge_2027 import oracle as O
-from amp_challenge_2027.generate import build_ranker, parse_args
+from amp_challenge_2027.generate import build_ranker, parse_args, select_top
 from amp_challenge_2027.model import RandomBaseline
+
+
+class _FixedRanker:
+    """Ranks by a fixed score map (higher = better); for testing selection logic."""
+
+    name = "fixed"
+
+    def __init__(self, scores: dict[str, float]) -> None:
+        self._scores = scores
+
+    def score(self, sequences: list[str]) -> list[float]:
+        return [self._scores[s] for s in sequences]
 
 # a 3-peptide x 11-pathogen MIC matrix: potent / mixed / inactive
 MIC = np.array([
@@ -59,6 +71,27 @@ class TestBuildRanker:
     def test_apex_ranker_raises_on_missing_dir(self, tmp_path):
         with pytest.raises(O.ApexUnavailable):
             O.ApexScorer(tmp_path)
+
+
+class TestDiversityScreen:
+    # highest-scored two are near-duplicates (0.9 identity); third is distinct.
+    LIB = ["AAAAAAAAAA", "AAAAAAAAAC", "KLWKKLLKKL"]
+    SCORES = {"AAAAAAAAAA": 3.0, "AAAAAAAAAC": 2.0, "KLWKKLLKKL": 1.0}
+
+    def test_without_cap_takes_the_near_duplicate(self):
+        top = select_top(self.LIB, _FixedRanker(self.SCORES), 2, [])
+        assert top == ["AAAAAAAAAA", "AAAAAAAAAC"]        # by score, duplicates kept
+
+    def test_cap_skips_near_duplicate_keeps_more_active(self):
+        top = select_top(self.LIB, _FixedRanker(self.SCORES), 2, [],
+                         diversity_max_identity=0.8)
+        # the 0.9-identity runner-up is skipped; the distinct third fills the slot
+        assert top == ["AAAAAAAAAA", "KLWKKLLKKL"]
+
+    def test_cap_is_deterministic(self):
+        a = select_top(self.LIB, _FixedRanker(self.SCORES), 2, [], diversity_max_identity=0.8)
+        b = select_top(self.LIB, _FixedRanker(self.SCORES), 2, [], diversity_max_identity=0.8)
+        assert a == b
 
 
 @pytest.mark.skipif(

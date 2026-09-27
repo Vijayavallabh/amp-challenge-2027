@@ -149,6 +149,8 @@ def select_top(
     ranker,
     top_k: int,
     reference: list[str],
+    *,
+    diversity_max_identity: float | None = None,
 ) -> list[str]:
     """Rank the library and return the best ``top_k`` that clear the novelty screen.
 
@@ -158,6 +160,13 @@ def select_top(
     The top list is held to a stricter standard than the library: no sequence may exceed
     80% Levenshtein identity with any known antibacterial peptide. Candidates that fail
     are skipped and the next-best takes the slot, which is what the rules prescribe.
+
+    ``diversity_max_identity`` (when set) additionally enforces *within-list* diversity: a
+    candidate is skipped if its Levenshtein identity to an already-selected peptide exceeds
+    the threshold. This matters because a strong activity ranker (APEX) concentrates the top
+    of the list into one sequence motif, and only 25 of the top 50 are assayed at random --
+    a redundant list wastes draws on near-duplicates. Selection stays greedy and
+    deterministic: the more-active peptide of any near-duplicate pair is kept.
     """
     scores = ranker.score(library)
     if len(scores) != len(library):
@@ -170,23 +179,37 @@ def select_top(
 
     selected: list[str] = []
     rejected = 0
+    rejected_div = 0
     for _, seq in ranked:
         if len(selected) == top_k:
             break
-        if C.is_novel_enough(seq, reference):
-            selected.append(seq)
-        else:
+        if not C.is_novel_enough(seq, reference):
             rejected += 1
+            continue
+        if diversity_max_identity is not None and selected and (
+            C.max_identity(seq, selected, cutoff=diversity_max_identity)
+            >= diversity_max_identity
+        ):
+            rejected_div += 1
+            continue
+        selected.append(seq)
 
     if len(selected) < top_k:
+        extra = (
+            f" and {rejected_div} for exceeding the {diversity_max_identity:.0%} diversity cap"
+            if diversity_max_identity is not None else ""
+        )
         raise RuntimeError(
             f"only {len(selected)} of {top_k} ranked candidates cleared the "
-            f"{C.MAX_TOP_IDENTITY:.0%} novelty screen ({rejected} rejected) -- the library "
-            f"is too close to known antibacterial peptides"
+            f"{C.MAX_TOP_IDENTITY:.0%} novelty screen ({rejected} rejected{extra}) -- the "
+            f"library is too close to known antibacterial peptides"
         )
 
     if rejected:
         print(f"  novelty screen rejected {rejected} higher-ranked candidate(s)")
+    if rejected_div:
+        print(f"  diversity screen rejected {rejected_div} near-duplicate candidate(s) "
+              f"(> {diversity_max_identity:.0%} identity to a kept peptide)")
     return selected
 
 
@@ -230,6 +253,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--apex-dir", type=str, default="oracle/apex",
                         help="APEX oracle project directory, used when --rank apex "
                              "(default: %(default)s)")
+    parser.add_argument("--diversity-max-identity", type=float, default=None,
+                        help="cap within-top-list Levenshtein identity: skip a candidate too "
+                             "similar to an already-selected one, keeping the more-active of a "
+                             "near-duplicate pair (default: %(default)s, meaning no diversity cap)")
 
     args = parser.parse_args(argv)
     if args.length is not None:
@@ -255,7 +282,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Library: {len(library)} sequences -> {library_path}")
 
     ranker = build_ranker(model, args)
-    top = select_top(library, ranker, args.top_k, reference)
+    top = select_top(library, ranker, args.top_k, reference,
+                     diversity_max_identity=args.diversity_max_identity)
     top_path = args.out_dir / "top.fasta"
     write_fasta(top, top_path)
     print(f"Top list: {len(top)} sequences -> {top_path}")
