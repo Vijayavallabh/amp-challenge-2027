@@ -246,17 +246,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="nucleus sampling cutoff for the trained generator (default: %(default)s)")
     parser.add_argument("--baseline", action="store_true",
                         help="force the random-baseline generator even if a checkpoint exists")
-    parser.add_argument("--rank", choices=("likelihood", "apex"), default="likelihood",
-                        help="how to rank the top-%(default)s list: 'apex' = APEX-predicted MIC "
-                             "(wet-lab-aligned), 'likelihood' = generator likelihood "
-                             "(default: %(default)s)")
+    parser.add_argument("--rank", choices=("likelihood", "apex"), default="apex",
+                        help="how to rank the top list: 'apex' = APEX-predicted MIC "
+                             "(wet-lab-aligned; falls back to likelihood if the oracle can't "
+                             "start), 'likelihood' = generator likelihood (default: %(default)s)")
     parser.add_argument("--apex-dir", type=str, default="oracle/apex",
                         help="APEX oracle project directory, used when --rank apex "
                              "(default: %(default)s)")
-    parser.add_argument("--diversity-max-identity", type=float, default=None,
+    parser.add_argument("--diversity-max-identity", type=float, default=0.6,
                         help="cap within-top-list Levenshtein identity: skip a candidate too "
                              "similar to an already-selected one, keeping the more-active of a "
-                             "near-duplicate pair (default: %(default)s, meaning no diversity cap)")
+                             "near-duplicate pair. Set to a value >= 1 to disable "
+                             "(default: %(default)s)")
 
     args = parser.parse_args(argv)
     if args.length is not None:

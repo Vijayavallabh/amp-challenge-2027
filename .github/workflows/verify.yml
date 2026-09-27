@@ -46,9 +46,12 @@ jobs:
           test "$unique" -eq 50000
 
       - name: Trained-generator smoke + reproducibility (small, CPU)
+        # --rank likelihood keeps CI APEX-free and fast: the APEX ranker runs in its own
+        # heavy isolated env (torch 2.5.1) and is a GPU-adjacent workload, so its full path is
+        # verified locally by ./init.sh and by the organizers' validator, not in CPU CI.
         run: |
-          uv run generate --n-sequences 128 --top-k 16 --out-dir smoke
+          uv run generate --n-sequences 128 --top-k 16 --rank likelihood --out-dir smoke
           md5sum smoke/library.fasta smoke/top.fasta > smoke.md5
-          uv run generate --n-sequences 128 --top-k 16 --out-dir smoke > /dev/null
+          uv run generate --n-sequences 128 --top-k 16 --rank likelihood --out-dir smoke > /dev/null
           md5sum -c smoke.md5
           test "$(grep -c '^>' smoke/library.fasta)" -eq 128

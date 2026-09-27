@@ -7,11 +7,14 @@ Competition Track challenge on discovering new antibiotics against drug-resistan
 `uv run generate` produces the two files the organizers validate: a 50,000-sequence library and a
 ranked top-100 list, reproducibly from a fixed seed.
 
-> **Status: trained model wired in; ranking still being upgraded.** `uv run generate` now samples
-> from a trained autoregressive Transformer (`checkpoint/generator.pt`), producing novel,
-> cationic/amphipathic peptides. The top-100 is currently ranked by model likelihood as an interim
-> signal — the [APEX](docs/RESEARCH.md) activity oracle replaces it next (feat-013). A
-> `--baseline` flag falls back to the random placeholder. See [feature_list.json](feature_list.json).
+> **Status: trained generator + APEX activity ranking.** `uv run generate` samples from a trained
+> autoregressive Transformer (`checkpoint/generator.pt`) — novel, cationic/amphipathic peptides —
+> and ranks the top-100 by **APEX**-predicted MIC across the 11-pathogen panel (the wet-lab-aligned
+> oracle, run as an isolated subprocess; see [docs/RESEARCH.md](docs/RESEARCH.md)), with a
+> within-list diversity screen. This replaced model-likelihood ranking, which sat at only the ~30th
+> percentile of predicted potency. Selectivity (hemolysis) is next (feat-013). `--rank likelihood`
+> or `--baseline` fall back if the oracle/checkpoint are unavailable. See
+> [feature_list.json](feature_list.json).
 
 ## Quick start
 
@@ -58,6 +61,9 @@ Every flag has a default, so a bare `uv run generate` is a complete run.
 | `--checkpoint` | `checkpoint/generator.pt` | Trained generator weights |
 | `--temperature` | `1.0` | Sampling temperature (trained generator) |
 | `--top-p` | `1.0` | Nucleus sampling cutoff (trained generator) |
+| `--rank` | `apex` | Top-100 ranking: `apex` (predicted MIC) or `likelihood` (generator) |
+| `--apex-dir` | `oracle/apex` | APEX oracle project (isolated env), used when `--rank apex` |
+| `--diversity-max-identity` | `0.6` | Cap pairwise identity within the top-100; `>=1` disables |
 | `--baseline` | off | Force the random-baseline generator (no checkpoint / no torch needed) |
 | `--skip-validation` | off | Write the files without the local compliance check |
 
