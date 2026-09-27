@@ -153,3 +153,21 @@ generator; they rank and validate.
 - **`mic.csv`** is used only to *validate* the oracle (see `docs/RESEARCH.md` § APEX validation),
   never as training data. `mic_relation = ">"` marks a right-censored result (no inhibition up
   to the 64 µM assay ceiling). Attribution: Torres et al. 2025 (CC BY 4.0).
+
+### Hemolysis / selectivity model data (feat-013)
+
+The shipped selectivity model (`checkpoint/hemolysis.pt`, an 11-descriptor MLP) is trained on
+**HemoPI-2** — 442+110 high-hemolytic and 370+92 low-hemolytic real peptides from Hemolytik,
+with the standard train / held-out-validation split. It is used to rank *degree* of hemolysis
+among active peptides (the Optimal Selectivity category), not as generator training data.
+
+| Asset | Path | Origin | Licence | Redistributable |
+|---|---|---|---|---|
+| HemoPI-1/2 peptide sets | `data/hemolysis/HemoPI*.fasta` | Plisson et al., *Sci. Rep.* 2020 (`plissonf/ML-guided-...-non-hemolytic-peptides`), compiled from the Raghava-lab HemoPI / Hemolytik | **MIT** | **Yes** |
+
+**Why HemoPI-2, not HemoPI-1.** HemoPI-1's negatives are random SwissProt fragments, so a model
+trained on it learns "AMP-like ⇒ hemolytic" (it scored 99% of our APEX-active peptides as
+hemolytic — useless for ranking selectivity *among* actives). HemoPI-2 discriminates high vs low
+hemolytic potency between real peptides, giving a usable spread. Held-out AUROC 0.778 (moderate;
+the harder, relevant task). Full rationale and the activity/selectivity trade-off in
+`docs/RESEARCH.md`.

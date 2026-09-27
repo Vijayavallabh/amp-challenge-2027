@@ -78,8 +78,20 @@ def build_ranker(model: PeptideGenerator, args: argparse.Namespace):
     """
     if args.rank == "apex":
         try:
-            ranker = ApexRanker(args.apex_dir)
-            print(f"Ranking: {ranker.name} (APEX-predicted MIC)")
+            hemo = None
+            if args.hemolysis_penalty > 0:
+                try:
+                    from .hemolysis import HemolysisScorer
+                    hemo = HemolysisScorer(args.hemolysis_checkpoint)
+                except Exception as exc:  # noqa: BLE001 -- degrade to activity-only ranking
+                    print(f"WARNING: hemolysis model unavailable ({exc}); ranking on activity "
+                          f"only", file=sys.stderr)
+            ranker = ApexRanker(
+                args.apex_dir,
+                hemolysis_scorer=hemo,
+                hemolysis_penalty=args.hemolysis_penalty if hemo is not None else 0.0,
+            )
+            print(f"Ranking: {ranker.name}")
             return ranker
         except Exception as exc:  # noqa: BLE001 -- any failure must degrade, not crash
             print(f"WARNING: APEX ranker unavailable ({exc}); ranking by likelihood",
@@ -253,6 +265,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--apex-dir", type=str, default="oracle/apex",
                         help="APEX oracle project directory, used when --rank apex "
                              "(default: %(default)s)")
+    parser.add_argument("--hemolysis-penalty", type=float, default=2.0,
+                        help="selectivity weight lambda: rank by APEX broad-potency minus "
+                             "lambda * P(hemolytic), so less-hemolytic actives rank higher "
+                             "(serves the Optimal Selectivity category). 0 disables "
+                             "(default: %(default)s). Only used with --rank apex.")
+    parser.add_argument("--hemolysis-checkpoint", type=str, default="checkpoint/hemolysis.pt",
+                        help="hemolysis/selectivity model weights (default: %(default)s)")
     parser.add_argument("--diversity-max-identity", type=float, default=0.6,
                         help="cap within-top-list Levenshtein identity: skip a candidate too "
                              "similar to an already-selected one, keeping the more-active of a "

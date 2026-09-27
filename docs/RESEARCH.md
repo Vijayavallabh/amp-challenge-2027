@@ -91,3 +91,24 @@ and adding the selectivity axis. The 8×H100s are used **offline** to improve th
 generator/selection policy (ensemble, conditioning, threshold tuning), not to bake a static
 output. The current likelihood ranking stays the default until the APEX path passes the full
 gate + the official validator on a fresh clone.
+
+## Selectivity / hemolysis (2026-09-27, feat-013)
+
+Optimal Selectivity is scored by the safety window HC50/MIC50, and APEX favours hyper-cationic,
+hydrophobic peptides — the hemolysis-prone kind — so an orthogonal hemolysis signal both opens
+that category and de-risks the top-100. A lean 11-descriptor MLP (`physchem` features, ships in
+the main env, deterministic CPU) predicts P(hemolytic).
+
+**Dataset bias, caught and fixed.** Trained on HemoPI-1 (hemolytic vs *random* non-hemolytic) the
+model hit held-out AUROC 0.987 but scored 99% of our APEX-active peptides ~1.0 — it had learned
+"AMP-like ⇒ hemolytic" (the negatives are non-AMP random fragments), useless for ranking among
+actives. Retrained on **HemoPI-2** (high vs low hemolytic potency, both real peptides): held-out
+AUROC 0.778, and a genuine spread among active peptides (P percentiles 0.13/0.41/0.75/0.95/0.99).
+Moderate accuracy → used as a *soft* signal, not an authority.
+
+**Activity/selectivity trade-off (tuned on a 20k pool).** Ranking by
+`broad_potency − λ·P(hemolytic)`: at λ=2 the top-100 stays 100% active with mean predicted
+breadth 5.26→4.62 (~12% cost) while mean P(hemolytic) halves 0.73→0.36 and strongly-selective
+peptides (P<0.3) rise 12→53. λ=2 is the shipped default (4 of 5 categories are activity and the
+hemolysis signal is noisier than APEX, so the nudge is deliberately modest); tunable via
+`--hemolysis-penalty`.

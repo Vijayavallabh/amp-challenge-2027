@@ -15,11 +15,14 @@ Both must be deterministic so the organizers' twice-run byte comparison passes.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 import numpy as np
 
 from .constraints import ALPHABET, MAX_LENGTH, MIN_LENGTH
+
+if TYPE_CHECKING:
+    from .hemolysis import HemolysisScorer
 
 DEFAULT_CHECKPOINT = "checkpoint/generator.pt"
 
@@ -159,13 +162,34 @@ class ApexRanker:
 
     name = "apex-mic"
 
-    def __init__(self, apex_dir: str | Path = "oracle/apex", *, device: str = "cpu") -> None:
+    def __init__(
+        self,
+        apex_dir: str | Path = "oracle/apex",
+        *,
+        device: str = "cpu",
+        hemolysis_scorer: "HemolysisScorer | None" = None,
+        hemolysis_penalty: float = 0.0,
+    ) -> None:
         from .oracle import ApexScorer  # lazy: keeps model.py importable without the oracle
 
         self._oracle = ApexScorer(apex_dir, device=device)
+        # Optional selectivity penalty: subtract lambda * P(hemolytic) from the activity score,
+        # so that among comparably active peptides the less hemolytic ones rank higher. This
+        # serves the Optimal Selectivity category and removes likely-toxic peptides, at a small
+        # activity cost. The hemolysis signal is moderate (see docs/RESEARCH.md), so it is a
+        # nudge, not an authority -- lambda is kept modest and the peptides stay APEX-active.
+        self._hemo = hemolysis_scorer
+        self._lam = float(hemolysis_penalty)
+        if self._hemo is not None and self._lam > 0:
+            self.name = f"apex-mic - {self._lam:g}*hemolysis"
 
     def score(self, sequences: list[str]) -> list[float]:
         from .oracle import broad_potency_score
 
         mic = self._oracle.predict_mic(sequences)
-        return broad_potency_score(mic).tolist()
+        scores = broad_potency_score(mic)
+        if self._hemo is not None and self._lam > 0:
+            import numpy as np
+
+            scores = scores - self._lam * np.asarray(self._hemo.predict_proba(sequences))
+        return scores.tolist()
