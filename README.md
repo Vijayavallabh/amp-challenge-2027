@@ -61,7 +61,9 @@ Every flag has a default, so a bare `uv run generate` is a complete run.
 | `--checkpoint` | `checkpoint/generator.pt` | Trained generator weights |
 | `--temperature` | `1.0` | Sampling temperature (trained generator) |
 | `--top-p` | `1.0` | Nucleus sampling cutoff (trained generator) |
+| `--oversample` | `3.0` | Pick the top-100 from this multiple of `--n-sequences` candidates (larger pool → stronger top list); `1.0` disables |
 | `--rank` | `apex` | Top-100 ranking: `apex` (predicted MIC) or `likelihood` (generator) |
+| `--hemolysis-penalty` | `2.0` | Selectivity weight λ: rank by `broad_potency − λ·P(hemolytic)`; `0` disables |
 | `--apex-dir` | `oracle/apex` | APEX oracle project (isolated env), used when `--rank apex` |
 | `--diversity-max-identity` | `0.6` | Cap pairwise identity within the top-100; `>=1` disables |
 | `--baseline` | off | Force the random-baseline generator (no checkpoint / no torch needed) |

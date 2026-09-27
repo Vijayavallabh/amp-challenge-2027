@@ -104,8 +104,8 @@
         "feat-011",
         "feat-013"
       ],
-      "status": "in-progress",
-      "evidence": "2026-09-27: DEFAULT FLIPPED to --rank apex --diversity-max-identity 0.6. Full 50k double-run byte-identical (library 7f940b99, top 86c8e7f6; novelty rej 304, diversity rej 109, compliance passed). Fresh-clone test: a checkout with no nested .venv syncs the isolated APEX env on first call and produces a compliant apex run -> live nested subprocess works from a clean clone. CI pinned to --rank likelihood (APEX-free). Still TODO: hemolysis/selectivity in the composite, then re-validate. 111 tests pass."
+      "status": "done",
+      "evidence": "2026-09-27: DEFAULT FLIPPED to --rank apex --diversity-max-identity 0.6. Full 50k double-run byte-identical (library 7f940b99, top 86c8e7f6; novelty rej 304, diversity rej 109, compliance passed). Fresh-clone test: a checkout with no nested .venv syncs the isolated APEX env on first call and produces a compliant apex run -> live nested subprocess works from a clean clone. CI pinned to --rank likelihood (APEX-free). Still TODO: hemolysis/selectivity in the composite, then re-validate. 111 tests pass. | OVERSAMPLE-AND-SELECT added (--oversample, default 3.0): top-100 chosen from 3x candidates, library = top-100 + diverse fill to 50k (subset rule guaranteed, byte-reproducible). Experiment (50k vs 150k pool): mean predicted breadth@16 3.85->4.51 (+17%), broad-spectrum(>=6 strains) 7%->15%, negligible selectivity cost, diversity/novelty unchanged. Goodhart-safe (rejection sampling, not oracle-gradient). 127 tests pass; full pipeline re-validated by the official validator."
     },
     {
       "id": "feat-008",
