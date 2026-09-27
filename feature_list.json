@@ -83,18 +83,18 @@
       "dependencies": [
         "feat-005"
       ],
-      "status": "not-started",
-      "evidence": ""
+      "status": "done",
+      "evidence": "2026-09-27: DONE. Oracle + validation data acquired and disclosed. APEX-pathogen 8-model MIC ensemble (MIT, de la Fuente lab) vendored to oracle/apex/ as an isolated uv project (torch==2.5.1/numpy<2/py3.10), weights committed directly (no LFS - validator does a plain git clone). data/experimental/mic.csv (CC BY 4.0, Torres 2025; 46 peptides x 11 pathogens, 506 rows) for oracle validation. Both redistributable -> co-authorship preserved; disclosed in docs/DATA.md. VALIDATED (docs/RESEARCH.md): APEX AUROC 0.76 known-AMP-vs-random, 0.62 (peptide,strain) inhibition on novel peptides; min-MIC discriminates, mean-MIC does not; APEX ranking beats likelihood massively (median min-MIC 178->2.6 uM, 0/100 overlap on a real 20k pool)."
     },
     {
       "id": "feat-013",
-      "name": "Oracle ensemble: activity + hemolysis predictors",
-      "description": "Fine-tune ESM-2 into an antibacterial/MIC head and a hemolysis/HC50 head, as an ensemble for robust ranking. Report AUROC/accuracy on held-out data. This is the ranking function for the top 100 and the guide for directed generation.",
+      "name": "Oracle: APEX activity (+ hemolysis/selectivity)",
+      "description": "Rank the top-100 by a real activity oracle instead of generator likelihood. EVIDENCE-BASED PIVOT from 'train an ESM-2 MIC head': APEX-pathogen (organizer-provided, wet-lab-aligned, 11-pathogen panel) is a better activity oracle than anything trainable on 46 MIC peptides, so wrap it (src/amp_challenge_2027/oracle.py, isolated uv subprocess, deterministic CPU). Still ADD a hemolysis/selectivity predictor (orthogonal to APEX, for the Optimal Selectivity category) - the one model worth training. Report validation metrics.",
       "dependencies": [
         "feat-007"
       ],
-      "status": "not-started",
-      "evidence": ""
+      "status": "in-progress",
+      "evidence": "2026-09-27: ACTIVITY ORACLE DONE. src/amp_challenge_2027/oracle.py wraps APEX (ApexScorer): per-pathogen MIC matrix + min/mean/breadth/potency_score aggregates; dedups and maps back to input order; deterministic across calls (verified); first call auto-syncs the nested env from the committed uv.lock (the validator's fresh-clone scenario). Canonical check: LL-37 min 6.4 / poly-G min 431. PENDING: hemolysis/selectivity predictor + tests."
     },
     {
       "id": "feat-014",

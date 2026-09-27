@@ -128,3 +128,28 @@ uv run pytest tests/test_data.py -q
 
 The statistics in this card are asserted in `tests/test_data.py`, so a change to the
 corpus that would invalidate them fails CI.
+
+---
+
+## Oracle and validation data (feat-007)
+
+Beyond the training corpus, two external assets are used at **selection/ranking** time — the
+part of a submission the competition wet-lab tests. Both are permissively licensed and
+redistributable, so co-authorship eligibility is preserved. Neither is used to *train* the
+generator; they rank and validate.
+
+| Asset | Path | Origin | Licence | Redistributable |
+|---|---|---|---|---|
+| APEX-pathogen (8-model MIC ensemble, ~220 MB) | `oracle/apex/` | Wan / de la Fuente lab, *Nat. Microbiol.* 2025 (`machine-biology-group-public/apex-pathogen`); vendored via `szczurek-lab/ampdiffusion-starter-kit` | **MIT** (© 2025 Fangping Wan, `oracle/apex/LICENSE`) | **Yes** |
+| Measured MICs (46 peptides × 11 pathogens, 506 rows) | `data/experimental/mic.csv` | Torres et al., *Cell Biomaterials* 2025, doi:10.1016/j.celbio.2025.100183 | **CC BY 4.0** | **Yes**, with attribution |
+
+- **APEX-pathogen** predicts per-species MIC (µM) against the 11 clinical pathogens the
+  challenge targets, and is the exact release used to score the AMP-Diffusion baseline library.
+  It is vendored as an **isolated `uv` project** (its own `pyproject.toml`/`uv.lock`, pinned
+  `torch==2.5.1`+`numpy<2`, Python 3.10) and invoked as a subprocess by
+  `src/amp_challenge_2027/oracle.py`, so its dependencies never co-resolve with this package's.
+  Weights are committed **directly, not via Git LFS** — the official validator does a plain
+  `git clone` with no `git lfs pull`, so LFS pointers would break a fresh checkout.
+- **`mic.csv`** is used only to *validate* the oracle (see `docs/RESEARCH.md` § APEX validation),
+  never as training data. `mic_relation = ">"` marks a right-censored result (no inhibition up
+  to the 64 µM assay ceiling). Attribution: Torres et al. 2025 (CC BY 4.0).

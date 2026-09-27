@@ -51,3 +51,43 @@ The `hydramp-starter-kit` is the older HydrAMP VAE (TensorFlow 2.2) — not the 
 
 Everything above stays subject to the honesty guardrails in `docs/MODEL_PLAN.md`: predicted MIC is
 APEX's estimate, not a measurement, and we report novelty/diversity and APEX validation metrics.
+
+---
+
+## APEX validation (2026-09-27, feat-007/013) — measured, not assumed
+
+Before ranking anything by APEX, I checked it against the **46 wet-lab-measured peptides** in
+`data/experimental/mic.csv` (Torres et al. 2025) and against broad discrimination. Reproducible
+via `oracle.ApexScorer`. Findings drive the selection design:
+
+| Test | Result | Reading |
+|---|---|---|
+| Per-(peptide,strain) inhibition AUROC (n=506, novel peptides) | **0.62** | moderate on novel sequences |
+| Known-AMP vs length-matched random, AUROC (n=3000) | **0.76** | good at reaching the active band |
+| Per-peptide mean-MIC Spearman on the 46 | ~0.0 | **range restriction** — the 46 are all APEX-selected actives (mean-MIC 44–63 µM vs the AMP population's 146–506), so correlation collapses there; not evidence APEX is useless |
+| Canonical AMPs | LL-37 min 6.4 / poly-G min 431 | ranks actives above inactives; **min-MIC (best pathogen) discriminates; mean-MIC over-penalises** real actives (magainin, indolicidin) |
+| Absolute scale | median mean-MIC ~430 µM for broad corpus | trust **relative rank**, not absolute µM |
+
+**Likelihood vs APEX on a real 20k library from our shipped generator:** the likelihood-ranked
+top-100 sits at only the **29th percentile** of APEX potency (median min-MIC 178 µM, 10% ≤32 µM)
+and shares **0/100** with the APEX-ranked top-100 (median min-MIC **2.6 µM**, 100% ≤32 µM). The
+generator already emits ~10% of candidates at min-MIC ≤32 µM, so activity is *selectable*, not
+absent. Switching the ranking from likelihood to APEX is the single biggest lever.
+
+**Design consequences (guarding against Goodhart on a moderate oracle):**
+1. Rank by APEX but **do not select the global APEX-minimisers** — that is the unreliable tail.
+   Select a **diverse, novel, low-hemolysis** set from the active band.
+2. Aggregate by **min / low-quantile MIC** (+ a breadth count), not naive mean.
+3. **Selectivity (hemolysis) is orthogonal** to APEX and additive — the baseline ignores it.
+4. Cross-check with physicochemistry; report the novelty-rejection and diversity stats honestly.
+
+## Shipping architecture decision (feat-014)
+
+The organizers' own baseline runs APEX **live inside `generate`** as a vendored isolated `uv`
+subprocess (CPU scoring, deterministic), with weights committed. That is the sanctioned pattern,
+so we adopt it: **library generated live** (fast, diverse, novel); **top-100 ranked live** by
+APEX + hemolysis + Smith-Waterman novelty(>0.60)/diversity(>0.40), matching the paper's recipe
+and adding the selectivity axis. The 8×H100s are used **offline** to improve the shipped
+generator/selection policy (ensemble, conditioning, threshold tuning), not to bake a static
+output. The current likelihood ranking stays the default until the APEX path passes the full
+gate + the official validator on a fresh clone.
