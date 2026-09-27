@@ -94,7 +94,7 @@
         "feat-007"
       ],
       "status": "in-progress",
-      "evidence": "2026-09-27: ACTIVITY ORACLE DONE. src/amp_challenge_2027/oracle.py wraps APEX (ApexScorer): per-pathogen MIC matrix + min/mean/breadth/potency_score aggregates; dedups and maps back to input order; deterministic across calls (verified); first call auto-syncs the nested env from the committed uv.lock (the validator's fresh-clone scenario). Canonical check: LL-37 min 6.4 / poly-G min 431. PENDING: hemolysis/selectivity predictor + tests."
+      "evidence": "2026-09-27: ACTIVITY ORACLE DONE. src/amp_challenge_2027/oracle.py wraps APEX (ApexScorer): per-pathogen MIC matrix + min/mean/breadth/potency_score aggregates; dedups and maps back to input order; deterministic across calls (verified); first call auto-syncs the nested env from the committed uv.lock (the validator's fresh-clone scenario). Canonical check: LL-37 min 6.4 / poly-G min 431. PENDING: hemolysis/selectivity predictor + tests. Ranking metric switched to broad_potency_score = sum_strains max(0,log10(16/MIC)), aligned with the competition Success Rate (breadth of coverage at <=16 uM); smooth (robust to APEX's compressed absolute scale). On a 20k pool the top-100 averages ~5.3/11 strains covered vs ~4.1 for min-MIC. Full 50k double-run byte-identical."
     },
     {
       "id": "feat-014",

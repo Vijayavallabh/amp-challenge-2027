@@ -149,10 +149,12 @@ class ApexRanker:
 
     A *ranker*, not a generator: it only implements ``score`` (the seam ``select_top`` uses),
     delegating to :class:`~amp_challenge_2027.oracle.ApexScorer`. The score is
-    ``-log10(best-pathogen MIC)`` -- the aggregate the validation in ``docs/RESEARCH.md`` found
-    most discriminating. Scoring is deterministic (APEX on CPU, ``.eval()``), so the two-run
-    byte comparison still holds. Used for the top-100 ranking, which is what the wet lab tests;
-    the library itself is unaffected.
+    :func:`~amp_challenge_2027.oracle.broad_potency_score` -- a smooth breadth-of-coverage
+    signal aligned with the competition's Success Rate metric (fraction of strains inhibited at
+    <= 16 uM), which the validation in ``docs/RESEARCH.md`` found ranks a broader, still-potent
+    top-100 than best-strain MIC alone. Scoring is deterministic (APEX on CPU, ``.eval()``), so
+    the two-run byte comparison still holds. Used for the top-100 ranking, which is what the wet
+    lab tests; the library itself is unaffected.
     """
 
     name = "apex-mic"
@@ -163,7 +165,7 @@ class ApexRanker:
         self._oracle = ApexScorer(apex_dir, device=device)
 
     def score(self, sequences: list[str]) -> list[float]:
-        from .oracle import potency_score
+        from .oracle import broad_potency_score
 
         mic = self._oracle.predict_mic(sequences)
-        return potency_score(mic).tolist()
+        return broad_potency_score(mic).tolist()

@@ -56,6 +56,19 @@ class TestAggregations:
         # the narrow-spectrum peptide is ranked by its best MIC (4), not its mean (~365)
         assert O.potency_score(MIC)[1] == pytest.approx(-np.log10(4.0))
 
+    def test_broad_potency_rewards_breadth_and_zeroes_inactive(self):
+        s = O.broad_potency_score(MIC)                    # threshold 16 uM
+        assert s[0] > s[1] > s[2]                         # broad > narrow > inactive
+        assert s[2] == pytest.approx(0.0)                 # nothing below 16 -> zero
+        # broad peptide: 11 strains x log10(16/2); narrow: 3 strains x log10(16/4)
+        assert s[0] == pytest.approx(11 * np.log10(8.0))
+        assert s[1] == pytest.approx(3 * np.log10(4.0))
+
+    def test_broad_potency_ignores_strains_above_threshold(self):
+        # a strain at exactly the threshold contributes zero; only sub-threshold margin counts
+        one = np.array([[16.0] + [1000.0] * 10])
+        assert O.broad_potency_score(one)[0] == pytest.approx(0.0)
+
 
 class TestBuildRanker:
     def test_likelihood_returns_the_model_itself(self):

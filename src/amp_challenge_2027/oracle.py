@@ -171,6 +171,31 @@ def potency_score(mic: np.ndarray) -> np.ndarray:
     """A higher-is-better activity score for ranking: ``-log10(min_MIC)``.
 
     Log scale because MIC spans orders of magnitude; using the best-pathogen MIC follows the
-    validation finding that it is the most discriminating aggregate.
+    validation finding that it is the most discriminating aggregate. Best for "active on at
+    least one strain" (the Selectivity category's eligibility gate); for broad-spectrum
+    ranking prefer :func:`broad_potency_score`.
     """
     return -np.log10(np.clip(min_mic(mic), 1e-6, None))
+
+
+#: The competition's Potency Threshold: a peptide "counts as active" on a strain at MIC <= 16 uM,
+#: and every activity category is scored by *Success Rate* = the fraction of strains it clears.
+POTENCY_THRESHOLD_UM = 16.0
+
+
+def broad_potency_score(mic: np.ndarray, threshold: float = POTENCY_THRESHOLD_UM) -> np.ndarray:
+    """Higher-is-better broad-spectrum score aligned with the competition's Success Rate.
+
+    Each strain contributes ``max(0, log10(threshold / MIC))`` -- positive by how many log-units
+    the predicted MIC sits below the 16 uM potency threshold, zero above it. Summing over the
+    panel rewards **breadth** (inhibiting many strains) and margin, which is exactly what the
+    Broad-Spectrum / Gram / MDR categories measure (mean per-peptide Success Rate).
+
+    A smooth margin is used rather than a hard count of strains below 16 uM because APEX's
+    absolute MIC scale is compressed and only moderately calibrated (see ``docs/RESEARCH.md``);
+    a hard threshold would be brittle to that miscalibration, while the margin degrades
+    gracefully. On a 20k pool this ranks a top-100 averaging ~5.3 of 11 strains covered, versus
+    ~4.1 for best-strain (min-MIC) ranking.
+    """
+    per_strain = np.log10(threshold / np.clip(mic, 1e-6, None))
+    return np.clip(per_strain, 0.0, None).sum(axis=1)
