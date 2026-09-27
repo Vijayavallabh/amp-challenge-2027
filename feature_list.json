@@ -61,8 +61,8 @@
       "name": "Official verifier run against the public repo",
       "description": "Run scripts/verify_submission.py against the pushed GitHub URL, which clones a fresh copy, syncs, generates twice, and checks every rule including reproducibility. This is the same script the organizers run.",
       "dependencies": ["feat-003"],
-      "status": "not-started",
-      "evidence": ""
+      "status": "done",
+      "evidence": "2026-09-27: `uv run python scripts/verify_submission.py https://github.com/Vijayavallabh/amp-challenge-2027` -> 'All checks passed. Submission is valid!' in 7s. Fresh clone, uv sync, generate twice, all 8 checks including overlap, the 80% similarity screen, and byte-identical reproducibility. Re-run after any change to the generator."
     },
     {
       "id": "feat-009",

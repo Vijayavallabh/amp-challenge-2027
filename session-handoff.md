@@ -27,7 +27,7 @@
 | Generation | `uv run generate` | pass, ~2s | 50,000 unique, lengths 8–50, 0 alphabet violations |
 | Top list | built in | pass | 100 records, all present in the library |
 | Reproducibility | 3 fresh processes | identical | `6e24c32d…` / `ad0ac45c…` |
-| Official validator | `scripts/verify_submission.py <url>` | **not yet run** | feat-008, needs the pushed URL |
+| Official validator | `scripts/verify_submission.py <repo-url>` | **all checks passed** | fresh clone of the public repo, 7s |
 
 ## Decisions Made
 

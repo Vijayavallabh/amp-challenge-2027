@@ -20,6 +20,8 @@ has not started.
       official `scripts/verify_submission.py`. 45 tests.
 - [x] feat-003 — `uv run generate` writes a contract-valid 50,000-sequence library and ranked
       top 100 in about 2 seconds, byte-identical across processes.
+- [x] feat-008 — the organizers' own validator passes against the pushed public repo:
+      *"All checks passed. Submission is valid!"* Re-run it after any change to the generator.
 
 ### What's In Progress
 
@@ -31,6 +33,7 @@ has not started.
 ### What's Next
 
 1. feat-004 — accept the competition rules on Kaggle. Blocked on a human; blocks submission.
+   (feat-008 is already green — the organizers' validator passes against the public repo.)
 2. feat-005 — assemble and document the training corpus.
 3. feat-006 — put a real generative model behind `build_model()`.
 4. feat-007 — implement a real `score()`; this is what the competition categories measure.
@@ -84,7 +87,9 @@ has not started.
       0 alphabet violations, top.fasta 100 records all present in the library
 - [x] Reproducibility: three fresh processes → library `6e24c32d5ff6b3988b7a1ef9401f5ab4`,
       top `ad0ac45cc621e865636e8bb70b607f24`
-- [ ] Official validator against the pushed public URL — not yet run (feat-008)
+- [x] Official validator against the pushed public URL: `uv run python
+      scripts/verify_submission.py https://github.com/Vijayavallabh/amp-challenge-2027`
+      → "All checks passed. Submission is valid!" (7s, all 8 checks)
 
 ## Notes for Next Session
 
