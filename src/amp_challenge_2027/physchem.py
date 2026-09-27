@@ -51,8 +51,8 @@ def net_charge(seq: str, ph: float = 7.4) -> float:
     def neg(pk: float) -> float:
         return 1.0 / (1.0 + 10 ** (pk - ph))
 
-    charge = pos(9.0)  # N-terminus
-    charge += neg(2.0)  # C-terminus (contributes negative)
+    charge = pos(9.0)  # N-terminus (protonated amine, positive)
+    charge -= neg(2.0)  # C-terminus (deprotonated carboxyl, negative)
     for aa in seq:
         if aa == "K":
             charge += pos(10.5)
