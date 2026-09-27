@@ -155,13 +155,21 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="shortest peptide to generate (default: %(default)s)")
     parser.add_argument("--max-length", type=int, default=C.MAX_LENGTH,
                         help="longest peptide to generate (default: %(default)s)")
+    parser.add_argument("--length", type=int, default=None,
+                        help="generate every peptide at exactly this length, overriding "
+                             "--min-length/--max-length (default: %(default)s, meaning a range). "
+                             "Accepted for parity with the official template's interface.")
     parser.add_argument("--out-dir", type=Path, default=Path(DEFAULT_OUT_DIR),
                         help="output directory (default: %(default)s)")
     parser.add_argument("--reference", type=str, default=DEFAULT_REFERENCE,
                         help="FASTA of known antibacterial peptides (default: %(default)s)")
     parser.add_argument("--skip-validation", action="store_true",
                         help="write the files without running the local compliance check")
-    return parser.parse_args(argv)
+
+    args = parser.parse_args(argv)
+    if args.length is not None:
+        args.min_length = args.max_length = args.length
+    return args
 
 
 def main(argv: list[str] | None = None) -> int:

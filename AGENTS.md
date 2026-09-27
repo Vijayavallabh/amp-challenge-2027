@@ -5,8 +5,13 @@ design of antimicrobial peptides. The organizers clone this repo, run `uv sync`,
 `uv run generate`, and validate the output. Everything here exists to keep that path working.
 
 Competition facts (deadline, deliverables, evaluation, bacterial panel) live in
-[docs/COMPETITION.md](docs/COMPETITION.md). Usage lives in [README.md](README.md). This file is
-routing and invariants only.
+[docs/COMPETITION.md](docs/COMPETITION.md). The rule-by-rule audit — every published rule, where
+it is enforced, how it is verified — is [docs/COMPLIANCE.md](docs/COMPLIANCE.md). Usage lives in
+[README.md](README.md). This file is routing and invariants only.
+
+**Submit only from the Kaggle account `j_v_v_07`.** The API token on this machine belongs to a
+different account; using it would breach Kaggle's one-account rule. See
+[docs/COMPLIANCE.md](docs/COMPLIANCE.md) § Account identity.
 
 ## Startup Workflow
 

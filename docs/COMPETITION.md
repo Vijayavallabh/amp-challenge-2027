@@ -3,6 +3,9 @@
 Reference notes compiled 2026-09-27 from the official sources. Where this file and the official
 sources disagree, the official sources win — re-check before submitting.
 
+For the audit — each rule mapped to where it is enforced and how it is verified — see
+[COMPLIANCE.md](COMPLIANCE.md).
+
 - Competition site: https://szczurek-lab.github.io/amp-challenge-website/
 - Kaggle entry point: https://www.kaggle.com/competitions/amp-challenge
 - Official template and validator: https://github.com/szczurek-lab/amp-challenge-2027
@@ -133,6 +136,12 @@ site under "Official Bacterial Panel".
   need prior agreement with the organizers. There is no resubmission, so validate first.
 - **The top 100 must be a subset of the submitted 50,000-sequence library.**
 - **Only generative methods are permitted.**
+- **Kaggle's Foundational Competition Rules also apply, and supersede the competition-specific
+  rules in any conflict.** The ones that bite here: one account per participant (multiple accounts
+  are prohibited), and no private sharing of code or data outside your team — public sharing to all
+  participants is fine, which the required public repository already is.
+- Accepting the rules creates a direct relationship with the host; Kaggle carries no liability for
+  prizes, commitments, or host or participant conduct.
 - Participation is free; synthesis and assays are paid for by the organizers.
 - No wet-lab expertise is required — all experimental work is done by the de la Fuente lab at the
   University of Pennsylvania under standardized protocols.

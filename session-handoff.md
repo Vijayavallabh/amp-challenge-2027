@@ -12,7 +12,8 @@
 
 - [x] uv project bootstrap — Python 3.11 pinned, `uv.lock` committed, MIT licensed, `generate`
       wired as the console entry point per the official template
-- [x] Compliance layer (`constraints.py`) mirroring the organizers' validator, with 45 tests
+- [x] Compliance layer (`constraints.py`) mirroring the organizers' validator, with 69 tests
+- [x] Rule-by-rule audit in `docs/COMPLIANCE.md`; `--length` added for template interface parity
 - [x] Contract-valid baseline: 50,000-sequence library and ranked top 100 in ~2s
 - [x] Harness: `AGENTS.md`, `feature_list.json`, `progress.md`, `init.sh`, this file
 - [x] Docs: `README.md`, `docs/COMPETITION.md`, `SUBMISSION.md` skeleton
@@ -23,7 +24,7 @@
 | Check | Command | Result | Notes |
 |---|---|---|---|
 | Install | `uv sync --locked` | pass | Python 3.11.14, 4 runtime packages |
-| Tests | `uv run pytest -q` | 45 passed in 0.13s | compliance layer + determinism |
+| Tests | `uv run pytest -q` | 69 passed | sequence rules + repo-level submission rules |
 | Generation | `uv run generate` | pass, ~2s | 50,000 unique, lengths 8–50, 0 alphabet violations |
 | Top list | built in | pass | 100 records, all present in the library |
 | Reproducibility | 3 fresh processes | identical | `6e24c32d…` / `ad0ac45c…` |
@@ -39,9 +40,9 @@
 
 ## Blockers / Risks
 
-- [ ] **Kaggle entry not registered** — `userHasEntered=False`, data endpoint returns 403. Needs a
-      human to accept the rules at https://www.kaggle.com/competitions/amp-challenge/rules
-      Blocks submission entirely.
+- [ ] **Wrong Kaggle account on this machine** — the token is `prakashchhipa`, the competing
+      account is `j_v_v_07`. Entry status is unverifiable from here, and this token must not be
+      used to submit (one-account rule). See `docs/COMPLIANCE.md` § Account identity.
 - [ ] **Three days left**, and the modelling work has not started.
 - [ ] **One entry per model, no resubmission** — feat-008 is mandatory before feat-010.
 - [ ] **Novelty screen** is the likely failure mode once a model is trained on known AMPs; watch

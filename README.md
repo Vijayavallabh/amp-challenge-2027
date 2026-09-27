@@ -51,6 +51,7 @@ Every flag has a default, so a bare `uv run generate` is a complete run.
 | `--seed` | `42` | Random seed; fixed so runs are reproducible |
 | `--min-length` | `8` | Shortest peptide to generate |
 | `--max-length` | `50` | Longest peptide to generate |
+| `--length` | _unset_ | Fix every peptide at exactly this length, overriding the two above |
 | `--out-dir` | `generate` | Output directory |
 | `--reference` | `data/antibacterial.fasta` | Known antibacterial peptides to screen against |
 | `--skip-validation` | off | Write the files without the local compliance check |
@@ -78,6 +79,7 @@ Do this before submitting. There is one entry per model and no resubmission.
 ```
 ├── AGENTS.md                       # working rules and invariants for contributors and agents
 ├── docs/COMPETITION.md             # the rules, deadlines, and evaluation criteria
+├── docs/COMPLIANCE.md              # every rule, where it is enforced, how it is verified
 ├── SUBMISSION.md                   # the required write-up (abstract, data, ranking procedure)
 ├── init.sh                         # install, test, generate, check reproducibility
 ├── feature_list.json, progress.md  # what is done, what is next, with evidence

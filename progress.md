@@ -17,7 +17,13 @@ has not started.
 - [x] feat-001 — uv project bootstrap. Python pinned to 3.11, `uv.lock` committed, MIT licensed,
       `generate` wired as the console entry point.
 - [x] feat-002 — Compliance layer in `src/amp_challenge_2027/constraints.py`, mirroring the
-      official `scripts/verify_submission.py`. 45 tests.
+      official `scripts/verify_submission.py`. 69 tests, covering both the sequence rules and the
+      repository-level rules (licence, entry point, pinned environment, defaulted arguments).
+- [x] feat-004 — Kaggle entry reported signed up as `j_v_v_07`. Not verifiable from this machine;
+      see the credential blocker below.
+- [x] Rule-by-rule audit written up in `docs/COMPLIANCE.md` — every published rule from the Kaggle
+      competition rules, Kaggle's Foundational Rules, and the competition website, mapped to where
+      it is enforced and how it is verified.
 - [x] feat-003 — `uv run generate` writes a contract-valid 50,000-sequence library and ranked
       top 100 in about 2 seconds, byte-identical across processes.
 - [x] feat-008 — the organizers' own validator passes against the pushed public repo:
@@ -32,18 +38,20 @@ has not started.
 
 ### What's Next
 
-1. feat-004 — accept the competition rules on Kaggle. Blocked on a human; blocks submission.
-   (feat-008 is already green — the organizers' validator passes against the public repo.)
-2. feat-005 — assemble and document the training corpus.
-3. feat-006 — put a real generative model behind `build_model()`.
-4. feat-007 — implement a real `score()`; this is what the competition categories measure.
-5. feat-008 — run the official verifier against the pushed public repo URL.
+1. feat-005 — assemble and document the training corpus.
+2. feat-006 — put a real generative model behind `build_model()`.
+3. feat-007 — implement a real `score()`; this is what the competition categories measure.
+4. feat-009 — fill in `SUBMISSION.md`; four of its sections are required deliverables.
+5. feat-008 — re-run the official verifier, then feat-010 — submit once.
 
 ## Blockers / Risks
 
-- [ ] **Kaggle entry not registered.** `userHasEntered=False`; the data endpoint returns HTTP 403.
-      Someone must accept the rules at https://www.kaggle.com/competitions/amp-challenge/rules
-      Nothing can be submitted until this is done.
+- [ ] **The Kaggle token on this machine is the wrong account.** `~/.kaggle/kaggle.json` belongs to
+      `prakashchhipa`, not `j_v_v_07`. Two consequences: entry status cannot be confirmed from here
+      (the API's `userHasEntered=False` and its 403 describe *that* account), and **nothing may be
+      submitted with this token** — Kaggle prohibits multiple accounts per participant and it would
+      attribute the entry to the wrong person. Install the `j_v_v_07` token, or submit through the
+      web UI as `j_v_v_07`. See `docs/COMPLIANCE.md` § Account identity.
 - [ ] **Three days to the deadline.** The committed baseline is valid but scientifically empty.
       Treat it as a floor that guarantees a submittable entry, not as a candidate entry.
 - [ ] **One entry per model.** There is no resubmission to fix a mistake, so feat-008 (the
@@ -82,7 +90,7 @@ has not started.
 
 ## Evidence of Completion
 
-- [x] Tests pass: `uv run pytest -q` → `45 passed in 0.13s`
+- [x] Tests pass: `uv run pytest -q` → `69 passed`
 - [x] Generation: `uv run generate` → 50,000 records, 50,000 unique, lengths 8–50,
       0 alphabet violations, top.fasta 100 records all present in the library
 - [x] Reproducibility: three fresh processes → library `6e24c32d5ff6b3988b7a1ef9401f5ab4`,
