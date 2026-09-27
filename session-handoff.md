@@ -19,13 +19,14 @@
 - [x] Docs: `README.md`, `docs/COMPETITION.md`, `SUBMISSION.md` skeleton
 - [x] Vendored the official validator and the 39,448-sequence reference set
 - [x] Verified the Kaggle entry (`userHasEntered=True`) and that no dataset is provided
+- [x] feat-005 — training corpus assembled, loaded via `data.py`, documented in `docs/DATA.md`
 
 ## Verification Evidence
 
 | Check | Command | Result | Notes |
 |---|---|---|---|
 | Install | `uv sync --locked` | pass | Python 3.11.14, 4 runtime packages |
-| Tests | `uv run pytest -q` | 69 passed | sequence rules + repo-level submission rules |
+| Tests | `uv run pytest -q` | 90 passed | sequence + submission rules + training corpus |
 | Generation | `uv run generate` | pass, ~2s | 50,000 unique, lengths 8–50, 0 alphabet violations |
 | Top list | built in | pass | 100 records, all present in the library |
 | Reproducibility | 3 fresh processes | identical | `6e24c32d…` / `ad0ac45c…` |
@@ -57,9 +58,9 @@
 
 ## Recommended Next Step
 
-Start on **feat-005** (training corpus from DBAASP / APD3 / dbAMP / Peptipedia, with licensing
-recorded in `SUBMISSION.md`), since feat-006 and feat-007 both depend on it. Read the two official
-starter kits first — `szczurek-lab/ampdiffusion-starter-kit` and `szczurek-lab/hydramp-starter-kit`
-both target this exact submission format and will be faster than starting from scratch.
-
-In parallel, unblock **feat-004** — it needs a human click and nothing ships without it.
+Start on **feat-006** — a real generative model behind `build_model()`. Train on
+`data.training_sequences()` (39,448 AMPs, ready to use). The one hard design constraint: the model
+**must generalize**, because the training corpus is also the novelty screen reference — a
+memorizing model fills the library with forbidden sequences (see `docs/DATA.md`, "dual role").
+Read `szczurek-lab/ampdiffusion-starter-kit` and `szczurek-lab/hydramp-starter-kit` first; both
+target this exact submission format.

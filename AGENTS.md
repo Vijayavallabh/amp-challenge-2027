@@ -71,6 +71,7 @@ These have all bitten real submissions. Reproducibility is checked, so they are 
 | Area | Rule |
 |---|---|
 | `src/amp_challenge_2027/model.py`, `build_model()` | Where model work belongs. Edit freely. |
+| `src/amp_challenge_2027/data.py` | Training corpus loading and disclosure. Extend for new data sources; keep `docs/DATA.md` in step. |
 | `src/amp_challenge_2027/constraints.py` | The submission contract. Change only to track an upstream change in `scripts/verify_submission.py`, with tests in the same commit. |
 | `src/amp_challenge_2027/generate.py` (outside `build_model`) | Filtering, ranking, and writing. Leave alone unless the feature is explicitly about them. |
 | `scripts/verify_submission.py`, `data/antibacterial.fasta` | Vendored upstream, BSD-3. Never edit; re-vendor if upstream changes. |

@@ -43,13 +43,13 @@
       "dependencies": [
         "feat-001"
       ],
-      "status": "not-started",
-      "evidence": ""
+      "status": "done",
+      "evidence": "2026-09-27: Corpus is data/antibacterial.fasta (39,448 AMPs), vendored BSD-3 from the official template and used as-is; it is the organizers' curated aggregation of public DBs (dbAMP, DRAMP, DBAASP, CAMP, APD, +8), already pre-filtered to the competition constraints (100% valid, unique, 8-50 AA). src/.../data.py loads it with metadata (charge, source dbs, activities) and exposes a deterministic, valid, deduplicated training_sequences() accessor. Documented in docs/DATA.md; disclosed in SUBMISSION.md. 21 tests in tests/test_data.py; 90 tests total green. No non-public data used. Note: corpus doubles as the novelty screen reference (disclosed, intentional)."
     },
     {
       "id": "feat-006",
       "name": "Generative model behind build_model()",
-      "description": "Replace RandomBaseline with a real generative approach reachable through build_model() in generate.py. Weights load from checkpoint/ via resolve_repo_path, sampling is seeded, and output stays byte-identical across runs.",
+      "description": "Replace RandomBaseline with a real generative approach reachable through build_model() in generate.py. Train on data.training_sequences(); the model MUST generalize beyond the corpus because that corpus is also the novelty screen reference (see docs/DATA.md). Weights load from checkpoint/ via resolve_repo_path (now in paths.py), sampling is seeded, output byte-identical across runs.",
       "dependencies": [
         "feat-005"
       ],

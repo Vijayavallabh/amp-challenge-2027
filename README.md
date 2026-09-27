@@ -80,6 +80,7 @@ Do this before submitting. There is one entry per model and no resubmission.
 ├── AGENTS.md                       # working rules and invariants for contributors and agents
 ├── docs/COMPETITION.md             # the rules, deadlines, and evaluation criteria
 ├── docs/COMPLIANCE.md              # every rule, where it is enforced, how it is verified
+├── docs/DATA.md                    # training data card: source, licence, composition, filters
 ├── SUBMISSION.md                   # the required write-up (abstract, data, ranking procedure)
 ├── init.sh                         # install, test, generate, check reproducibility
 ├── feature_list.json, progress.md  # what is done, what is next, with evidence
@@ -90,6 +91,8 @@ Do this before submitting. There is one entry per model and no resubmission.
 └── src/amp_challenge_2027/
     ├── constraints.py              # the competition's hard rules as code
     ├── fasta.py                    # FASTA I/O matching the official parser
+    ├── data.py                     # training corpus: loading, metadata, disclosure
+    ├── paths.py                    # repo-root-aware path resolution
     ├── model.py                    # PeptideGenerator protocol + RandomBaseline
     └── generate.py                 # the `generate` entry point
 ```

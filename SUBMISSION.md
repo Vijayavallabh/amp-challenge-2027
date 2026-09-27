@@ -41,21 +41,28 @@ designs novel, and how candidates were prioritized._
 
 ## Training data
 
-The competition provides **no dataset** — its only data file is a note saying so — so every source
-listed here is external and must be disclosed. Each must be publicly redistributable under a
-permissive licence, or released as part of the submission. Anything non-public that cannot be
-released costs co-authorship eligibility.
+The competition provides **no dataset** — its only data file is a note saying so — so all training
+data is externally sourced and disclosed here. Full data card: [docs/DATA.md](docs/DATA.md).
 
-| Source | Version / accessed | Records used | Licence | Redistributable |
-|---|---|---|---|---|
-| _e.g. DBAASP_ | | | | |
-| _e.g. APD3_ | | | | |
-| _e.g. dbAMP_ | | | | |
-| _e.g. Peptipedia_ | | | | |
+**Corpus:** `data/antibacterial.fasta` — 39,448 antimicrobial peptides, vendored verbatim from the
+official challenge template ([szczurek-lab/amp-challenge-2027](https://github.com/szczurek-lab/amp-challenge-2027))
+and used as-is. It is the organizers' own curated aggregation of public AMP databases, already
+pre-filtered to the competition constraints (20 standard residues, length 8–50, unique).
 
-- **Preprocessing:** _de-duplication, length and alphabet filtering, clustering, splits_
-- **Held-out data:** _what was excluded from training and why_
-- **Non-public data:** _none, or state what is being released and under which licence_
+| Source | Provenance | Records | Licence | Redistributable |
+|---|---|---:|---|---|
+| `antibacterial.fasta` (aggregation) | Official template, MD5 `8366eb2c…` | 39,448 | BSD-3-Clause | **Yes** — already public in the template repo |
+| ↳ aggregates: dbAMP, DRAMP, DBAASP, CAMP, SATPdb, APD, +7 | public AMP databases, open for research | — | per source | via the BSD-3 aggregation above |
+
+- **Preprocessing:** validity filter (20 AA, length 8–50) and de-duplication in
+  `data.training_sequences()`; both are no-ops on this corpus (already 100% valid and unique) and
+  exist as safety nets. No manual curation, no hand-picking, no external label used to select data.
+- **Held-out data:** none held out at present. Note the corpus doubles as the novelty screen
+  reference, so the model must generalize beyond it (see the data card, "dual role").
+- **Non-public data:** none. Nothing proprietary or non-redistributable is used.
+- **Why not more sources:** deferred deliberately — each raw database has its own terms of use, they
+  overlap heavily with this aggregation, and the vendored set already covers the endorsed sources
+  under a clean permissive licence. See the data card for the full rationale.
 
 ## Library generation
 

@@ -3,7 +3,7 @@
 ## Current State
 
 **Last Updated:** 2026-09-27
-**Active Feature:** feat-005 — Training data acquisition and disclosure
+**Active Feature:** feat-006 — Generative model behind build_model()
 **Deadline:** 2026-09-30 22:00 UTC (1 October 2026, AOE) — see `docs/COMPETITION.md`
 
 The repository is initialized and produces a structurally valid, reproducible submission. The
@@ -29,23 +29,28 @@ has not started.
       it is enforced and how it is verified.
 - [x] feat-003 — `uv run generate` writes a contract-valid 50,000-sequence library and ranked
       top 100 in about 2 seconds, byte-identical across processes.
+- [x] feat-005 — Training corpus assembled and disclosed. `data/antibacterial.fasta` (39,448 AMPs,
+      BSD-3, the organizers' own aggregation of dbAMP/DRAMP/DBAASP/CAMP/APD/+8) loaded via
+      `src/amp_challenge_2027/data.py` with full metadata and a deterministic, valid, deduplicated
+      `training_sequences()` accessor. Data card in `docs/DATA.md`; disclosed in `SUBMISSION.md`.
 - [x] feat-008 — the organizers' own validator passes against the pushed public repo:
       *"All checks passed. Submission is valid!"* Re-run it after any change to the generator.
 
 ### What's In Progress
 
-- [ ] feat-005 — Training data acquisition and disclosure
-  - Candidate public sources: DBAASP, APD3, dbAMP, Peptipedia.
-  - Anything used must be publicly redistributable under a permissive licence, or it costs
-    co-authorship eligibility. Record provenance in `SUBMISSION.md` as you go.
+- [ ] feat-006 — Generative model behind `build_model()`
+  - Train on `data.training_sequences()`. **Must generalize** beyond the corpus: it is also the
+    novelty screen reference, so a memorizing model fails (see `docs/DATA.md`, "dual role").
+  - Load weights from `checkpoint/` via `resolve_repo_path`; seed everything from `--seed`.
+  - Two official starter kits target this exact format: `szczurek-lab/ampdiffusion-starter-kit`
+    and `szczurek-lab/hydramp-starter-kit`.
 
 ### What's Next
 
-1. feat-005 — assemble and document the training corpus.
-2. feat-006 — put a real generative model behind `build_model()`.
-3. feat-007 — implement a real `score()`; this is what the competition categories measure.
-4. feat-009 — fill in `SUBMISSION.md`; four of its sections are required deliverables.
-5. feat-008 — re-run the official verifier, then feat-010 — submit once.
+1. feat-006 — put a real generative model behind `build_model()`.
+2. feat-007 — implement a real `score()`; this is what the competition categories measure.
+3. feat-009 — fill in the remaining `SUBMISSION.md` sections (abstract, model, ranking).
+4. feat-008 — re-run the official verifier, then feat-010 — submit once (from `j_v_v_07`).
 
 ## Blockers / Risks
 
@@ -82,6 +87,10 @@ has not started.
 ## Files Modified This Session
 
 - `src/amp_challenge_2027/constraints.py` — the competition's hard rules as code
+- `src/amp_challenge_2027/data.py` — training corpus loading, metadata, disclosure (feat-005)
+- `src/amp_challenge_2027/paths.py` — shared repo-root-aware path resolution
+- `docs/DATA.md` — training data card
+- `tests/test_data.py` — 21 tests over the data module
 - `src/amp_challenge_2027/fasta.py` — FASTA I/O matching the official parser
 - `src/amp_challenge_2027/model.py` — `PeptideGenerator` protocol and `RandomBaseline`
 - `src/amp_challenge_2027/generate.py` — `uv run generate` entry point
@@ -93,7 +102,7 @@ has not started.
 
 ## Evidence of Completion
 
-- [x] Tests pass: `uv run pytest -q` → `69 passed`
+- [x] Tests pass: `uv run pytest -q` → `90 passed`
 - [x] Generation: `uv run generate` → 50,000 records, 50,000 unique, lengths 8–50,
       0 alphabet violations, top.fasta 100 records all present in the library
 - [x] Reproducibility: three fresh processes → library `6e24c32d5ff6b3988b7a1ef9401f5ab4`,

@@ -20,6 +20,7 @@ import numpy as np
 from . import constraints as C
 from .fasta import read_sequences, write_fasta
 from .model import PeptideGenerator, RandomBaseline
+from .paths import resolve_repo_path
 
 DEFAULT_SEED = 42
 DEFAULT_OUT_DIR = "generate"
@@ -39,24 +40,6 @@ def build_model(args: argparse.Namespace) -> PeptideGenerator:
     the working directory the organizers run from.
     """
     return RandomBaseline(min_length=args.min_length, max_length=args.max_length)
-
-
-def resolve_repo_path(path: str | Path) -> Path:
-    """Resolve ``path`` against the CWD, falling back to the repository root.
-
-    The validator runs the entry point with the repo root as CWD, but developers run it
-    from anywhere. Relative data and checkpoint paths must work in both cases.
-    """
-    candidate = Path(path)
-    if candidate.exists():
-        return candidate
-    repo_root = Path(__file__).resolve().parents[2]
-    fallback = repo_root / path
-    if fallback.exists():
-        return fallback
-    raise FileNotFoundError(
-        f"{path!r} not found -- looked in {Path.cwd()} and {repo_root}"
-    )
 
 
 def build_library(
