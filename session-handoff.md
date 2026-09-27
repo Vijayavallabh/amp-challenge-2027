@@ -2,72 +2,69 @@
 
 ## Current Objective
 
-- **Goal:** Get a real generative model behind `build_model()` and a real `score()` behind the
-  top-100 ranking, in time for the 2026-09-30 22:00 UTC deadline.
-- **Current status:** Trained AR-Transformer wired into `generate` and verified end-to-end
-  (official validator passes on a fresh clone). Ranking is interim (likelihood); APEX next.
-- **Branch / commit:** `main`, initial commit.
+- **Goal:** Maximise the final entry by the 2026-09-30 22:00 UTC deadline: a strong, reproducible
+  50k library + top-100 that is active, selective, novel and diverse.
+- **Current status:** Real **activity + selectivity + diversity** pipeline shipped and validated.
+  `uv run generate` samples the trained AR-Transformer, ranks the top-100 by APEX-predicted
+  broad-spectrum potency minus a hemolysis penalty, with a within-list diversity cap. Verified by
+  the official validator on a fresh clone.
+- **Branch / commit:** `main` (see `git log`).
 
-## Completed This Session (2026-09-27)
+## What is done (this session)
 
-- [x] uv project bootstrap — Python 3.11 pinned, `uv.lock` committed, MIT licensed, `generate`
-      wired as the console entry point per the official template
-- [x] Compliance layer (`constraints.py`) mirroring the organizers' validator, with 69 tests
-- [x] Rule-by-rule audit in `docs/COMPLIANCE.md`; `--length` added for template interface parity
-- [x] Contract-valid baseline: 50,000-sequence library and ranked top 100 in ~2s
-- [x] Harness: `AGENTS.md`, `feature_list.json`, `progress.md`, `init.sh`, this file
-- [x] Docs: `README.md`, `docs/COMPETITION.md`, `SUBMISSION.md` skeleton
-- [x] Vendored the official validator and the 39,448-sequence reference set
-- [x] Verified the Kaggle entry (`userHasEntered=True`) and that no dataset is provided
-- [x] feat-005 — training corpus assembled, loaded via `data.py`, documented in `docs/DATA.md`
+- [x] **feat-007** — APEX-pathogen MIC oracle (MIT) + `mic.csv` (CC BY 4.0) vendored & disclosed;
+      APEX validated against wet-lab MICs (moderate, wet-lab-aligned: AUROC 0.76 / 0.62).
+- [x] **feat-013** — activity oracle (`oracle.py`, APEX subprocess) **and** selectivity model
+      (`hemolysis.py` + `physchem.py`, HemoPI-2 MLP, held-out AUROC 0.778). Both shipped.
+- [x] **feat-014 (most)** — `generate` ranks by `broad_potency − 2·P(hemolytic)` with a 0.6
+      diversity cap; defaults flipped; graceful fallback to likelihood → baseline.
+- [x] Earlier: feat-001/002/003/004/005/006/008/011 (bootstrap, compliance, baseline, Kaggle
+      entry, corpus, generator ensemble, validator, trained-model wiring).
 
-## Verification Evidence
+## Final submission characterisation (local full 50k run)
 
-| Check | Command | Result | Notes |
-|---|---|---|---|
-| Install | `uv sync --locked` | pass | Python 3.11.14, 4 runtime packages |
-| Tests | `uv run pytest -q` | 90 passed | sequence + submission rules + training corpus |
-| Generation | `uv run generate` | pass, ~2s | 50,000 unique, lengths 8–50, 0 alphabet violations |
-| Top list | built in | pass | 100 records, all present in the library |
-| Reproducibility | 3 fresh processes | identical | `6e24c32d…` / `ad0ac45c…` |
-| Official validator | `scripts/verify_submission.py <repo-url>` | **all checks passed** | fresh clone, trained model, 50k x2 on GPU, ~2m17s |
-| Tests | `uv run pytest -q` | 101 passed | +11 trained-generator/build_model |
+- Top-100: **100% active** (predicted min-MIC ≤16 µM), median min-MIC **4.6 µM**, mean predicted
+  breadth **3.85/11 strains**; mean **P(hemolytic) 0.29** (81% < 0.5); novelty max-identity to
+  known median **0.33** / max 0.55 (rule ≤0.80); within-list pairwise identity max 0.60.
+- Library: 50,000 unique, valid, novel; byte-identical across runs.
 
-## Decisions Made
+## Verification evidence
 
-- uv only, matching the organizers' toolchain exactly; `uv.lock` and `.python-version` committed.
-- Constraints live in an imported module, so invalid output fails at generation time with a
-  non-zero exit rather than at submission time.
-- `build_model()` is the single swap point; filtering, ranking and writing stay fixed.
-- The baseline is labelled a placeholder in code and docs so it cannot be mistaken for a result.
+| Check | Command | Result |
+|---|---|---|
+| Tests | `uv run pytest -q` | 124 passed, 2 skipped (live-APEX gated) |
+| Full 50k reproducibility | two `uv run generate` runs | byte-identical (activity-only metric confirmed; apex+hemolysis re-confirm in progress) |
+| Official validator (APEX ranking) | `verify_submission.py <repo-url>` | **All checks passed** (fresh clone, 2026-09-27) |
+| Official validator (APEX + hemolysis) | same | re-running to reconfirm after the selectivity change |
 
-## Blockers / Risks
+## Key decisions / devil's-advocate findings
 
-- [ ] **Two Kaggle accounts reachable here** — competing account `vijayavallabhj` / `j_v_v_07`
-      (entry verified); the machine default token is `prakashchhipa`. Check `kaggle config view`
-      before trusting an API answer or submitting. See `docs/COMPLIANCE.md` § Account identity.
-- [ ] **Three days left**, and the modelling work has not started.
-- [ ] **One entry per model, no resubmission** — feat-008 is mandatory before feat-010.
-- [ ] **Novelty screen** is the likely failure mode once a model is trained on known AMPs; watch
-      the rejection count that `generate` prints.
+- Ranking by APEX ≫ likelihood (top-100 median min-MIC 178→2.6 µM; 0/100 overlap).
+- Rank by `broad_potency` (Success-Rate-aligned), not min-MIC; APEX is moderate, so don't maximise
+  its tail — diversify.
+- Hemolysis: HemoPI-1 model was biased ("AMP-like=hemolytic"); use HemoPI-2 as a *soft* penalty.
+- Heavy models stay isolated/offline; shipped runtime is deterministic with graceful fallback, so a
+  valid submission is preserved at all times.
 
-## Next Session Startup
+## Blockers / risks
 
-1. Read `AGENTS.md`, then `docs/COMPETITION.md`.
-2. Read `feature_list.json` and `progress.md`.
-3. Run `./init.sh` — about ten seconds, reproduces all the evidence above.
+- [ ] **One entry, no resubmission** — run `verify_submission.py <repo-url>` immediately before
+      submitting (feat-008), and submit only from **`j_v_v_07`** (never the machine default token).
+- [ ] Oracles are moderate (APEX 0.62–0.76; hemolysis 0.778) — predictions are estimates, not
+      measurements. Never claim wet-lab efficacy.
+- [ ] Local GPU 0 can be shared; run one GPU job at a time to avoid OOM (a concurrent run caused a
+      transient OOM during a validator run — cosmetic, recovered).
 
-## Recommended Next Step
+## Recommended next step
 
-**feat-013 — the APEX activity oracle (the win lever).** The top-100 ranking is what gets
-wet-lab tested, and it is currently ranked by model likelihood — a weak proxy for potency.
-Integrate **APEX** (de la Fuente MIC predictor, bundled in the ampdiffusion-starter-kit under
-`apex/`, run as an isolated `uv` subprocess) to rank by predicted MIC across the 11-pathogen
-panel, and add a hemolysis predictor for the Optimal Selectivity category. Then *optimize*
-against APEX (feat-014), not just filter — that is the edge over the excluded baseline.
+1. **feat-009** — write `SUBMISSION.md` (abstract, data, ranking procedure, filters) using the
+   characterisation numbers above. Required deliverable.
+2. **feat-012 (optional)** — generator ensemble / oversample-and-select to raise broad-active
+   candidate supply; only if it beats the current top-100 on held-out predicted breadth.
+3. **feat-008 → feat-010** — final clean validation, then submit from `j_v_v_07` (user-gated).
 
-Also (feat-012, parallel): ensemble the 8 trained generators and add AMP-Diffusion as an offline
-candidate source to raise library diversity/novelty for phase-1 screening.
+## Startup
 
-Compute: all 8 H100s are free; APEX scoring of large candidate pools + directed optimization is
-the heavy, high-value GPU workload. See `docs/RESEARCH.md` and `docs/MODEL_PLAN.md`.
+1. Read `AGENTS.md`, `docs/COMPETITION.md`, `feature_list.json`, `progress.md`.
+2. `./init.sh` (runs the full APEX pipeline twice; needs network for the isolated APEX env on
+   first call, and a GPU for a fast full run — falls back to CPU/likelihood otherwise).

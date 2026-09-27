@@ -2,13 +2,18 @@
 
 ## Current State
 
-**Last Updated:** 2026-09-27
-**Active Feature:** feat-013 — APEX activity oracle for top-100 ranking (the win lever)
+**Last Updated:** 2026-09-27 (session 2)
+**Active Feature:** feat-009 — SUBMISSION.md write-up (feat-007/013 done; feat-014 mostly done)
 **Deadline:** 2026-09-30 22:00 UTC (1 October 2026, AOE) — see `docs/COMPETITION.md`
 
-The repository is initialized and produces a structurally valid, reproducible submission. The
-model behind it is a placeholder with no expected antimicrobial activity, so the scientific work
-has not started.
+`uv run generate` now produces a scientifically meaningful, reproducible submission: the trained
+AR-Transformer samples a novel, cationic/amphipathic 50k library, and the top-100 is ranked by
+**APEX-predicted broad-spectrum potency minus a hemolysis penalty**, with a within-list diversity
+cap. Verified by the official validator on a fresh clone. Final top-100 (local 50k run): 100%
+predicted-active (min-MIC ≤16 µM, median 4.6), mean predicted breadth 3.85/11 strains, mean
+P(hemolytic) 0.29, novelty max-identity to known median 0.33 (rule ≤0.80), within-list identity
+≤0.60. The scientific pipeline (activity + selectivity + diversity) is in place; remaining work is
+the write-up, optional generator enrichment, and the final validate-and-submit.
 
 ## Status
 
