@@ -46,11 +46,13 @@ scored categories — the fraction of Gram-positive and MDR strains cleared at �
 soft-potency tie-break, plus a modest **hard Gram−** term (`gn_weight=0.75`) so the weakest category
 is lifted too — minus a **hemolysis penalty** from a selectivity model built on the latest
 SOTA protein language model (**ESM Cambrian 600M**, held-out AUROC 0.905), with a within-list
-**diversity screen**. The assayed **top-50** covers, at ≤16 µM: **Broad 0.64, Gram- 0.58, Gram+ 0.75,
-MDR 0.67**, at **0% predicted-hemolytic** (median P 0.004, max 0.06) — a strong, balanced five-category
+**diversity screen**, plus a closed-form **amphipathicity** reward on the Eisenberg hydrophobic moment.
+The assayed **top-50** covers, at ≤16 µM: **Broad 0.63, Gram- 0.57, Gram+ 0.74, MDR 0.67**, at **0%
+predicted-hemolytic** (every top-50 P < 0.08) and a healthy amphipathicity (µH median 0.40) — a strong,
+balanced five-category
 profile (the Gram+/MDR-targeted generator plus hard-SR selection roughly **doubled** the two hard
 categories from where a broad-activity-only pipeline left them, at no selectivity cost, and the Gram−
-term recovered the weakest category from 0.54 to 0.58 at zero Gram+/MDR cost), and the designs are
+term recovered the weakest category from 0.54 to ~0.57 at zero Gram+/MDR cost), and the designs are
 markedly novel (top-50 median identity to any known AMP 0.62, max 0.73). APEX is the de la Fuente lab's own MIC predictor
 (the lab that runs the competition's assays), used as a moderate, wet-lab-aligned signal, not ground
 truth.
@@ -155,8 +157,8 @@ pre-filtered to the competition constraints (20 standard residues, length 8–50
 This is a required deliverable and it is what the competition measures — 25 peptides are drawn at
 random from the top 50 and assayed.
 
-- **Scoring function:** `score = balanced_success_score − 1.5·P(hemolytic)`, applied to a large
-  **8× (400k)** oversampled candidate pool.
+- **Scoring function:** `score = balanced_success_score + 0.2·amphipathicity_bonus − 1.5·P(hemolytic)`,
+  applied to a large **8× (400k)** oversampled candidate pool.
   - *balanced_success_score* — from **APEX-pathogen** (`oracle/apex`, run as an isolated `uv`
     subprocess), which predicts MIC (µM) against 11 clinical pathogens. We score the **hard
     Gram-positive and MDR Success Rate** (the fraction of those strains cleared at ≤16 µM — exactly
@@ -166,8 +168,8 @@ random from the top 50 and assayed.
     dominated by the many easy Gram-negative strains and plateaued at ~0.37 Gram+ Success Rate for
     *any* weighting; ranking by the **hard** Gram+/MDR rate instead surfaces the peptides that truly
     clear those strains. Combined with the Gram+/MDR-targeted ReST generator (above), this brings the
-    assayed top-50 to **Gram+ 0.75 / MDR 0.67** (from 0.37 / 0.42 under a broad-activity-only pipeline)
-    while raising Broad to 0.62. We validated APEX against the 46 wet-lab-measured peptides in
+    assayed top-50 to **Gram+ 0.74 / MDR 0.67** (from 0.37 / 0.42 under a broad-activity-only pipeline)
+    while holding Broad 0.63 / Gram- 0.57. We validated APEX against the 46 wet-lab-measured peptides in
     `data/experimental/mic.csv`: a moderate, wet-lab-aligned signal (AUROC 0.76 known-AMP vs random;
     0.62 per-(peptide,strain) on novel peptides), so we rank by it but do not chase its extreme tail.
     Details in `docs/RESEARCH.md`.
@@ -184,6 +186,21 @@ random from the top 50 and assayed.
     top-50 at **0% ESMC-predicted-hemolytic** (median P 0.001) while preserving the Gram+/MDR gains —
     the Optimal Selectivity standout is protected, not traded away. The physicochemical model
     (`checkpoint/hemolysis.pt`) is retained as a graceful fallback if the PLM weights cannot be fetched.
+  - *amphipathicity_bonus* — a **closed-form, deterministic** mechanistic prior: a smooth `[0,1]` reward
+    that rises with each peptide's **Eisenberg hydrophobic moment µH** (a floor-ramp `clip((µH−0.25)/0.25,
+    0, 1)`, saturating at µH 0.50), scaled by **0.2**. Amphipathicity — the segregation of hydrophobic
+    and cationic faces on the helix — is the classic biophysical determinant of membrane disruption, so
+    this prefers the *mechanistically-plausible* designs among the APEX-active ones and de-prioritises
+    sequence-only artefacts the oracle happens to score well (an ESMFold2 structure check found the
+    un-nudged top-50 sat at the weak edge of amphipathicity, with ~26% barely-amphipathic picks). Because
+    µH is a closed-form function of the sequence (no structure prediction), it enters the ranking without
+    breaking byte-reproducibility. It lifts the top-50 µH median **0.31 → 0.40** (barely-amphipathic picks
+    26% → 12%) at ≤0.014 cost to every scored category (Gram+ −0.005, MDR unchanged — all within APEX's
+    0.62-AUROC noise) and **0% predicted-hemolytic held**; a coefficient sweep confirmed the hemolysis
+    gate holds across the range and 0.2 is the knee before the strongest category (Gram+) erodes. It is a
+    hedge against the oracle's transfer error, not a category trade — the "cost" is oracle-internal while
+    the µH gain is oracle-independent. Independently supported by 2026 literature on the amphipathic
+    "Janus α-helix" (doi:10.1016/j.colsurfb.2026.116171). Details in `docs/RESEARCH.md` (feat-025).
 - **Ranking procedure:** score every library sequence, sort by descending score (sequence as a
   deterministic tiebreak), then walk down the list applying the novelty and diversity screens
   below until 100 are selected. Fully deterministic — APEX runs in eval mode on CPU, sharded over
@@ -194,14 +211,14 @@ random from the top 50 and assayed.
   `library.fasta` are md5-identical.
 - **Novelty screen:** candidates above 0.80 Levenshtein ratio against any sequence in the
   reference set are rejected and replaced by the next-ranked candidate. In the shipped run the
-  novelty screen rejected **0** candidates — the Gram+/MDR-targeted ReST generator explores new
+  novelty screen rejected **1** candidate — the Gram+/MDR-targeted ReST generator explores new
   sequence space, so its designs sit comfortably below the 0.80 threshold (top-50 median identity to
   any known AMP **0.62**, max **0.73**, none an exact match — *more* novel than the earlier
   physicochemical/ESMC selections, evidence the harder optimisation is discovering new motifs rather
   than memorising known AMPs).
 - **Diversity or redundancy control within the top 100:** a within-list cap
   (`--diversity-max-identity 0.6`) skips any candidate exceeding 0.60 Levenshtein identity to an
-  already-selected peptide, keeping the more-active member of a near-duplicate pair. **191 near-
+  already-selected peptide, keeping the more-active member of a near-duplicate pair. **202 near-
   duplicates were rejected** in the shipped run (far fewer than earlier pipelines' ~800 — the
   ReST-tuned generator's output is itself more diverse). This matters because the activity ranking
   concentrates the top of the list into a few cationic motif families, and the random top-50 draw
@@ -217,9 +234,12 @@ Required disclosure. State plainly what was applied, including "none".
   reordered. The entire library and top-100 come from the automated, seeded pipeline.
 - **Computational filters beyond the competition constraints:** a **hemolysis/selectivity penalty**
   (ESMC-600M model `checkpoint/selectivity_esmc.pt`, HemoPI-2; physicochemical `checkpoint/hemolysis.pt`
-  as fallback) applied in ranking, and a **within-list diversity cap** (0.60 Levenshtein identity). No
-  charge/hydrophobicity windows, aggregation, or solubility filters are applied — those properties
-  emerge from the generator and are only *measured* for disclosure.
+  as fallback) applied in ranking; a **closed-form amphipathicity term** (a smooth reward on the Eisenberg
+  hydrophobic moment, coefficient 0.2, added to the activity score — see *Selection and ranking*); and a
+  **within-list diversity cap** (0.60 Levenshtein identity). The amphipathicity term is a soft additive
+  reward, **not** a hard window — no candidate is excluded by it, and no charge/pI, aggregation, or
+  solubility filters are applied; those other properties emerge from the generator and are only *measured*
+  for disclosure.
 - **External predictors or databases used at selection time:** **APEX-pathogen** (MIC predictor,
   MIT-licensed, vendored under `oracle/apex`) for activity; an **ESM Cambrian 600M** selectivity model
   (ESM++ `Synthyra/ESMplusplus_large`, MIT weights fetched from HuggingFace; HemoPI-2-trained head) for
@@ -256,10 +276,12 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       API, `userHasEntered=True` (feat-004)
 - [ ] Submitting from `j_v_v_07`, not from the machine's default token account
 - [ ] `./init.sh` green, including the two-run byte-identical check
-- [x] `scripts/verify_submission.py` re-run against the **pushed public URL** after the
-      GP/MDR-targeted ReST generator changes (session 3): *"All checks passed. Submission is
-      valid!"* on a fresh clone (2026-09-28, commit `7f08c5a`) — generate twice, all 8 checks incl.
-      byte-identical reproducibility. Re-run once more immediately before submitting.
+- [ ] `scripts/verify_submission.py` re-run against the **pushed public URL** for the CURRENT commit
+      (feat-025 amphipathicity default). Prior PASS was commit `7f08c5a` (feat-021, session 3):
+      *"All checks passed. Submission is valid!"* on a fresh clone — generate twice, all 8 checks incl.
+      byte-identical reproducibility. The feat-025 commits (`6f1d73f`, `e28f86f`) still need a push +
+      fresh validation against the pushed URL; a LOCAL validator run on `6f1d73f` (fresh clone + uv sync
+      + generate ×2) is the interim gate. Re-run once more immediately before submitting.
 - [x] Every section above filled in, with no placeholder text left
 - [x] Repository public, MIT licensed, `uv.lock` and `.python-version` committed
 - [x] Weights committed or fetchable, and the inference path documented (`checkpoint/`, `oracle/apex/`)
