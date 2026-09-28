@@ -660,3 +660,23 @@ default rather than beating it -- the apparent gain is APEX overfitting, and K. 
 biological/oracle ceiling. A clean devil's-advocate-then-revise: explore aggressively, test with the
 held-out anti-Goodhart guard, and keep the robust entry. Null results cost nothing; the byte-deterministic
 `uv run generate` was never touched.
+
+## Optimal Selectivity is already maximized (clean-signal frontier check)
+
+Optimal Selectivity (HC50/MIC50 safety window) is our most differentiated category (~0% hemolytic while
+~70% of known AMPs are hemolytic). We re-checked, with CLEAN signals only (APEX potency + ESMC
+P(hemolytic), no GPLv3 HC50 model), whether the shipped balanced top-50 leaves any safety window on the
+table. Adding a potency tilt `kappa * (1/MIC50 among non-hemolytic)` to the ranking on the 150k pool:
+`kappa` 0.5-2.0 moves the median window only 0.082 -> 0.085 (MIC50 12.1 -> 11.8) with categories flat,
+and `kappa=4` finally widens it to 0.087 but by then trades GP 0.72 -> 0.705 and MDR 0.667 -> 0.647. So
+the shipped top-50 already sits on the safety-window Pareto frontier -- it is potent (MIC50 ~12 uM),
+100% active on >=1 strain, and ~0% hemolytic -- and there is no category-neutral headroom. This confirms
+the earlier HC50-regressor conclusion using only MIT-clean signals: keep the shipped selection.
+
+**Session equilibrium.** The two highest-leverage remaining levers are now both rigorously exhausted:
+a 10x-larger pool Goodharts (feat-027), and the Selectivity window is already maximized. Combined with
+the earlier rejected explorations (directed evolution, maximin, all-rounder ReST, safety-window blend)
+and the confirmed Phase-2 gate, the validated feat-025 default sits at the robust Pareto frontier for
+this generator+oracle stack. Further oracle-based optimisation is Goodhart-risky (bad for a one-shot
+submission) or negligible; the binding constraints (K. pneumoniae biology, APEX's 0.62 novel-peptide
+AUROC) are fundamental, not tuning gaps.
