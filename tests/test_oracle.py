@@ -184,6 +184,51 @@ class TestMaximinSelection:
                                      diversity_max_identity=None, gate=0.5)  # deterministic
 
 
+class TestAmphipathicity:
+    def test_hydrophobic_moment_matches_membrane_lytic_controls(self):
+        # Eisenberg muH: melittin ~0.35, magainin-2 ~0.45 (canonical amphipathic AMPs); polyG ~0.
+        mu = O.hydrophobic_moment([
+            "GIGAVLKVLTTGLPALISWIKRKRQQ",  # melittin
+            "GIGKFLHSAKKFGKAFVGEIMNS",      # magainin-2
+            "GGGGGGGGGG",                   # non-amphipathic control
+        ])
+        assert 0.30 <= mu[0] <= 0.40
+        assert 0.40 <= mu[1] <= 0.50
+        assert mu[2] < 0.10  # uniform-hydrophobicity peptide -> nearly non-amphipathic, well below band
+
+    def test_amphipathicity_bonus_is_smooth_monotonic_and_saturates(self):
+        # smooth [0,1] reward rising with muH: polyG (muH ~0.04) << magainin (muH ~0.45); a strongly
+        # amphipathic peptide (muH > the 0.5 saturation) gets the full 1.0 -- NOT excluded as a band
+        # would have (regression guard for the feat-025 review: aurein/LL-37 must still be rewarded).
+        b = O.amphipathicity_bonus(["GGGGGGGGGG", "GIGKFLHSAKKFGKAFVGEIMNS", "GLFDIVKKVVGALGSL"])
+        assert 0.0 <= b[0] < b[1] <= 1.0
+        assert all(0.0 <= x <= 1.0 for x in b)
+        mu = O.hydrophobic_moment(["GIGKFLHSAKKFGKAFVGEIMNS"])[0]
+        assert O.amphipathicity_bonus(["GIGKFLHSAKKFGKAFVGEIMNS"])[0] == pytest.approx(
+            float(np.clip((mu - 0.25) / 0.25, 0.0, 1.0)))
+
+    def test_batched_moment_matches_physchem_scalar(self):
+        # single source of truth: oracle's vectorised muH must equal physchem's scalar muH exactly,
+        # so the shared Eisenberg scale / formula cannot silently diverge (feat-025 review #7).
+        from amp_challenge_2027 import physchem
+        seqs = ["KWKLFKKIGAVLKVL", "GIGKFLHSAKKFGKAFVGEIMNS", "RRRRKKKKDDEE", "ILPWKWPWWPWRR"]
+        np.testing.assert_allclose(
+            O.hydrophobic_moment(seqs),
+            np.array([physchem.hydrophobic_moment(s) for s in seqs]),
+            rtol=1e-9, atol=1e-12,
+        )
+
+    def test_bonus_is_deterministic(self):
+        seqs = ["KWKLFKKIGAVLKVL", "GIGKFLHSAKKFGKAFVGEIMNS", "RRRRRRRRRR"]
+        assert np.array_equal(O.hydrophobic_moment(seqs), O.hydrophobic_moment(seqs))
+
+    def test_single_string_is_rejected_not_iterated_per_char(self):
+        # a bare string would silently iterate character-by-character and return a bogus per-residue
+        # array; the guard must turn that footgun into a loud error (feat-025 review #14).
+        with pytest.raises(TypeError):
+            O.hydrophobic_moment("GIGKFLHSAKKFGKAFVGEIMNS")
+
+
 class TestRewardRankerParity:
     """The offline ReST reward (``experiments/reward.balanced_reward``) must MIRROR the shipped
     selection ranker (``oracle.balanced_success_score``) at default weights -- otherwise the generator

@@ -405,3 +405,58 @@ def category_rates(mic: np.ndarray, threshold: float = POTENCY_THRESHOLD_UM) -> 
         hit[:, list(GRAM_POS)].mean(axis=1),
         hit[:, list(MDR)].mean(axis=1),
     ], axis=1)
+
+
+# The amphipathic-moment ranking bonus reuses the single Eisenberg scale from ``physchem`` (one source
+# of truth; a parity test pins ``hydrophobic_moment`` here to ``physchem.hydrophobic_moment``).
+from .physchem import _EISENBERG  # noqa: E402
+
+#: The amphipathicity bonus ramps linearly from ``AMPHI_FLOOR`` (below which a peptide is too weakly
+#: amphipathic to reward -- this deprioritises the confidently-folded-but-non-amphipathic designs the
+#: structure check flagged, e.g. muH ~0.10) up to ``AMPHI_SATURATION`` (at/above which it is full). It
+#: rises MONOTONICALLY and rewards even the strongest amphipaths (melittin 0.35, magainin 0.45, aurein
+#: 0.67, LL-37 0.88 all saturate to 1.0) -- a fixed [0.30, 0.65] *band* would have excluded aurein/LL-37,
+#: the very class it means to promote. The hemolytic-amphipathic extreme is removed by the ESMC
+#: hemolysis penalty applied later in the same score, not by a muH cap.
+AMPHI_FLOOR, AMPHI_SATURATION = 0.25, 0.50
+
+
+def hydrophobic_moment(sequences: list[str], angle_deg: float = 100.0) -> np.ndarray:
+    """Vectorised Eisenberg mean hydrophobic moment (muH) per sequence -- a closed-form, DETERMINISTIC
+    measure of alpha-helical amphipathicity, the membrane-disruption determinant of AMP activity.
+    Needs no structure prediction, so it can enter the byte-reproducible ranking (unlike the ESMFold2
+    offline check, whose muH it matches: melittin ~0.35, magainin ~0.45). Numerically identical to the
+    scalar :func:`physchem.hydrophobic_moment` (pinned by a parity test); this batched form exists only
+    because the bonus runs over the whole ~150k pool. Whole-sequence normalisation by length is the
+    repo-wide convention (physchem + structure_validate share it), not a windowed maximum."""
+    if isinstance(sequences, str):  # a bare string would silently iterate character-by-character
+        raise TypeError("hydrophobic_moment expects a list of sequences, not a single string")
+    d = np.deg2rad(angle_deg)
+    lengths = np.fromiter((len(s) for s in sequences), dtype=int, count=len(sequences))
+    lmax = int(lengths.max()) if len(sequences) else 0
+    basis_c = np.cos(np.arange(lmax) * d)  # length-only helical-wheel basis, computed once (not per-seq)
+    basis_s = np.sin(np.arange(lmax) * d)
+    out = np.empty(len(sequences), dtype=float)
+    for k, s in enumerate(sequences):
+        n = len(s)
+        if n == 0:
+            out[k] = 0.0
+            continue
+        h = np.fromiter((_EISENBERG.get(a, 0.0) for a in s), dtype=float, count=n)
+        out[k] = np.hypot((h * basis_c[:n]).sum(), (h * basis_s[:n]).sum()) / n
+    return out
+
+
+def amphipathicity_bonus(
+    sequences: list[str], floor: float = AMPHI_FLOOR, saturation: float = AMPHI_SATURATION
+) -> np.ndarray:
+    """Smooth ``[0, 1]`` amphipathicity reward: ``clip((muH - floor) / (saturation - floor), 0, 1)`` -- a
+    MONOTONIC gradient toward stronger amphipathic-helix character, so among comparably APEX-active
+    peptides the ranking prefers the more membrane-active ones (an orthogonal, structure-free hedge
+    against APEX's sequence-only transfer error, which the ESMFold2 check found feat-021's top-50 at the
+    weak edge of). Unlike a fixed band it gives a true gradient (a muH 0.45 peptide is preferred over a
+    0.31 one), zeroes only the genuinely non-amphipathic tail (below ``floor``), and rewards the
+    strongest amphipaths (saturating, not excluded); the hemolytic-amphipathic extreme is handled by the
+    ESMC penalty, not here. Deterministic, so byte-reproducibility holds."""
+    mu = hydrophobic_moment(sequences)
+    return np.clip((mu - floor) / max(saturation - floor, 1e-9), 0.0, 1.0)

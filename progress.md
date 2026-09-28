@@ -9,13 +9,33 @@ pushed commit 15c3b5e**. **feat-022** (submodel-cross-validated directed-evoluti
 (maximin top-list selection, `--select maximin`) were both explored extensively on the free GPUs and
 **rejected as the default** — directed evolution overfits APEX (held-out submodels prove no real gain);
 maximin raises the Gram- floor but trades away feat-021's Gram+/MDR/Selectivity standouts, which is a
-bad deal when the five categories are ranked separately. feat-021 (`--select score`) remains the
-validated submission. Pending only the participant's team name + go-ahead from `j_v_v_07`.
+bad deal when the five categories are ranked separately. **feat-024** (diverse free-GPU exploration:
+all-rounder ReST + species/consensus/HC50 checks) — the all-rounder ReST degraded the generator, and
+three independent orthogonal checks (multi-predictor consensus, HC50 regressor, ESMFold2 structure) all
+CONFIRM feat-021 is sound; documented one real caveat (feat-021's Gram- is E.coli/A.baumannii-only, so
+it clears ~0 K.pneumoniae/P.aeruginosa — a biological+oracle limit with no clean fix). **feat-025 —
+ADOPTED as the new shipped default:** a closed-form, deterministic **amphipathicity bonus**
+(`--amphipathicity-bonus`, smooth Eisenberg-muH floor-ramp `clip((muH-0.25)/0.25,0,1)`, reuses
+`physchem`, default 0.0→**0.2**), a mechanistic hedge against APEX's transfer error (the ESMFold2 check
+found the bonus-0 top-50 at the weak edge of amphipathicity, 26% non-amphipathic). Measured on the real
+400k pipeline: top-50 muH median **0.31→0.40**, non-amphipathic **26%→12%**, at ≤0.014 cost to every
+category (Gram+ −0.005, MDR 0.000 — all within APEX's 0.62-AUROC noise) and 0% predicted-hemolytic held;
+a pool sweep confirms the hemolysis gate holds at 0/50 across coef 0.0–0.4 and coef 0.2 is the knee. The
+"cost" is oracle-internal while the muH gain is oracle-independent, so transfer-adjusted it is net-
+positive. Adopted as the default because the organizers run the default entry point; `--amphipathicity-
+bonus 0.0` recovers the exact feat-021 selection. **feat-026 — Phase-2 gate measured with the organizers'
+own `seqme` framework** (isolated env, kept out of the submission): library Uniqueness 1.0, Diversity
+0.839, Novelty 1.0, FBD firmly AMP-like (1.94 vs real-AMP 0.074 / random 5.42) — the advancement gate is
+strong. 138 tests pass; two `/code-review` passes addressed. Re-validation of the new 0.2 default
+(byte-determinism 2-run + official validator) is IN FLIGHT. Pending only the participant's team name +
+go-ahead from `j_v_v_07`.
 **Deadline:** 2026-09-30 22:00 UTC (1 October 2026, AOE) — see `docs/COMPETITION.md`
-**Advancement (phase-2) readiness verified:** the 50k library is 100% unique, cationic (median net
-charge +4, 85% positive), amphipathic (GRAVY −0.38), classic-AMP composition (R/L/K/W/I), highly novel
-(median identity to known AMPs 0.29, max 0.53 ≪ 0.80) and diverse (median internal pairwise identity
-0.29) — strong on the diversity/novelty/physchem axes the top-20 advancement screen scores.
+**Advancement (phase-2) readiness verified with the organizers' own `seqme` framework (feat-026):**
+scored the 50k library exactly as the top-20 screen will — **Uniqueness 1.000, Diversity 0.839
+(pairwise Levenshtein), Novelty 1.000** (no exact match to 39,448 known AMPs), 3-gram Jaccard 0.0019;
+physchem AMP-like and cationic (charge 4.7, pI 11.6, Gravy −0.54, hydrophobic-moment 0.40); and **FBD
+1.94 vs a real-AMP floor 0.074 / random ceiling 5.42** — i.e. "novel AND AMP-like", 3× closer to real
+AMPs than to random. Strong on the diversity/novelty/physchem axes the advancement screen scores.
 
 `uv run generate` now produces a scientifically meaningful, reproducible submission: the trained
 AR-Transformer samples a novel, cationic/amphipathic 50k library, and the top-100 is ranked by

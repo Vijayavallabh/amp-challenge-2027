@@ -456,3 +456,109 @@ an unweighted activity-consensus is a TRAP -- it drifts the top-50 to median P(h
 0.005**, because the generic classifiers reward the cationic/amphipathic signature that drives both
 activity AND hemolysis. This directly confirms our hemolysis gate is doing real, correct work. Keep
 APEX + the existing selection.
+
+## Structure + HC50, and the one shippable hedge: a closed-form amphipathicity bonus (2026-09-28, feat-025)
+
+The last two orthogonal probes, and the only optimisation that produced a shippable, positive change.
+
+**Structure (ESMFold2-Fast on 2,646 peptides).** The shipped top-50 folds into confident, uniformly
+helical structures -- **0/50 disordered-fold artifacts** (pLDDT median 0.711, above the random-peptide
+0.574 floor; helix ~1.0 but non-discriminative at these lengths) -- confirming the selection is
+well-folded, now at top-50 granularity. But the **Eisenberg hydrophobic moment** (muH, the amphipathic
+membrane-disruption determinant) has median **0.311**, at the LOW EDGE of the canonical AMP band and
+below every positive control (melittin 0.35, magainin 0.45, LL-37 0.88): the top-50 is adequately but
+not *strongly* amphipathic, because `balanced_success_score` has no structure term. 12/50 sit below
+muH 0.19 (nearly non-amphipathic), including APEX's single top-ranked pick (muH 0.105) -- a
+mechanistic-plausibility flag, not a misfold. Crucially, **muH is a closed-form sequence function** (no
+fold), so it can enter the byte-reproducible ranking while ESMFold2 stays offline.
+
+**The amphipathicity bonus (feat-025, `--amphipathicity-bonus`, ADOPTED as the default at 0.2).** The
+bonus adds `coef * clip((muH - 0.25) / 0.25, 0, 1)` to the APEX activity: a **smooth monotone floor-ramp**
+that rewards any peptide above the weak-amphipathicity floor (muH 0.25) and saturates at 0.50. (An earlier
+hard band [0.30, 0.65] was rejected in code review -- it excluded strongly-amphipathic peptides above 0.65
+and had a discontinuous edge; the floor-ramp is monotone and never penalises more amphipathicity.) It is a
+rare **orthogonal, positive-sum-ish hedge** rather than a category trade: within the ESMC-non-hemolytic set
+muH and hemolysis are **uncorrelated** (Spearman +0.036), so boosting muH does NOT bring back hemolysis
+(the gate already removed it), and a coefficient sweep on the 150k pool shows the hemolysis gate holds at
+**0/50 predicted-hemolytic across every coefficient 0.0-0.4** while MDR stays flat and Gram- even improves
+slightly at small coef.
+
+Measured on the real 400k pipeline (bonus 0 vs 0.2, same seed): the top-50 muH median rises
+**0.31 -> 0.40** (mean 0.31 -> 0.40) and the fraction of non-amphipathic picks (muH < 0.19, mechanistically
+implausible "AMPs" that APEX likes for sequence reasons) drops **26% -> 12%**, at a category cost of Broad
+-0.011, Gram- -0.014, **Gram+ -0.005** (our strongest category, barely touched), **MDR 0.000**, with 0/50
+predicted-hemolytic held. Every category delta is smaller than APEX's 0.62-AUROC error bars -- i.e. the
+"cost" is measured by the oracle we distrust, while the muH gain is oracle-independent, so transfer-adjusted
+the change is net-positive. coef 0.2 is the knee: it captures a strong muH hedge before the GP cost
+accelerates (0.3 costs GP -0.025, eroding our best category for marginal extra muH).
+
+**This is the session's one clean, shippable improvement, and we adopt it as the shipped default** (the
+organizers run the default `uv run generate`, so a winning config must BE the default). It deprioritises the
+low-muH APEX picks that look like sequence-only artifacts and hedges APEX's transfer error at negligible,
+oracle-internal cost, keeping every category standout and 0% predicted-hemolytic. muH is closed-form, so
+byte-determinism holds. `--amphipathicity-bonus 0.0` recovers the exact feat-021 selection.
+
+**HC50 safety window (a trained regressor).** We obtained real quantitative HC50 data (Rathore et al.,
+*Commun. Biol.* 2025; DBAASP + Hemolytik, 1,926 peptides) and trained a ridge regressor on ESMC-600M
+embeddings: held-out Spearman **0.674** / AUROC 0.864, beating the shipped binary classifier's 0.455 --
+genuinely additive signal. The top-50's predicted **safety window (HC50/MIC50) is 5.8x** (median),
+already near the JOINT activity+selectivity Pareto frontier: only 58 peptides in the 150k pool match the
+top-50's activity floor AND its gates, at a mere +6% median safety window. An aggressive safety-window
+objective is a bad trade (pure-SW crashes Gram+ 0.75->0.25, MDR 0.667->0.333); only a tiny blend
+(kappa~0.01-0.02) is near-free (+7-15% window at ~0 Gram+/MDR cost). We do NOT adopt it: the gain is
+marginal, the model is a v0, its training data is **GPLv3** (a licensing conflict with the MIT-only
+submission), and most competitors are hemolytic so we are likely already winning Selectivity by a wide
+margin. Keep the shipped selectivity as-is.
+
+**Bottom line of the whole diverse-exploration phase.** Three independent orthogonal checks (multi-
+predictor consensus, HC50 regressor, ESMFold2 structure) all confirm the feat-021 selection is sound;
+four optimisation attempts (directed evolution, maximin, all-rounder ReST, safety-window) are rejected as
+trades; one real caveat is documented (the hard-GN species gap, unfixable); the Phase-2 advancement gate
+is measured with the organizers' own `seqme` framework and found strong (uniqueness 1.0, diversity 0.839,
+novelty 1.0, FBD firmly AMP-like); and one clean, deterministic, selectivity-preserving hedge -- the
+feat-025 amphipathicity floor-ramp -- is **adopted as the shipped default (coef 0.2)** because it improves
+mechanistic transfer at oracle-internal-only cost. The generator, the balanced objective and the ESMC
+selectivity gate are otherwise unchanged from feat-021.
+
+## The Phase-2 advancement gate, measured with the organizers' own framework (`seqme`)
+
+Every optimisation above targets Phase-3 category scores (the top-50 that gets assayed). But
+**Phase 2 decides who even advances**: `docs/COMPETITION.md` says the full 50,000-sequence library is
+ranked by `seqme` for **diversity, novelty against known-AMP databases, and physicochemical property
+distributions**, and only the **top 20 advance**. Heavy top-50 tuning is moot if the library fails this
+gate -- and until now we had never measured it the way the organizers will. So we installed `seqme`
+(0.5.1, BSD-3-Clause, szczurek-lab -- a measurement tool, deliberately kept out of the submission's uv
+env so it cannot bloat the byte-reproducible entry point) and scored the shipped feat-021 library
+directly (`experiments/measure_library.py`).
+
+**Diversity / novelty (the shipped 50k library).** `Uniqueness = 1.000` (all 50k distinct),
+`Diversity = 0.839` (normalized pairwise Levenshtein -- high), `Novelty = 1.000` (no exact match to any
+of the 39,448 known-AMP reference sequences), and 3-gram `Jaccard = 0.0019` vs that reference (near-zero
+n-gram overlap). The library is maximally unique, highly diverse, and fully novel by both exact and
+n-gram measures.
+
+**Physicochemical distributions.** Cationic and amphipathic exactly as AMPs should be: net charge
+4.7 +/- 3.2, isoelectric point 11.6, Gravy -0.54, Boman 2.0, and Eisenberg hydrophobic moment
+**0.40 +/- 0.19** -- which independently matches our own `oracle.hydrophobic_moment` (a cross-validation
+of the feat-025 implementation against modlamp/seqme). Note the library-wide muH median (~0.37) is
+healthy; the low-amphipathicity concern from the ESMFold2 check is specifically the *top-50 selection*
+pulling low-muH standouts, not a library-wide defect -- which is exactly the scope of the feat-025 bonus.
+
+**FBD -- is the novelty "AMP-like" or "garbage"?** Novelty=1.0 by exact match is trivially easy (any
+perturbation achieves it), so we measured Frechet Biological Distance in ESM2-650M embedding space
+against real AMPs, with two controls for calibration:
+
+| set (vs real-AMP anchor) | FBD |
+|---|---|
+| real-AMP held-out half (positive floor) | 0.074 |
+| **our library** | **1.938** |
+| uniform-random peptides, matched lengths (negative ceiling) | 5.418 |
+
+Our library sits **~35% of the way from real AMPs to random** -- i.e. 3x closer to the real-AMP
+distribution than to random garbage -- while holding Novelty=1.0 and Diversity=0.839. It is genuinely
+**"novel *and* AMP-like,"** which is precisely what the Phase-2 gate rewards. The residual FBD gap from
+0.074 is the expected, *desirable* cost of deliberately maximising diversity and novelty (spreading off
+the natural manifold is what those two axes reward). Chasing lower FBD by retraining the generator would
+trade away diversity (an equally-weighted scored axis) and risk the validated feat-021 top-50, so we do
+**not** touch the generator: this measurement is a confirmation, not a call to action. Net effect: the
+advancement gate, previously an unquantified risk, is now measured and strong.

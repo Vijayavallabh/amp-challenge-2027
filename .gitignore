@@ -11,6 +11,8 @@ wheels/
 
 # Generated submission output (regenerate with `uv run generate`)
 generate/
+# Scratch generation dirs from validation/determinism/comparison runs (regenerable)
+generate_*/
 
 # Local validator scratch space
 submission/

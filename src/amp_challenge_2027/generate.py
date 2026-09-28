@@ -107,6 +107,7 @@ def build_ranker(model: PeptideGenerator, args: argparse.Namespace):
                 hemolysis_scorer=hemo,
                 hemolysis_penalty=args.hemolysis_penalty if hemo is not None else 0.0,
                 refine_k=args.refine_k,
+                amphipathicity_bonus=args.amphipathicity_bonus,
             )
             print(f"Ranking: {ranker.name}")
             return ranker
@@ -443,10 +444,23 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                              "standouts, so it is NOT the default -- see docs/RESEARCH.md (feat-023). "
                              "maximin needs the APEX ranker; it falls back to 'score' otherwise "
                              "(default: %(default)s)")
+    parser.add_argument("--amphipathicity-bonus", type=float, default=0.2,
+                        help="scale of a smooth [0,1] amphipathicity reward added to the APEX activity "
+                             "score, rising with the (closed-form, deterministic) Eisenberg hydrophobic "
+                             "moment (floor-ramp from muH 0.25, saturating at 0.50) -- an orthogonal, "
+                             "structure-free hedge that prefers mechanistically-amphipathic designs among "
+                             "the APEX-active ones (the ESMFold2 check found the bonus-0 top-50 at the weak "
+                             "edge of amphipathicity, 26% non-amphipathic). The shipped default 0.2 lifts "
+                             "top-50 muH median 0.31->0.40 (non-amphipathic 26%->12%) at <=0.014 cost to "
+                             "every scored category (within APEX's 0.62-AUROC noise) and 0% predicted-"
+                             "hemolytic held; 0.0 recovers the pre-feat-025 (feat-021) selection. Applies "
+                             "to --select score. See docs/RESEARCH.md (feat-025) (default: %(default)s)")
 
     args = parser.parse_args(argv)
     if args.length is not None:
         args.min_length = args.max_length = args.length
+    if not (0.0 <= args.amphipathicity_bonus < float("inf")):
+        parser.error("--amphipathicity-bonus must be a finite value >= 0")
     return args
 
 
@@ -474,6 +488,9 @@ def main(argv: list[str] | None = None) -> int:
 
     ranker = build_ranker(model, args)
     if args.select == "maximin" and hasattr(ranker, "maximin_data"):
+        if args.amphipathicity_bonus > 0:
+            print("  NOTE: --amphipathicity-bonus applies to --select score only; the maximin "
+                  "selector ranks by per-category rates and ignores it (no bonus applied)")
         top = select_maximin(pool, ranker, args.top_k, reference,
                              diversity_max_identity=args.diversity_max_identity)
     else:

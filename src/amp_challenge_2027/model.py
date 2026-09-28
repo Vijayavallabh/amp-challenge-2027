@@ -175,6 +175,7 @@ class ApexRanker:
         hemolysis_scorer: "HemolysisScorer | None" = None,
         hemolysis_penalty: float = 0.0,
         refine_k: int = 20000,
+        amphipathicity_bonus: float = 0.0,
     ) -> None:
         from .oracle import ApexScorer  # lazy: keeps model.py importable without the oracle
 
@@ -199,6 +200,16 @@ class ApexRanker:
         # nudge, not an authority -- lambda is kept modest and the peptides stay APEX-active.
         self._hemo = hemolysis_scorer
         self._lam = float(hemolysis_penalty)
+        # Optional closed-form amphipathic-moment bonus (feat-025): add this to the activity for
+        # peptides whose Eisenberg hydrophobic moment is higher (a smooth 0..1 reward), preferring
+        # mechanistically-amphipathic designs among the APEX-active ones. Deterministic (no fold), so
+        # byte-reproducibility holds. This class defaults to 0.0 = off (a neutral library primitive);
+        # the submission entry point generate.py sets the shipped default to 0.2 (feat-025), which lifts
+        # the top-50 muH median 0.31->0.40 at <=0.014 category cost. 0.0 recovers the feat-021 selection.
+        # A non-finite or negative value is treated as off rather than poisoning the scores with NaN
+        # (``inf * 0.0``).
+        amp = float(amphipathicity_bonus)
+        self._amphi = amp if (amp == amp and amp not in (float("inf"), float("-inf")) and amp >= 0.0) else 0.0
         base = {"category": "apex-success", "balanced": "apex-balanced-success"}.get(
             objective, "apex-broad-potency"
         )
@@ -206,11 +217,15 @@ class ApexRanker:
             f"{base} - {self._lam:g}*hemolysis"
             if self._hemo is not None and self._lam > 0 else base
         )
+        if self._amphi > 0:  # provenance: an enabled bonus must be visible in the printed ranker name
+            self.name += f" + {self._amphi:g}*amphipathicity"
 
     def score(self, sequences: list[str]) -> list[float]:
         import numpy as np
 
-        from .oracle import balanced_success_score, broad_potency_score, category_success_score
+        from .oracle import (
+            amphipathicity_bonus, balanced_success_score, broad_potency_score, category_success_score,
+        )
 
         mic = self._oracle.predict_mic(sequences)
         if self._objective == "broad":
@@ -219,8 +234,11 @@ class ApexRanker:
             activity = category_success_score(mic, self._gpw, self._mdrw)
         else:  # "balanced" -- hard Gram+/MDR/Gram- Success Rate + broad soft tie-break (shipped default)
             activity = balanced_success_score(mic, self._gpw, self._mdrw, self._broadw, self._gnw)
+        activity = np.asarray(activity, dtype=float)
+        if self._amphi > 0:  # closed-form amphipathic-moment nudge (deterministic; off by default)
+            activity = activity + self._amphi * amphipathicity_bonus(sequences)
         if self._hemo is None or self._lam <= 0:
-            return np.asarray(activity, dtype=float).tolist()
+            return activity.tolist()
         # Two-stage: score selectivity only on the ``refine_k`` most-active candidates (the PLM
         # model is expensive), leaving the rest assumed hemolytic (penalty 1.0) so they rank below.
         # A stable argsort of the fixed activity array keeps this byte-deterministic.
@@ -231,7 +249,7 @@ class ApexRanker:
         phemo[order] = np.asarray(
             self._hemo.predict_proba([sequences[int(i)] for i in order]), dtype=float
         )
-        return np.asarray(activity - self._lam * phemo, dtype=float).tolist()
+        return (activity - self._lam * phemo).tolist()  # activity is already a float ndarray
 
     def maximin_data(self, sequences: list[str]):
         """Return ``(category_rates (n, 4), phemo (n,))`` for the maximin top-list selector.
