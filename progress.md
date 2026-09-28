@@ -26,8 +26,13 @@ positive. Adopted as the default because the organizers run the default entry po
 bonus 0.0` recovers the exact feat-021 selection. **feat-026 — Phase-2 gate measured with the organizers'
 own `seqme` framework** (isolated env, kept out of the submission): library Uniqueness 1.0, Diversity
 0.839, Novelty 1.0, FBD firmly AMP-like (1.94 vs real-AMP 0.074 / random 5.42) — the advancement gate is
-strong. 138 tests pass; two `/code-review` passes addressed. Re-validation of the new 0.2 default
-(byte-determinism 2-run + official validator) is IN FLIGHT. Pending only the participant's team name +
+strong. 139 tests pass; two `/code-review` passes addressed. **Re-validation of the new 0.2 default
+COMPLETE**: byte-determinism verified across GPUs (runs on GPU0==GPU4==explicit-0.2, identical
+`library.fasta`/`top.fasta`), and the **official validator PASSED on commit `6f1d73f`** — fresh clone +
+`uv sync` + generate ×2, *"All checks passed. Submission is valid!"*, ranking line
+`apex-balanced-success - 1.5*hemolysis + 0.2*amphipathicity`, all 8 checks incl. reproducibility; the
+fresh-clone output is byte-identical to the shipped feat-025 default. Commits `6f1d73f`/`e28f86f`/`67c9337`
+are ready to push. Pending only the participant's team name +
 go-ahead from `j_v_v_07`.
 **Deadline:** 2026-09-30 22:00 UTC (1 October 2026, AOE) — see `docs/COMPETITION.md`
 **Advancement (phase-2) readiness verified with the organizers' own `seqme` framework (feat-026):**
