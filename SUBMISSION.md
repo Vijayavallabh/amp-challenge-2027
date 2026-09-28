@@ -233,12 +233,11 @@ Required disclosure. State plainly what was applied, including "none".
   call. Weights (`checkpoint/generator.pt`, `checkpoint/selectivity_esmc.pt`, `checkpoint/hemolysis.pt`,
   `oracle/apex/`) are committed directly — the validator does a plain `git clone` with no `git lfs pull`.
 - Verified with `uv run python scripts/verify_submission.py https://github.com/Vijayavallabh/amp-challenge-2027`
-  on **2026-09-28** (commit `8c6e375`, the balanced Gram+/MDR + 8× oversample pipeline): *"All checks
-  passed. Submission is valid!"* — fresh clone, `uv sync`, generate twice, all 8 checks including
+  on **2026-09-28** (commit `7f08c5a`, the GP/MDR-targeted ReST generator + balanced pipeline): *"All
+  checks passed. Submission is valid!"* — fresh clone, `uv sync`, generate twice, all 8 checks including
   byte-identical reproducibility, exercising the **real ESM++/ESMC selectivity path** (the ESM++
-  weights are fetched from HuggingFace during validation; the run reported novelty-rej 391,
-  diversity-rej 807, matching the local run exactly). (Earlier passes: `160e65b` the ESMC-selectivity
-  pipeline, `2efad8c` the activity-only pipeline.)
+  weights are fetched from HuggingFace during validation). (Earlier passes: `8c6e375` the balanced
+  Gram+/MDR pipeline, `160e65b` the ESMC-selectivity pipeline, `2efad8c` the activity-only pipeline.)
 - Hardware and runtime: generation on a single CUDA GPU (falls back to CPU); APEX scoring on CPU,
   **sharded over single-threaded worker subprocesses** (auto-sized to the machine's cores and free
   memory) so it is fast yet byte-reproducible and independent of the core count. The generator was
@@ -256,8 +255,8 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
 - [ ] Submitting from `j_v_v_07`, not from the machine's default token account
 - [ ] `./init.sh` green, including the two-run byte-identical check
 - [x] `scripts/verify_submission.py` re-run against the **pushed public URL** after the
-      balanced Gram+/MDR + 8× oversample changes (session 3): *"All checks passed. Submission is
-      valid!"* on a fresh clone (2026-09-28, commit `8c6e375`) — generate twice, all 8 checks incl.
+      GP/MDR-targeted ReST generator changes (session 3): *"All checks passed. Submission is
+      valid!"* on a fresh clone (2026-09-28, commit `7f08c5a`) — generate twice, all 8 checks incl.
       byte-identical reproducibility. Re-run once more immediately before submitting.
 - [x] Every section above filled in, with no placeholder text left
 - [x] Repository public, MIT licensed, `uv.lock` and `.python-version` committed
