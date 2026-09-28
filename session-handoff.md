@@ -30,6 +30,11 @@
 - [x] **feat-016** — deterministic parallel CPU-APEX in the shipped oracle (byte-reproducible,
       worker-count-independent, ~2×+ faster).
 - [x] Shipped ranking switched to `category_success_score − 0.5·P(hemolytic)`; temperature 1.6.
+- [x] **feat-017** — selectivity upgraded from 11 physchem descriptors to the latest-SOTA PLM
+      **ESMC-600M** (ESM++ `Synthyra/ESMplusplus_large`, MIT; head in `checkpoint/selectivity_esmc.pt`,
+      held-out AUROC 0.778 → **0.905**). Two-stage (PLM only on top `refine_k=4000`). Devil's-advocate:
+      the old physchem-selected top-100 was **~51% predicted-hemolytic**; ESMC re-ranking → **0%**
+      while breadth *rises* (category-success 0.884→0.914). Byte-deterministic on GPU; physchem fallback.
 - [x] Docs (SUBMISSION/RESEARCH/README), progress, feature_list, memory updated; committed + pushed.
 
 ## Final submission characterisation (local full 50k run, session 3)
@@ -44,10 +49,10 @@
 
 | Check | Command | Result |
 |---|---|---|
-| Tests | `uv run pytest -q` | 124 passed, 2 skipped (live-APEX gated) |
-| Full 50k reproducibility | two `uv run generate` runs | byte-identical (activity-only metric confirmed; apex+hemolysis re-confirm in progress) |
+| Tests | `uv run pytest -q` | 127 passed, 3 skipped (live-APEX/gated) |
+| Full 50k reproducibility (APEX + ESMC PLM on GPU) | two `uv run generate` runs | **byte-identical** (top `01ee02c2…`, library `3488623b…`) |
 | Official validator (APEX ranking) | `verify_submission.py <repo-url>` | **All checks passed** (fresh clone, 2026-09-27) |
-| Official validator (APEX + hemolysis) | same | re-running to reconfirm after the selectivity change |
+| Official validator (APEX + ESMC selectivity) | same | re-running on the ESMC commit (HF-fetched ESM++; physchem fallback) |
 
 ## Key decisions / devil's-advocate findings
 
@@ -62,8 +67,8 @@
 
 - [ ] **One entry, no resubmission** — run `verify_submission.py <repo-url>` immediately before
       submitting (feat-008), and submit only from **`j_v_v_07`** (never the machine default token).
-- [ ] Oracles are moderate (APEX 0.62–0.76; hemolysis 0.778) — predictions are estimates, not
-      measurements. Never claim wet-lab efficacy.
+- [ ] Oracles are estimates, not measurements (APEX 0.62–0.76; ESMC selectivity 0.905) — never
+      claim wet-lab efficacy. Selectivity is now strong, but still a prediction.
 - [ ] Local GPU 0 can be shared; run one GPU job at a time to avoid OOM (a concurrent run caused a
       transient OOM during a validator run — cosmetic, recovered).
 

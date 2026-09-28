@@ -40,8 +40,10 @@ independent sub-models).
 The top-100 is where the competition is decided (25 of the top 50 are synthesised), so we rank by a
 **success-rate-aligned APEX score** that mirrors the five scored categories — the mean predicted
 Success Rate across the 11-pathogen panel with the hard Gram-positive and MDR strains up-weighted —
-minus a **hemolysis penalty** from a lightweight selectivity model (for the Optimal Selectivity
-category), with a within-list **diversity screen**. APEX is the de la Fuente lab's own MIC predictor
+minus a **hemolysis penalty** from a selectivity model built on the latest SOTA protein language
+model (**ESM Cambrian 600M**, held-out AUROC 0.905; for the Optimal Selectivity category — it drives
+the fraction of the top-100 predicted hemolytic to 0% while slightly raising breadth), with a
+within-list **diversity screen**. APEX is the de la Fuente lab's own MIC predictor
 (the lab that runs the competition's assays), used as a moderate, wet-lab-aligned signal, not ground
 truth.
 
@@ -157,23 +159,37 @@ random from the top 50 and assayed.
     validated APEX against the 46 wet-lab-measured peptides in `data/experimental/mic.csv`: a
     moderate, wet-lab-aligned signal (AUROC 0.76 known-AMP vs random; 0.62 per-(peptide,strain) on
     novel peptides), so we rank by it but do not chase its extreme tail. Details in `docs/RESEARCH.md`.
-  - *P(hemolytic)* — a lightweight MLP over 11 physicochemical descriptors (`checkpoint/hemolysis.pt`,
-    trained on HemoPI-2, held-out AUROC 0.778). The `λ=0.5` penalty (calibrated for the score's
-    `[0, ~2]` scale) roughly halves the predicted hemolysis of the top-100 at a small breadth cost,
-    serving the Optimal Selectivity category. A soft signal, given its moderate accuracy.
+  - *P(hemolytic)* — from a **selectivity model built on the latest SOTA protein language model,
+    ESM Cambrian 600M** (ESM++ `Synthyra/ESMplusplus_large`, MIT, on GPU-if-available), with a small
+    trained MLP head over its mean-pooled embeddings (`checkpoint/selectivity_esmc.pt`, trained on
+    HemoPI-2). Held-out **AUROC 0.905** — a large upgrade over the 11 physicochemical descriptors it
+    replaces (0.778) and over ESM-2 150M (0.883). The expensive PLM is applied **two-stage**: rank the
+    whole pool by activity, then score selectivity only on the top `refine_k=4000` (the rest are
+    assumed hemolytic so they rank below) — exact for the top-100 and keeps the run fast. The `λ=0.5`
+    penalty (calibrated for the score's `[0, ~2]` scale) is decisive: it cuts the fraction of the
+    top-100 that the ESMC model predicts hemolytic from **51% to 0%** (median P(hemolytic) 0.54 →
+    0.006) **while slightly raising breadth** (category-success 0.884 → 0.914; MDR Success-Rate 0.36 →
+    0.38) — a Pareto gain for the Optimal Selectivity category. The physicochemical model
+    (`checkpoint/hemolysis.pt`) is retained as a graceful fallback if the PLM weights cannot be fetched.
 - **Ranking procedure:** score every library sequence, sort by descending score (sequence as a
   deterministic tiebreak), then walk down the list applying the novelty and diversity screens
   below until 100 are selected. Fully deterministic — APEX runs in eval mode on CPU, sharded over
   single-threaded workers whose per-sequence results are reassembled by input order, so the output
-  is byte-identical across runs regardless of the machine's core count.
+  is byte-identical across runs regardless of the machine's core count. The ESMC selectivity head
+  runs in eval mode under `torch.use_deterministic_algorithms` with a fixed cuBLAS workspace, so the
+  two-stage GPU path is byte-reproducible too — verified by regenerating twice: `top.fasta` and
+  `library.fasta` are md5-identical.
 - **Novelty screen:** candidates above 0.80 Levenshtein ratio against any sequence in the
-  reference set are rejected and replaced by the next-ranked candidate. In the shipped run, **338
+  reference set are rejected and replaced by the next-ranked candidate. In the shipped run, **189
   higher-ranked candidates were rejected** for exceeding this — a small fraction of the 150k ranked
   pool, so the submitted top-100 still closely follows the model's own ranking. (In practice the
-  designs are comfortably novel: top-50 median identity to any known AMP ≈0.59, all ≤0.75.)
+  designs stay novel: top-100 median identity to any known AMP ≈0.69, max 0.80, none an exact match.
+  The low-hemolysis selection sits a little closer to the natural-AMP manifold than the earlier
+  physicochemical selection — expected, since evolved AMPs are themselves membrane-active yet
+  host-tolerated.)
 - **Diversity or redundancy control within the top 100:** a within-list cap
   (`--diversity-max-identity 0.6`) skips any candidate exceeding 0.60 Levenshtein identity to an
-  already-selected peptide, keeping the more-active member of a near-duplicate pair. **785 near-
+  already-selected peptide, keeping the more-active member of a near-duplicate pair. **757 near-
   duplicates were rejected** in the shipped run. This matters because the activity ranking
   concentrates the top of the list into a few cationic motif families, and the random top-50 draw
   would otherwise waste assays on near-duplicates; diversity also hedges against the moderate oracle
@@ -187,13 +203,15 @@ Required disclosure. State plainly what was applied, including "none".
 - **Manual curation or hand-picked sequences:** **None.** No sequence was hand-picked, edited, or
   reordered. The entire library and top-100 come from the automated, seeded pipeline.
 - **Computational filters beyond the competition constraints:** a **hemolysis/selectivity penalty**
-  (`checkpoint/hemolysis.pt`, HemoPI-2) applied in ranking, and a **within-list diversity cap**
-  (0.60 Levenshtein identity). No charge/hydrophobicity windows, aggregation, or solubility filters
-  are applied — those properties emerge from the generator and are only *measured* for disclosure.
+  (ESMC-600M model `checkpoint/selectivity_esmc.pt`, HemoPI-2; physicochemical `checkpoint/hemolysis.pt`
+  as fallback) applied in ranking, and a **within-list diversity cap** (0.60 Levenshtein identity). No
+  charge/hydrophobicity windows, aggregation, or solubility filters are applied — those properties
+  emerge from the generator and are only *measured* for disclosure.
 - **External predictors or databases used at selection time:** **APEX-pathogen** (MIC predictor,
-  MIT-licensed, vendored under `oracle/apex`) for activity; the HemoPI-2-trained hemolysis model
-  for selectivity. Both are disclosed in `docs/DATA.md`. No proprietary or non-public data or
-  services are used at any stage.
+  MIT-licensed, vendored under `oracle/apex`) for activity; an **ESM Cambrian 600M** selectivity model
+  (ESM++ `Synthyra/ESMplusplus_large`, MIT weights fetched from HuggingFace; HemoPI-2-trained head) for
+  hemolysis. Both are disclosed in `docs/DATA.md`. No proprietary or non-public data or services are
+  used at any stage.
 
 ## Reproducibility
 
@@ -201,8 +219,8 @@ Required disclosure. State plainly what was applied, including "none".
   eval mode on CPU; `torch.use_deterministic_algorithms`).
 - Python 3.11, pinned in `.python-version`; dependencies locked in `uv.lock`. The APEX oracle is an
   isolated `uv` project (`oracle/apex`, its own lock) invoked as a subprocess; it syncs on first
-  call. Weights (`checkpoint/generator.pt`, `checkpoint/hemolysis.pt`, `oracle/apex/`) are committed
-  directly — the validator does a plain `git clone` with no `git lfs pull`.
+  call. Weights (`checkpoint/generator.pt`, `checkpoint/selectivity_esmc.pt`, `checkpoint/hemolysis.pt`,
+  `oracle/apex/`) are committed directly — the validator does a plain `git clone` with no `git lfs pull`.
 - Verified with `uv run python scripts/verify_submission.py https://github.com/Vijayavallabh/amp-challenge-2027`
   on **2026-09-28** (commit `2efad8c`, the activity-fine-tuned pipeline): *"All checks passed.
   Submission is valid!"* — fresh clone, `uv sync`, generate twice, all 8 checks including
@@ -210,9 +228,10 @@ Required disclosure. State plainly what was applied, including "none".
 - Hardware and runtime: generation on a single CUDA GPU (falls back to CPU); APEX scoring on CPU,
   **sharded over single-threaded worker subprocesses** (auto-sized to the machine's cores and free
   memory) so it is fast yet byte-reproducible and independent of the core count. The generator was
-  pre-trained and **ReST-fine-tuned on 8×H100 offline**; inference needs one GPU or CPU. If the
-  APEX/hemolysis models cannot load, `generate` degrades gracefully (likelihood ranking, then a
-  random baseline) so a valid submission is always produced.
+  pre-trained and **ReST-fine-tuned on 8×H100 offline**; inference needs one GPU or CPU. The ESMC
+  selectivity backbone (~1.2 GB, MIT) is fetched from HuggingFace on first use; if it or the APEX
+  oracle cannot load, `generate` degrades gracefully (ESMC → physicochemical selectivity → activity
+  only; APEX → likelihood ranking → random baseline) so a valid submission is always produced.
 
 ## Checklist before submitting
 

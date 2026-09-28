@@ -2,20 +2,22 @@
 
 ## Current State
 
-**Last Updated:** 2026-09-28 (session 3 — activity/selectivity fine-tuning shipped)
-**Active Feature:** feat-010 SUBMIT (user-gated) — feat-015 (ReST) + feat-016 (parallel APEX) DONE;
-submission regenerated from the fine-tuned generator; pending final official-validator re-run + the
-participant's team name and go-ahead.
+**Last Updated:** 2026-09-28 (session 3 — ReST + parallel APEX + ESMC-600M selectivity shipped)
+**Active Feature:** feat-010 SUBMIT (user-gated) — feat-015 (ReST) + feat-016 (parallel APEX) +
+feat-017 (ESMC-600M selectivity) DONE; submission regenerated with the ESMC two-stage selection;
+pending final official-validator re-run + the participant's team name and go-ahead.
 **Deadline:** 2026-09-30 22:00 UTC (1 October 2026, AOE) — see `docs/COMPETITION.md`
 
 `uv run generate` now produces a scientifically meaningful, reproducible submission: the trained
 AR-Transformer samples a novel, cationic/amphipathic 50k library, and the top-100 is ranked by
-**APEX-predicted broad-spectrum potency minus a hemolysis penalty**, with a within-list diversity
-cap. Verified by the official validator on a fresh clone. Final top-100 (local 50k run): 100%
-predicted-active (min-MIC ≤16 µM, median 4.6), mean predicted breadth 3.85/11 strains, mean
-P(hemolytic) 0.29, novelty max-identity to known median 0.33 (rule ≤0.80), within-list identity
-≤0.60. The scientific pipeline (activity + selectivity + diversity) is in place; remaining work is
-the write-up, optional generator enrichment, and the final validate-and-submit.
+**a success-rate-aligned APEX score minus an ESMC-600M selectivity penalty**, with a within-list
+diversity cap. Verified byte-reproducible (two `uv run generate` runs md5-identical, incl. the ESMC
+GPU path) and by the official validator on a fresh clone. Final top-100 (local 50k run): mean
+category-success 0.914; hard Success-Rate (MIC ≤16 µM) 0.48 overall / 0.57 Gram− / 0.31 Gram+ / 0.38
+MDR; **0% predicted-hemolytic by the ESMC-600M model** (median P 0.006, vs 51% for the previous
+physchem selection); novel (median identity to nearest known AMP 0.69, max 0.80, 0 exact matches),
+within-list identity ≤0.60. The scientific pipeline (activity + selectivity + diversity) is in place;
+remaining work is optional structure-based validation, and the final validate-and-submit.
 
 ## Status
 

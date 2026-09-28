@@ -80,12 +80,23 @@ def build_ranker(model: PeptideGenerator, args: argparse.Namespace):
         try:
             hemo = None
             if args.hemolysis_penalty > 0:
+                # Prefer the ESMC-600M selectivity model (latest PLM, held-out AUROC ~0.89); fall
+                # back to the lightweight physicochemical model, then to activity-only ranking, so
+                # a valid submission is always produced.
                 try:
-                    from .hemolysis import HemolysisScorer
-                    hemo = HemolysisScorer(args.hemolysis_checkpoint)
-                except Exception as exc:  # noqa: BLE001 -- degrade to activity-only ranking
-                    print(f"WARNING: hemolysis model unavailable ({exc}); ranking on activity "
-                          f"only", file=sys.stderr)
+                    from .selectivity_esm import EsmcSelectivityScorer
+                    hemo = EsmcSelectivityScorer(args.selectivity_checkpoint)
+                    print("Selectivity: ESMC-600M (ESM++) embeddings")
+                except Exception as exc:  # noqa: BLE001
+                    print(f"WARNING: ESMC selectivity unavailable ({exc}); trying physchem model",
+                          file=sys.stderr)
+                    try:
+                        from .hemolysis import HemolysisScorer
+                        hemo = HemolysisScorer(args.hemolysis_checkpoint)
+                        print("Selectivity: physicochemical hemolysis model (fallback)")
+                    except Exception as exc2:  # noqa: BLE001 -- degrade to activity-only ranking
+                        print(f"WARNING: hemolysis model unavailable ({exc2}); ranking on activity "
+                              f"only", file=sys.stderr)
             ranker = ApexRanker(
                 args.apex_dir,
                 objective=args.rank_objective,
@@ -93,6 +104,7 @@ def build_ranker(model: PeptideGenerator, args: argparse.Namespace):
                 mdr_weight=args.mdr_weight,
                 hemolysis_scorer=hemo,
                 hemolysis_penalty=args.hemolysis_penalty if hemo is not None else 0.0,
+                refine_k=args.refine_k,
             )
             print(f"Ranking: {ranker.name}")
             return ranker
@@ -297,7 +309,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                              "hemolysis of the top-100 at a small breadth cost. 0 disables "
                              "(default: %(default)s). Only used with --rank apex.")
     parser.add_argument("--hemolysis-checkpoint", type=str, default="checkpoint/hemolysis.pt",
-                        help="hemolysis/selectivity model weights (default: %(default)s)")
+                        help="physicochemical hemolysis model weights, used as a fallback if the "
+                             "ESMC selectivity model is unavailable (default: %(default)s)")
+    parser.add_argument("--selectivity-checkpoint", type=str,
+                        default="checkpoint/selectivity_esmc.pt",
+                        help="ESMC-600M selectivity head (latest PLM); preferred over the physchem "
+                             "model for the hemolysis penalty (default: %(default)s)")
+    parser.add_argument("--refine-k", type=int, default=4000,
+                        help="apply the (expensive) selectivity model to only the top-K "
+                             "most-active candidates; the top-100 is drawn from these "
+                             "(default: %(default)s)")
     parser.add_argument("--diversity-max-identity", type=float, default=0.6,
                         help="cap within-top-list Levenshtein identity: skip a candidate too "
                              "similar to an already-selected one, keeping the more-active of a "

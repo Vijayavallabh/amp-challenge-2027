@@ -113,6 +113,22 @@ peptides (P<0.3) rise 12→53. λ=2 is the shipped default (4 of 5 categories ar
 hemolysis signal is noisier than APEX, so the nudge is deliberately modest); tunable via
 `--hemolysis-penalty`.
 
+**Upgrade to a PLM selectivity model (2026-09-28, feat-017).** Following the directive to use the
+latest and largest models, we replaced the 11 physicochemical descriptors with embeddings from the
+**latest SOTA protein language model, ESM Cambrian 600M** (ESM++ `Synthyra/ESMplusplus_large`, MIT,
+transformers-native so it needs no torchtext) plus a small trained MLP head on HemoPI-2. Held-out
+**AUROC climbs 0.778 → 0.905** (an intermediate ESM-2 150M gave 0.883), so the signal is now strong,
+not merely soft. A devil's-advocate audit with this accurate model exposed a real problem in the
+previous physicochemical-selected top-100: **~51% of it was in fact predicted hemolytic** (median
+P 0.54) — the 11-descriptor model had been over-optimistic about its own selections. Re-ranking with
+the PLM model (two-stage: score selectivity only on the top `refine_k=4000` most-active candidates, at
+λ=0.5) drives the top-100 to **0% predicted hemolytic** (median P 0.006) **while breadth slightly
+rises** (category-success 0.884 → 0.914, MDR Success-Rate 0.36 → 0.38) — a Pareto improvement, not a
+trade-off. Inference is byte-deterministic on GPU (`use_deterministic_algorithms` + fixed cuBLAS
+workspace; regenerating twice gives md5-identical `top.fasta`/`library.fasta`), and if the weights
+cannot be fetched `generate` falls back to the physicochemical model. `training/train_selectivity_esmc.py`
+trains the head; `src/amp_challenge_2027/selectivity_esm.py` serves it. Shipped as the default.
+
 ---
 
 ## Activity/selectivity fine-tuning by rejection sampling (ReST) — session 3 (2026-09-28)

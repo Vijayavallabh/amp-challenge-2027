@@ -149,6 +149,12 @@
       "id": "feat-016",
       "title": "Deterministic parallel CPU-APEX in shipped oracle \u2014 DONE",
       "status": "done"
+    },
+    {
+      "id": "feat-017",
+      "title": "Selectivity upgrade to ESMC-600M PLM (latest SOTA) \u2014 DONE",
+      "status": "done",
+      "evidence": "2026-09-28: Replaced the 11-descriptor physicochemical hemolysis model with the latest-SOTA protein language model ESM Cambrian 600M (ESM++ Synthyra/ESMplusplus_large, MIT, transformers-native, no torchtext) + a trained MLP head on HemoPI-2. Held-out AUROC 0.778 -> 0.905 (ESM-2 150M intermediate 0.883). training/train_selectivity_esmc.py trains the head (checkpoint/selectivity_esmc.pt, committed); src/amp_challenge_2027/selectivity_esm.py (EsmcSelectivityScorer) serves it; model.py ApexRanker does two-stage selection (PLM scored only on top refine_k=4000 most-active); generate.py fallback chain ESMC -> physchem -> activity-only. DEVIL'S ADVOCATE: the previous physchem-selected top-100 was ~51% predicted-hemolytic per the accurate PLM (median P 0.54) -- the physchem model was over-optimistic. ESMC two-stage re-ranking at lambda=0.5 drives the top-100 to 0% predicted-hemolytic (median P 0.006) WHILE breadth rises (category-success 0.884->0.914, MDR SR 0.36->0.38) -- a Pareto gain. Byte-deterministic on GPU (use_deterministic_algorithms + fixed cuBLAS workspace; two runs md5-identical: top 01ee02c2, library 3488623b). 127 tests pass. Deps added: transformers/safetensors/sentencepiece/tiktoken/einops."
     }
   ]
 }

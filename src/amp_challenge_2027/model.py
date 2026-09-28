@@ -172,10 +172,15 @@ class ApexRanker:
         mdr_weight: float = 0.5,
         hemolysis_scorer: "HemolysisScorer | None" = None,
         hemolysis_penalty: float = 0.0,
+        refine_k: int = 4000,
     ) -> None:
         from .oracle import ApexScorer  # lazy: keeps model.py importable without the oracle
 
         self._oracle = ApexScorer(apex_dir, device=device)
+        # The selectivity model (esp. the ESMC PLM) is expensive, so it is applied only to the
+        # ``refine_k`` most-active candidates; the rest are assumed hemolytic so they rank below.
+        # The shipped top-100 is drawn from the refined set, so this is exact for selection.
+        self._refine_k = int(refine_k)
         # Ranking objective: "category" = success-rate aligned with the hard Gram+/MDR buckets
         # up-weighted (oracle.category_success_score), which balances the five scored categories;
         # "broad" = the older unbounded broad_potency margin. "category" is on a [0, ~2] scale, so
@@ -203,9 +208,19 @@ class ApexRanker:
 
         mic = self._oracle.predict_mic(sequences)
         if self._objective == "broad":
-            scores = broad_potency_score(mic)
+            activity = broad_potency_score(mic)
         else:
-            scores = category_success_score(mic, self._gpw, self._mdrw)
-        if self._hemo is not None and self._lam > 0:
-            scores = scores - self._lam * np.asarray(self._hemo.predict_proba(sequences))
-        return np.asarray(scores, dtype=float).tolist()
+            activity = category_success_score(mic, self._gpw, self._mdrw)
+        if self._hemo is None or self._lam <= 0:
+            return np.asarray(activity, dtype=float).tolist()
+        # Two-stage: score selectivity only on the ``refine_k`` most-active candidates (the PLM
+        # model is expensive), leaving the rest assumed hemolytic (penalty 1.0) so they rank below.
+        # A stable argsort of the fixed activity array keeps this byte-deterministic.
+        n = len(sequences)
+        k = min(n, self._refine_k) if self._refine_k > 0 else n
+        order = np.argsort(-activity, kind="stable")[:k]
+        phemo = np.ones(n, dtype=float)
+        phemo[order] = np.asarray(
+            self._hemo.predict_proba([sequences[int(i)] for i in order]), dtype=float
+        )
+        return np.asarray(activity - self._lam * phemo, dtype=float).tolist()
