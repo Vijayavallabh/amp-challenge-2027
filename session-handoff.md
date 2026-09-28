@@ -4,13 +4,18 @@
 
 - **Goal:** Maximise the final entry by the 2026-09-30 22:00 UTC deadline: a strong, reproducible
   50k library + top-100 that is active, selective, novel and diverse.
-- **Current status (session 3):** the generator is now **fine-tuned toward predicted activity and
-  selectivity by rejection sampling (ReST)** on the 8 H100s, then the top-100 is ranked by a
-  category-aligned success-rate APEX score minus a hemolysis penalty, and the library is sampled hot
-  (temperature 1.6) to stay diverse/novel. Big predicted gains over the base (top-50 breadth
-  3.9 → ~5.3, P(hemolytic) 0.29 → 0.07) with library diversity/novelty preserved. Committed + pushed;
-  official validator re-run in progress.
-- **Branch / commit:** `main` (`2efad8c` = feat-015/016; see `git log`).
+- **Current status (session 3, through feat-021):** the generator is **ReST-fine-tuned toward the
+  hard Gram+/MDR categories** (feat-020, selectivity-gated) on the 8 H100s; the top-100 is ranked by a
+  **balanced hard Success-Rate APEX score** (Gram+, MDR, and — feat-021 — Gram− with `gn_weight=0.75`,
+  plus a broad soft tie-break) minus an **ESMC-600M** selectivity penalty, with a 0.6 diversity cap,
+  from an 8×/400k pool; the library is sampled hot (T=1.6) to stay diverse/novel. **Top-50 (assayed):
+  Broad 0.64, Gram− 0.58, Gram+ 0.75, MDR 0.67, 0% predicted-hemolytic** — roughly double the two hard
+  categories vs a broad-only pipeline, weakest category lifted 0.54→0.58. Byte-reproducible,
+  ESMFold2-checked (pLDDT 0.704), submodel-agreement 85–96%. See `progress.md` + `feature_list.json`
+  for the full feat-017…feat-022 record. **feat-022** (directed-evolution GA) was explored on the free
+  GPUs and REJECTED — it overfits APEX (held-out submodels prove no net gain over feat-021).
+- **Branch / commit:** `main` (feat-021 commit pending this session; feat-020 at `575c3e2`; see
+  `git log`). Submission remains **user-gated** (team name + go-ahead from `j_v_v_07`).
 
 ## What is done (this session)
 

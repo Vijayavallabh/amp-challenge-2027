@@ -171,6 +171,7 @@ class ApexRanker:
         gp_weight: float = 1.0,
         mdr_weight: float = 1.0,
         broad_weight: float = 0.5,
+        gn_weight: float = 0.75,
         hemolysis_scorer: "HemolysisScorer | None" = None,
         hemolysis_penalty: float = 0.0,
         refine_k: int = 20000,
@@ -190,6 +191,7 @@ class ApexRanker:
         self._gpw = float(gp_weight)
         self._mdrw = float(mdr_weight)
         self._broadw = float(broad_weight)
+        self._gnw = float(gn_weight)
         # Optional selectivity penalty: subtract lambda * P(hemolytic) from the activity score,
         # so that among comparably active peptides the less hemolytic ones rank higher. This
         # serves the Optimal Selectivity category and removes likely-toxic peptides, at a small
@@ -215,8 +217,8 @@ class ApexRanker:
             activity = broad_potency_score(mic)
         elif self._objective == "category":
             activity = category_success_score(mic, self._gpw, self._mdrw)
-        else:  # "balanced" -- hard Gram+/MDR Success Rate + broad soft tie-break (the shipped default)
-            activity = balanced_success_score(mic, self._gpw, self._mdrw, self._broadw)
+        else:  # "balanced" -- hard Gram+/MDR/Gram- Success Rate + broad soft tie-break (shipped default)
+            activity = balanced_success_score(mic, self._gpw, self._mdrw, self._broadw, self._gnw)
         if self._hemo is None or self._lam <= 0:
             return np.asarray(activity, dtype=float).tolist()
         # Two-stage: score selectivity only on the ``refine_k`` most-active candidates (the PLM

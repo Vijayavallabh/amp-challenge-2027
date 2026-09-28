@@ -14,10 +14,12 @@ ranked top-100 list, reproducibly from a fixed seed.
 > ranks the top-100 (from an 8×/400k oversampled pool) by a **hard Gram+/MDR Success-Rate APEX
 > score** minus an **ESMC-600M selectivity** penalty (latest-SOTA protein LM, held-out AUROC 0.905),
 > with a within-list diversity screen. A **final ReST round fine-tunes the generator toward the hard
-> Gram+/MDR categories** (distilling only from ESMC-non-hemolytic peptides). The assayed top-50 covers
-> **Broad 0.62, Gram- 0.54, Gram+ 0.75, MDR 0.67** at **0% predicted-hemolytic** — a strong balanced
+> Gram+/MDR categories** (distilling only from ESMC-non-hemolytic peptides), and the balanced ranking
+> objective adds a modest **hard Gram−** term (`gn_weight=0.75`) so the weakest category is lifted too.
+> The assayed top-50 covers
+> **Broad 0.64, Gram- 0.58, Gram+ 0.75, MDR 0.67** at **0% predicted-hemolytic** — a strong balanced
 > five-category profile; designs are novel (median identity 0.62) and ESMFold2-confirmed helices, with
-> the Gram+/MDR activity agreed by 86–89% of APEX's 8 ensemble members. The library is sampled hot
+> the Gram+/MDR activity agreed by 85–88% of APEX's 8 ensemble members (Gram− 96%). The library is sampled hot
 > (temperature 1.6) so it stays diverse and novel for the phase-1 screen at no top-50 activity cost.
 > All figures are computational predictions, not measurements. `--rank likelihood` or `--baseline`
 > fall back if the oracle/checkpoint are unavailable. See [docs/RESEARCH.md](docs/RESEARCH.md) and

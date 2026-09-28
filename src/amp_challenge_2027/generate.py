@@ -103,6 +103,7 @@ def build_ranker(model: PeptideGenerator, args: argparse.Namespace):
                 gp_weight=args.gp_weight,
                 mdr_weight=args.mdr_weight,
                 broad_weight=args.broad_weight,
+                gn_weight=args.gn_weight,
                 hemolysis_scorer=hemo,
                 hemolysis_penalty=args.hemolysis_penalty if hemo is not None else 0.0,
                 refine_k=args.refine_k,
@@ -308,6 +309,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--broad-weight", type=float, default=0.5,
                         help="weight for the broad soft-potency tie-break in the 'balanced' "
                              "objective (default: %(default)s)")
+    parser.add_argument("--gn-weight", type=float, default=0.75,
+                        help="weight for the hard Gram-negative Success Rate in the 'balanced' "
+                             "objective; surfaces Gram-strong peptides so the top-50 covers Gram- "
+                             "too, at no Gram+/MDR cost (default: %(default)s)")
     parser.add_argument("--hemolysis-penalty", type=float, default=1.5,
                         help="selectivity weight lambda: rank by the APEX activity score minus "
                              "lambda * P(hemolytic), so less-hemolytic actives rank higher "

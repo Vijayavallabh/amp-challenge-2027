@@ -70,14 +70,15 @@ class TestAggregations:
         assert O.broad_potency_score(one)[0] == pytest.approx(0.0)
 
     def test_balanced_success_rewards_hard_gp_mdr_hits(self):
-        # 'balanced' = gp*SR_hard(Gram+) + mdr*SR_hard(MDR) + broad*mean_soft (defaults 1,1,0.5)
+        # 'balanced' = gp*SR_hard(Gram+) + mdr*SR_hard(MDR) + gn*SR_hard(Gram-) + broad*mean_soft
+        # (defaults gp=mdr=1, gn=0.75, broad=0.5)
         s = O.balanced_success_score(MIC)
-        assert s[0] > s[1] > s[2]  # broad (clears GP+MDR) > narrow (Gram- only) > inactive
+        assert s[0] > s[1] > s[2]  # broad (clears all buckets) > narrow (a few Gram-) > inactive
         soft = O._soft_success(MIC)
-        # broadly-potent peptide clears all 4 Gram+ and all 3 MDR strains -> full hard SR on both
-        assert s[0] == pytest.approx(1.0 + 1.0 + 0.5 * soft[0].mean())
-        # narrow Gram-negative-only peptide clears zero Gram+/MDR -> only the soft tie-break term
-        assert s[1] == pytest.approx(0.5 * soft[1].mean())
+        # broadly-potent peptide clears all 4 Gram+, all 3 MDR, all 7 Gram- -> full hard SR on each
+        assert s[0] == pytest.approx(1.0 + 1.0 + 0.75 * 1.0 + 0.5 * soft[0].mean())
+        # narrow peptide clears 3 of 7 Gram- strains (indices 0,1,2), zero Gram+/MDR
+        assert s[1] == pytest.approx(0.75 * (3.0 / 7.0) + 0.5 * soft[1].mean())
 
     def test_balanced_uses_hard_threshold_not_soft_margin(self):
         # Two peptides that tie on hard Gram+ SR (both clear all 4) but differ in depth: 'balanced'

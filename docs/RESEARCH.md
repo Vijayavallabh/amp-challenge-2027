@@ -288,3 +288,61 @@ somewhat less classically-amphipathic Gram+/MDR motif class; it is still within 
 only moderate on novel peptides, AUROC 0.62), so the real-world gain carries the usual oracle-transfer
 uncertainty and we make no wet-lab claim. The shipped generator is gated-ReST round 3; feat-019's
 generator is preserved (git history at `60afc5f`, and `experiments/cache/`).
+
+## Recovering the weakest category: an explicit hard Gram- term (2026-09-28, feat-021)
+
+feat-020's generator + balanced selection is a Gram+/MDR *specialist* -- and the balanced objective
+ranked only by hard Gram+/MDR Success Rate plus a broad soft tie-break, so the top-50 came out slightly
+low on Gram- (0.54), the weakest of the five scored categories. Because the five categories are ranked
+*separately* and a team's overall standing is the arithmetic mean across them, the **weakest category is
+the highest-leverage place to improve** -- lifting a 0.54 floor helps the mean more than pushing an
+already-strong 0.75 higher.
+
+The fix is a one-line objective change: add a modest hard **Gram-negative** Success-Rate term
+(`gn_weight=0.75`) to `balanced_success_score` (mirrored in `ApexRanker` and a `--gn-weight` flag). No
+new model, no re-sampling -- the feat-020 400k pool **already contained** Gram-strong non-hemolytic
+peptides; the objective simply needed to value them. A sweep (`experiments/gn_rebalance.py`) put the
+knee at 0.75: enough to recover Gram- without displacing the Gram+/MDR specialists.
+
+**Result (top-50, shipped CPU-APEX + ESMC) -- a strict, free improvement over feat-020:** Gram-
+**0.543 -> 0.583** (+0.040), Broad **0.618 -> 0.644** (+0.026), Gram+ **0.750** and MDR **0.667** held
+*exactly*, Selectivity still **0% predicted-hemolytic** (median P 0.001 -> 0.004, max 0.06 -- all far
+below the 0.5 gate). The regenerate re-selected 45 of the 50 top peptides. **Rejected alternative:** an
+*ensemble* of the feat-019 (Gram-strong) and feat-020 (Gram+/MDR) generator pools
+(`experiments/ensemble_pool.py`) did **not** help -- balanced selection still picks feat-020's
+specialists (only 5/50 of the top-50 came from feat-019) and Gram+ fell to 0.73; the single generator +
+`gn_weight` is strictly better. **Anti-Goodhart:** APEX 8-submodel agreement on the top-50 active calls
+is Gram+ **84.8%**, MDR **87.6%**, Gram- **95.7%** (not mean-gaming); 0% hemolytic per the independent
+ESMC model; novel (median identity 0.62, max 0.73 rapidfuzz; the shipped Levenshtein novelty gate sees
+max **0.48** << 0.80; 0 exact matches); ESMFold2 re-check folds all 100 into confident helices
+(median pLDDT **0.704**, ~feat-020's 0.702 and well above a length-matched random control's 0.574;
+helix 1.00; muH 0.30; **0/100** misfold flags); byte-reproducible (two runs md5-identical).
+
+## Directed evolution against APEX overfits the oracle -- a held-out-submodel result (2026-09-28, feat-022)
+
+**Question.** feat-019 found the generator's *sampling* distribution has a ~linear ceiling on diverse,
+non-hemolytic Gram+/MDR hitters. Directed evolution (a genetic algorithm) *constructs* peptides by
+mutating the best ones toward higher APEX reward, so in principle it is not bounded by that sampling
+distribution. Can it beat feat-021? (`experiments/directed_evolution.py`, seeded from the feat-020
+pool's best non-hemolytic peptides, run on the 7 free H100s -- per the "use the free GPUs for anything
+that raises the chance of winning" directive.)
+
+**The trap, and the guard.** Optimising against an oracle invites Goodhart: the GA can find sequences
+that game APEX's weights rather than gain real potency. To *detect* that, the reward is computed on a
+**train split of APEX's 8 ensemble submodels [0-4]**, while selection and reporting use the **held-out
+submodels [5,6,7]** -- which never influence any decision. A real gain generalises to the held-out
+split; an artefact does not. (ESMC selectivity, novelty and ESMFold2 -- all independent of APEX -- are
+the outer guards; the submodel split is the inner one.)
+
+**Result -- the guard fired.** Over 12 rounds the **train** Gram+ SR of the selected top-50 climbed
+**0.60 -> 0.76** (spectacular, if you trusted it) while the **held-out** Gram+ stayed essentially flat
+(**0.59 -> 0.66**, gap widening to ~0.10-0.14). Scored on the *same held-out submodels [5,6,7]*,
+**feat-021 beats the GA on its strong categories** -- Gram+ **0.71 vs 0.66**, MDR **0.62 vs 0.59** --
+and the GA leads only on Gram- (0.64 vs 0.59) with Broad a wash. So the GA's apparent full-ensemble
+superiority is largely *overfitting*: no net win, and feat-021's Gram+/MDR strength is confirmed to
+survive on held-out submodels (i.e. it is not itself oracle-gaming). Had we optimised **and** reported on
+the full ensemble -- the naive setup -- we would have "seen" Gram+ 0.60 -> 0.76 and shipped overfit
+peptides. The submodel cross-validation is exactly what prevented that. **feat-021 remains the
+submission**; the GA archive (`experiments/cache/de.npz`) is kept for the record. (A secondary
+observation -- Gram- *generalises* better than Gram+ under evolution, train-vs-holdout gap ~0.03 vs
+~0.12 -- is noted but not acted on, since it yields no clean full-ensemble win over feat-021.)

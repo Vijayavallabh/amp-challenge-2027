@@ -15,11 +15,13 @@ AR-Transformer samples a novel, cationic/amphipathic 50k library, and the top-10
 a **hard Gram+/MDR Success-Rate APEX score** (from an 8×/400k oversampled pool) **minus a λ=1.5
 ESMC-600M selectivity penalty**, with a within-list diversity cap, on a generator **ReST-fine-tuned
 toward the hard Gram+/MDR categories** (feat-020, selectivity-gated). Byte-reproducible and
-structurally cross-checked (ESMFold2). Final **top-50** (the assayed set): hard Success-Rate (MIC ≤16
-µM) **Broad 0.62, Gram− 0.54, Gram+ 0.75, MDR 0.67**, and **0% ESMC-predicted-hemolytic** (median P
-0.001); novel (median identity 0.62, max 0.73, 0 exact — more novel than earlier), Gram+/MDR activity
-agreed by 86–89% of APEX's 8 sub-models. The scientific pipeline (activity + selectivity + diversity +
-structure) is complete; remaining is the final validate-and-submit (user-gated).
+structurally cross-checked (ESMFold2). A hard **Gram−** term (`gn_weight=0.75`, feat-021) in the
+balanced objective lifts the weakest category at zero Gram+/MDR cost. Final **top-50** (the assayed
+set): hard Success-Rate (MIC ≤16 µM) **Broad 0.64, Gram− 0.58, Gram+ 0.75, MDR 0.67**, and **0%
+ESMC-predicted-hemolytic** (median P 0.004, max 0.06); novel (median identity 0.62, max 0.73, 0 exact),
+Gram+/MDR activity agreed by 85–88% of APEX's 8 sub-models (Gram− 96%). The scientific pipeline
+(activity + selectivity + diversity + structure) is complete; remaining is the final
+validate-and-submit (user-gated).
 
 ## Status
 

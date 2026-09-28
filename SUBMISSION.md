@@ -43,12 +43,14 @@ SOTA folder — predicts all 100 as confident amphipathic helices, 0 misfold fla
 The top-100 is where the competition is decided (25 of the top 50 are synthesised), so from a large
 **8× (400k)** oversampled pool we rank by a **hard-Success-Rate APEX score** aligned with the five
 scored categories — the fraction of Gram-positive and MDR strains cleared at ≤16 µM plus a broad
-soft-potency tie-break — minus a **hemolysis penalty** from a selectivity model built on the latest
+soft-potency tie-break, plus a modest **hard Gram−** term (`gn_weight=0.75`) so the weakest category
+is lifted too — minus a **hemolysis penalty** from a selectivity model built on the latest
 SOTA protein language model (**ESM Cambrian 600M**, held-out AUROC 0.905), with a within-list
-**diversity screen**. The assayed **top-50** covers, at ≤16 µM: **Broad 0.62, Gram- 0.54, Gram+ 0.75,
-MDR 0.67**, at **0% predicted-hemolytic** (median P 0.001) — a strong, balanced five-category profile
-(the Gram+/MDR-targeted generator plus hard-SR selection roughly **doubled** the two hard categories
-from where a broad-activity-only pipeline left them, at no selectivity cost), and the designs are
+**diversity screen**. The assayed **top-50** covers, at ≤16 µM: **Broad 0.64, Gram- 0.58, Gram+ 0.75,
+MDR 0.67**, at **0% predicted-hemolytic** (median P 0.004, max 0.06) — a strong, balanced five-category
+profile (the Gram+/MDR-targeted generator plus hard-SR selection roughly **doubled** the two hard
+categories from where a broad-activity-only pipeline left them, at no selectivity cost, and the Gram−
+term recovered the weakest category from 0.54 to 0.58 at zero Gram+/MDR cost), and the designs are
 markedly novel (top-50 median identity to any known AMP 0.62, max 0.73). APEX is the de la Fuente lab's own MIC predictor
 (the lab that runs the competition's assays), used as a moderate, wet-lab-aligned signal, not ground
 truth.

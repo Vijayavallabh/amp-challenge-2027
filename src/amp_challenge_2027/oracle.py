@@ -359,26 +359,29 @@ def category_success_score(
 
 def balanced_success_score(
     mic: np.ndarray, gp_weight: float = 1.0, mdr_weight: float = 1.0,
-    broad_weight: float = 0.5, threshold: float = POTENCY_THRESHOLD_UM,
+    broad_weight: float = 0.5, gn_weight: float = 0.75,
+    threshold: float = POTENCY_THRESHOLD_UM,
 ) -> np.ndarray:
-    """Balanced 5-category ranking score: **hard** Gram+/MDR Success Rate + a broad soft tie-break.
+    """Balanced 5-category ranking score: **hard** Gram+/MDR/Gram- Success Rate + a broad soft tie-break.
 
-    ``gp_weight * SR_hard(Gram+) + mdr_weight * SR_hard(MDR) + broad_weight * mean soft-success``,
-    where ``SR_hard(bucket)`` is the fraction of that bucket's strains cleared at <= ``threshold``
-    (the exact metric the competition scores). :func:`category_success_score` averages *soft*
-    success, which is dominated by the many (easy, for cationic peptides) Gram-negative strains and
-    *dilutes* the rare peptides that truly clear the hard Gram+/MDR strains -- so it plateaus at
-    ~0.37 Gram+ Success Rate no matter how the soft weights are set. Ranking by the hard Gram+/MDR
-    rate instead surfaces those hard-hitters directly: on a large oversample pool this lifted the
-    top-50 to Gram+ 0.56 / MDR 0.55 (from 0.37 / 0.42) and *raised* broad/Gram- too, at ~no
-    selectivity cost (median P(hemolytic) stayed ~0.01). The soft-mean term is a smooth tie-break
-    (hard Success Rate is coarse -- 4 Gram+ strains give only {0, .25, .5, .75, 1}) that also keeps
-    broad Gram-negative potency in the ranking. See ``docs/RESEARCH.md``.
+    ``gp_weight * SR_hard(Gram+) + mdr_weight * SR_hard(MDR) + gn_weight * SR_hard(Gram-)
+    + broad_weight * mean soft-success``, where ``SR_hard(bucket)`` is the fraction of that bucket's
+    strains cleared at <= ``threshold`` (the exact metric the competition scores).
+    :func:`category_success_score` averages *soft* success, which is dominated by the many (easy, for
+    cationic peptides) Gram-negative strains and *dilutes* the rare peptides that truly clear the hard
+    Gram+/MDR strains -- so it plateaus at ~0.37 Gram+ Success Rate no matter how the soft weights are
+    set. Ranking by the hard Gram+/MDR rate instead surfaces those hard-hitters directly. The
+    ``gn_weight`` term then adds back an explicit hard Gram-negative Success Rate: without it the
+    Gram+/MDR-specialist selection leaves Gram- slightly low (0.54); a modest ``gn_weight`` (0.75)
+    lifts the top-50 Gram- 0.54 -> 0.58 and Broad 0.62 -> 0.64 at *no* Gram+/MDR cost (the pool already
+    holds those Gram-strong peptides; it just needed surfacing). The soft-mean term is a smooth
+    tie-break (hard Success Rate is coarse). See ``docs/RESEARCH.md``.
     """
     s = _soft_success(mic, threshold)
     hit = (mic <= threshold).astype(float)
     return (
         gp_weight * hit[:, list(GRAM_POS)].mean(axis=1)
         + mdr_weight * hit[:, list(MDR)].mean(axis=1)
+        + gn_weight * hit[:, list(GRAM_NEG)].mean(axis=1)
         + broad_weight * s.mean(axis=1)
     )
