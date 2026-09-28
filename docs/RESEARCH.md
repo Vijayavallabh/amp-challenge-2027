@@ -154,3 +154,17 @@ at temperature 1.6.
 (rewards clearing 16 µM on many strains, not sub-µM depth on a few), and balanced across the five
 scored categories. CPU-APEX is now sharded over single-threaded workers — byte-reproducible and
 independent of core count (feat-016), which makes a larger oversample affordable at ship time.
+
+### Independent cross-check with Macrel (2026-09-28)
+
+To avoid betting solely on APEX + our own hemolysis model, we cross-checked the shipped top-100
+against **Macrel** (Santos-Júnior et al.) — an independent AMP/hemolysis classifier trained on
+different data. **Activity is independently corroborated:** Macrel calls 100% of the top-100 an AMP
+(median P(AMP) 0.71), consistent with the APEX-based selection. **Hemolysis: the two predictors
+disagree, and calibration shows Macrel's is the unreliable one.** On 1,014 *labeled* HemoPI-2
+peptides, Macrel calls 99% of known-hemolytic *and* 93% of known-**non**-hemolytic peptides hemolytic
+(≈no specificity), whereas our HemoPI-2 model separates them (87% sensitivity, 78% specificity,
+consistent with its 0.778 AUROC). So Macrel's "all hemolytic" verdict is uninformative and is *not*
+ensembled into selection; our discriminating model is retained. Takeaway: the activity claim is
+robust to an independent tool; the selectivity claim rests on a moderate but genuinely discriminating
+model and is reported as such — no wet-lab claim is made.

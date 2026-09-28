@@ -4,11 +4,13 @@
 
 - **Goal:** Maximise the final entry by the 2026-09-30 22:00 UTC deadline: a strong, reproducible
   50k library + top-100 that is active, selective, novel and diverse.
-- **Current status:** Real **activity + selectivity + diversity** pipeline shipped and validated.
-  `uv run generate` samples the trained AR-Transformer, ranks the top-100 by APEX-predicted
-  broad-spectrum potency minus a hemolysis penalty, with a within-list diversity cap. Verified by
-  the official validator on a fresh clone.
-- **Branch / commit:** `main` (see `git log`).
+- **Current status (session 3):** the generator is now **fine-tuned toward predicted activity and
+  selectivity by rejection sampling (ReST)** on the 8 H100s, then the top-100 is ranked by a
+  category-aligned success-rate APEX score minus a hemolysis penalty, and the library is sampled hot
+  (temperature 1.6) to stay diverse/novel. Big predicted gains over the base (top-50 breadth
+  3.9 → ~5.3, P(hemolytic) 0.29 → 0.07) with library diversity/novelty preserved. Committed + pushed;
+  official validator re-run in progress.
+- **Branch / commit:** `main` (`2efad8c` = feat-015/016; see `git log`).
 
 ## What is done (this session)
 
@@ -21,12 +23,22 @@
 - [x] Earlier: feat-001/002/003/004/005/006/008/011 (bootstrap, compliance, baseline, Kaggle
       entry, corpus, generator ensemble, validator, trained-model wiring).
 
-## Final submission characterisation (local full 50k run)
+## Done this session (session 3)
 
-- Top-100: **100% active** (predicted min-MIC ≤16 µM), median min-MIC **4.6 µM**, mean predicted
-  breadth **3.85/11 strains**; mean **P(hemolytic) 0.29** (81% < 0.5); novelty max-identity to
-  known median **0.33** / max 0.55 (rule ≤0.80); within-list pairwise identity max 0.60.
-- Library: 50,000 unique, valid, novel; byte-identical across runs.
+- [x] **feat-015** — ReST activity/selectivity fine-tuning on 8×H100 (tooling in `experiments/`);
+      anti-Goodhart validated (APEX 8-submodel agreement ~0.95; realistic amphipathic AMPs).
+- [x] **feat-016** — deterministic parallel CPU-APEX in the shipped oracle (byte-reproducible,
+      worker-count-independent, ~2×+ faster).
+- [x] Shipped ranking switched to `category_success_score − 0.5·P(hemolytic)`; temperature 1.6.
+- [x] Docs (SUBMISSION/RESEARCH/README), progress, feature_list, memory updated; committed + pushed.
+
+## Final submission characterisation (local full 50k run, session 3)
+
+- Top-50: **100% active**, median best-strain MIC **~2.3 µM**, mean predicted breadth **5.28/11**
+  (Gram-neg SR ~56%, Gram-pos ~34%, MDR ~38%); mean **P(hemolytic) 0.074**; novelty median identity
+  to known **0.59**, max **0.75** (rule ≤0.80); within-list identity ≤0.60.
+- Library: 50,000 unique/valid/novel; **~81% diverse** (random-sample survival at 0.6), novelty
+  median **0.50** (3% > 0.8), 84% cationic, mean length 18. Byte-identical across two runs.
 
 ## Verification evidence
 
