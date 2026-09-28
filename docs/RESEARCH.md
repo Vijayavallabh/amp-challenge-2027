@@ -614,3 +614,49 @@ possible 25-draw is uniformly non-hemolytic, and most competitors' cationic AMPs
 (0.667) is rock-solid**; **Gram-negative (0.569) is the known weak category** (the K. pneumoniae /
 P. aeruginosa species ceiling documented above), rarely clearing 0.60. Net: the submission is robustly
 good on four of five categories and differentiated on Selectivity, with one understood, unfixable weak spot.
+
+## Large-pool anti-Goodhart exploration (feat-027): more compute, rigorously tested, rejected
+
+Directive: use the 8 H100s to push for a breakthrough. The shipped pool is only 400k (8x); the rare
+broad-spectrum all-rounders (clearing the hard GN species K. pneumoniae + P. aeruginosa while keeping
+GP/MDR) are ~5/150k, so a **much larger pool** might surface enough of them to lift our weakest
+categories (Gram-negative, Broad). We generated **3.98M** fresh candidates across all 8 GPUs (8 shards,
+temperature 1.6, seeds 1000-1007) and GPU-scored them with the 8-submodel APEX ensemble.
+
+**The apparent result looked like a breakthrough.** Replicating the shipped two-stage gate on the 4M
+pool (activity + 0.2*amphipathicity, ESMC hemolysis gate on the top 20k, then top-50) gave a top-50
+with **Gram- 0.686 (vs shipped 0.569), Broad 0.709 (vs 0.633)**, same GP 0.750 / MDR 0.667, **0%
+predicted-hemolytic**, muH 0.526, and P. aeruginosa clear-rate 0.04 -> 0.72. A +0.12 Gram- / +0.08 Broad
+gain at no selectivity cost -- exactly what we wanted.
+
+**But the anti-Goodhart held-out-submodel test says it is mostly overfitting.** Selecting a top-50 from
+a 4M pool is enormous selection pressure on APEX (0.62 AUROC on novel peptides). Using APEX's 8 submodels
+as train/held-out splits (`bulk_permodel`): select the top-50 with a TRAIN split, then measure it on the
+HELD-OUT split. Apples-to-apples on held-out submodels, the big-pool selection vs the shipped top-50:
+
+| on HELD-OUT submodels | big-pool selection | shipped feat-025 | verdict |
+|---|---|---|---|
+| Gram-negative | 0.63-0.68 | 0.54-0.57 | partially genuine (+0.06..0.14) |
+| Gram-positive | **0.37-0.61** | 0.62-0.70 | Goodhart collapse (-0.09..-0.25) |
+| MDR | **0.39-0.57** | 0.58-0.64 | Goodhart collapse (-0.05..-0.19) |
+| Broad | 0.57-0.62 | 0.57-0.62 | wash |
+
+The shipped top-50 is **self-consistent across train/held-out splits** (robust); the big-pool aggressive
+selection's GP and MDR **evaporate on held-out submodels** -- its full-ensemble GP 0.75 / MDR 0.667 were
+inflated by the very submodels that selected it. So the "free" Gram-/Broad gain is really a **Goodhart-
+inflated trade**: it sacrifices our strongest, most reliable categories (GP, MDR) for a partial Gram-
+gain. This is the "P. aeruginosa killers crater Gram+/MDR" caveat, now proven with a held-out test.
+
+**And there is no portfolio of genuine all-rounders to harvest.** Requiring a peptide to clear
+K. pneumoniae AND P. aeruginosa AND >=50% GP AND >=50% MDR across **>=6 of 8 submodels** while non-
+hemolytic leaves exactly **1** peptide in the whole 4M pool (`INLKAIARLAKKIL`, all 8 submodels agree,
+P(hemolytic) 0.024). K. pneumoniae is the binding ceiling: only 210 / 20,000 top candidates clear it
+robustly. One genuine all-rounder shifts a 50-peptide list's category mean by ~0.006 (negligible), and it
+is not in the shipped seed-42 library, so it could only be added by hand-injection -- which would break
+byte-determinism and the "no hand-picked sequences" disclosure. Not worth it.
+
+**Conclusion: rejected; the shipped feat-025 default stands.** 10x the compute confirms the validated
+default rather than beating it -- the apparent gain is APEX overfitting, and K. pneumoniae remains a real
+biological/oracle ceiling. A clean devil's-advocate-then-revise: explore aggressively, test with the
+held-out anti-Goodhart guard, and keep the robust entry. Null results cost nothing; the byte-deterministic
+`uv run generate` was never touched.
