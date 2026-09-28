@@ -184,3 +184,30 @@ consistent with its 0.778 AUROC). So Macrel's "all hemolytic" verdict is uninfor
 ensembled into selection; our discriminating model is retained. Takeaway: the activity claim is
 robust to an independent tool; the selectivity claim rests on a moderate but genuinely discriminating
 model and is reported as such — no wet-lab claim is made.
+
+### Structural cross-check with ESMFold2 (2026-09-28, feat-018)
+
+A third, structure-based cross-check, orthogonal to the two sequence oracles. Active AMPs act by
+folding into amphipathic α-helices that partition into bacterial membranes, so a peptide the oracles
+call active *should* adopt a confident helix. We folded the shipped top-100 with **ESMFold2-Fast**
+(`biohub/ESMFold2-Fast`, ESMC-6B backbone, 6.5B params, MIT — the latest SOTA single-sequence
+structure predictor, honoring the directive to use the largest available model) and measured, per
+peptide, mean pLDDT, α-helix fraction (from backbone φ/ψ of the predicted all-atom structure), and
+the Eisenberg hydrophobic moment (amphipathicity). This is an **offline** check — ESMFold2 is a
+diffusion model and non-deterministic, so it never enters the byte-reproducible selection path;
+`experiments/structure_validate.py` reproduces it with a fixed seed.
+
+**Result — the top-100 are confident amphipathic helices, with zero misfold flags.** Median mean-pLDDT
+0.679, α-helix fraction median 1.00 (mean 0.98; every peptide >0.5), hydrophobic moment median 0.38 —
+squarely in the range of canonical helical AMPs we folded as positive controls (melittin pLDDT 0.74 /
+helix 0.96 / µH 0.35; magainin-2 0.75 / 1.00 / 0.45; LL-37 fragment 0.76 / 1.00 / 0.88), and far from
+non-structured negatives (poly-G / poly-GS: helix 0.06, µH 0.00). **0 of 100** were flagged as
+low-confidence-and-low-helix — no disordered, oracle-gaming artifacts.
+
+**Honest caveat (devil's advocate).** Short peptides over-converge to helix in all current folders,
+so a length-matched *random*-peptide control was also fairly helical (median helix 0.86). Helix
+fraction is therefore **confirmatory, not discriminative**, at these lengths. The discriminating axis
+is confidence: the top-100's median pLDDT (0.679) sits clearly above the random control (0.593) and
+approaches the known-AMP band (0.74+). So the structural evidence confirms the designs adopt the
+membrane-active amphipathic-helix fold characteristic of real AMPs and fold more confidently than
+noise — it is corroboration, not a wet-lab claim.

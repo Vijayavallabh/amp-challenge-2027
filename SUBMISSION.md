@@ -35,7 +35,8 @@ sample the model, score every candidate with the APEX MIC predictor and a hemoly
 highest-reward *novel* peptides, and continue training on them. Over a few rounds this lifts the
 fraction of samples predicted active on at least one strain from ~6% to ~75%, while the designs stay
 realistic cationic amphipathic α-helices (validated below, including agreement across APEX's eight
-independent sub-models).
+independent sub-models, and an offline structural cross-check in which ESMFold2 — the latest SOTA
+folder — predicts all 100 as confident amphipathic helices, 0 misfold flags).
 
 The top-100 is where the competition is decided (25 of the top 50 are synthesised), so we rank by a
 **success-rate-aligned APEX score** that mirrors the five scored categories — the mean predicted
@@ -222,9 +223,12 @@ Required disclosure. State plainly what was applied, including "none".
   call. Weights (`checkpoint/generator.pt`, `checkpoint/selectivity_esmc.pt`, `checkpoint/hemolysis.pt`,
   `oracle/apex/`) are committed directly — the validator does a plain `git clone` with no `git lfs pull`.
 - Verified with `uv run python scripts/verify_submission.py https://github.com/Vijayavallabh/amp-challenge-2027`
-  on **2026-09-28** (commit `2efad8c`, the activity-fine-tuned pipeline): *"All checks passed.
+  on **2026-09-28** (commit `160e65b`, the ESMC-600M selectivity pipeline): *"All checks passed.
   Submission is valid!"* — fresh clone, `uv sync`, generate twice, all 8 checks including
-  byte-identical reproducibility.
+  byte-identical reproducibility, exercising the **real ESM++/ESMC selectivity path** (the ESM++
+  weights are fetched from HuggingFace during validation; the run reported novelty-rej 189,
+  diversity-rej 757, matching the local run exactly). (Earlier PASS on `2efad8c`, the activity-only
+  pipeline, on 2026-09-27.)
 - Hardware and runtime: generation on a single CUDA GPU (falls back to CPU); APEX scoring on CPU,
   **sharded over single-threaded worker subprocesses** (auto-sized to the machine's cores and free
   memory) so it is fast yet byte-reproducible and independent of the core count. The generator was

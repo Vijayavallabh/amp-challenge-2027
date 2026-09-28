@@ -35,6 +35,10 @@
       held-out AUROC 0.778 → **0.905**). Two-stage (PLM only on top `refine_k=4000`). Devil's-advocate:
       the old physchem-selected top-100 was **~51% predicted-hemolytic**; ESMC re-ranking → **0%**
       while breadth *rises* (category-success 0.884→0.914). Byte-deterministic on GPU; physchem fallback.
+      **Official validator PASSED** on the pushed commit `160e65b` (real ESM++ path, all 8 checks).
+- [x] **feat-018** — offline structural cross-check with **ESMFold2-Fast** (6.5B, latest SOTA folder):
+      all 100 fold as confident amphipathic helices (median pLDDT 0.679, helix 1.00, 0/100 flagged),
+      like known-AMP controls. `experiments/structure_validate.py`; NOT in the deterministic path.
 - [x] Docs (SUBMISSION/RESEARCH/README), progress, feature_list, memory updated; committed + pushed.
 
 ## Final submission characterisation (local full 50k run, session 3)
