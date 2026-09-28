@@ -12,6 +12,10 @@ maximin raises the Gram- floor but trades away feat-021's Gram+/MDR/Selectivity 
 bad deal when the five categories are ranked separately. feat-021 (`--select score`) remains the
 validated submission. Pending only the participant's team name + go-ahead from `j_v_v_07`.
 **Deadline:** 2026-09-30 22:00 UTC (1 October 2026, AOE) — see `docs/COMPETITION.md`
+**Advancement (phase-2) readiness verified:** the 50k library is 100% unique, cationic (median net
+charge +4, 85% positive), amphipathic (GRAVY −0.38), classic-AMP composition (R/L/K/W/I), highly novel
+(median identity to known AMPs 0.29, max 0.53 ≪ 0.80) and diverse (median internal pairwise identity
+0.29) — strong on the diversity/novelty/physchem axes the top-20 advancement screen scores.
 
 `uv run generate` now produces a scientifically meaningful, reproducible submission: the trained
 AR-Transformer samples a novel, cationic/amphipathic 50k library, and the top-100 is ranked by
