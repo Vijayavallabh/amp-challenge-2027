@@ -15,7 +15,7 @@ import numpy as np
 import pytest
 
 from amp_challenge_2027 import oracle as O
-from amp_challenge_2027.generate import build_ranker, parse_args, select_top
+from amp_challenge_2027.generate import build_ranker, parse_args, select_maximin, select_top
 from amp_challenge_2027.model import RandomBaseline
 
 
@@ -125,6 +125,63 @@ class TestDiversityScreen:
         a = select_top(self.LIB, _FixedRanker(self.SCORES), 2, [], diversity_max_identity=0.8)
         b = select_top(self.LIB, _FixedRanker(self.SCORES), 2, [], diversity_max_identity=0.8)
         assert a == b
+
+
+class _MaximinRanker:
+    """A ranker exposing both seams: ``maximin_data`` (per-category rates + phemo) for the maximin
+    selector and ``score`` (a balanced weighted sum) for the older single-score path."""
+
+    name = "maximin-mock"
+
+    def __init__(self, rates: dict[str, list[float]], phemo: dict[str, float] | None = None) -> None:
+        self._r = rates
+        self._p = phemo or {}
+
+    def maximin_data(self, sequences: list[str]):
+        return (np.array([self._r[s] for s in sequences], dtype=float),
+                np.array([self._p.get(s, 0.0) for s in sequences], dtype=float))
+
+    def score(self, sequences: list[str]) -> list[float]:
+        # balanced-style weighted sum: Gram+ + MDR + 0.75*Gram- + 0.5*Broad
+        return [c[2] + c[3] + 0.75 * c[1] + 0.5 * c[0] for c in (self._r[s] for s in sequences)]
+
+
+class TestMaximinSelection:
+    def test_category_rates_are_per_bucket_success_fractions(self):
+        mic = np.array([[2.0] * 11, [400.0] * 11, [4.0, 4.0, 4.0] + [500.0] * 8])
+        r = O.category_rates(mic)                       # [Broad, Gram-, Gram+, MDR]
+        assert r.shape == (3, 4)
+        assert list(r[0]) == [1.0, 1.0, 1.0, 1.0]       # clears everything
+        assert list(r[1]) == [0.0, 0.0, 0.0, 0.0]       # clears nothing
+        # third peptide clears strains 0,1,2 (all Gram-negative): Broad 3/11, Gram- 3/7, Gram+/MDR 0
+        assert r[2][1] == pytest.approx(3 / 7)
+        assert r[2][2] == 0.0 and r[2][3] == 0.0
+
+    # Two Gram+/MDR specialists and one Gram--specialist. A weighted-sum ranker takes the two
+    # highest-scoring (both Gram+/MDR) and leaves Gram- at the floor; maximin must instead cover the
+    # weak Gram- category by including the Gram--specialist in the assayed set.
+    LIB = ["KKKKKKKKKK", "RRRRRRRRRR", "DDDDDDDDDD", "EEEEEEEEEE"]
+    RATES = {
+        "KKKKKKKKKK": [0.5, 0.2, 1.0, 1.0],   # Gram+/MDR strong
+        "RRRRRRRRRR": [0.5, 0.2, 1.0, 1.0],   # Gram+/MDR strong
+        "DDDDDDDDDD": [0.5, 1.0, 0.2, 0.2],   # Gram- strong
+        "EEEEEEEEEE": [0.3, 0.3, 0.3, 0.3],   # mediocre
+    }
+
+    def test_maximin_covers_the_weak_category(self):
+        r = _MaximinRanker(self.RATES)
+        top = select_maximin(self.LIB, r, 2, [], assayed_k=2, diversity_max_identity=None)
+        assert "DDDDDDDDDD" in top                       # the Gram--specialist is selected
+        # the older single-score path grabs the two Gram+/MDR specialists and neglects Gram-
+        assert "DDDDDDDDDD" not in select_top(self.LIB, r, 2, [])
+
+    def test_maximin_gates_hemolytic_and_is_deterministic(self):
+        # make the Gram--specialist predicted-hemolytic: it must be gated out despite covering Gram-
+        r = _MaximinRanker(self.RATES, phemo={"DDDDDDDDDD": 0.9})
+        top = select_maximin(self.LIB, r, 2, [], assayed_k=2, diversity_max_identity=None, gate=0.5)
+        assert "DDDDDDDDDD" not in top
+        assert top == select_maximin(self.LIB, r, 2, [], assayed_k=2,
+                                     diversity_max_identity=None, gate=0.5)  # deterministic
 
 
 @pytest.mark.skipif(

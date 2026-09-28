@@ -345,4 +345,55 @@ the full ensemble -- the naive setup -- we would have "seen" Gram+ 0.60 -> 0.76 
 peptides. The submodel cross-validation is exactly what prevented that. **feat-021 remains the
 submission**; the GA archive (`experiments/cache/de.npz`) is kept for the record. (A secondary
 observation -- Gram- *generalises* better than Gram+ under evolution, train-vs-holdout gap ~0.03 vs
-~0.12 -- is noted but not acted on, since it yields no clean full-ensemble win over feat-021.)
+~0.12, since the Gram- submodels agree 95.7% -- looked worth chasing, so we probed it directly.)
+
+**Gram--augmentation probe (rejected, `experiments/gn_augment_probe.py`).** Gram- is feat-021's
+weakest, highest-leverage category, and the GA's Gram- gains generalise -- so can the GA's robust
+(non-hemolytic, novel, small train-holdout gap) Gram-specialists lift feat-021's floor? Tested
+honestly: **select on the train submodels, report on the held-out ones** (leak-free both ways).
+Augmenting feat-021's candidates with the robust GA set and re-selecting raises held-out Gram-
+(0.586 -> 0.67) and the weakest-category floor (0.586 -> 0.60) -- but **trades Gram+** (0.71 -> 0.67)
+and MDR (0.62 -> 0.60); the mean of the four activity categories barely moves (0.637 -> 0.652). A
+*targeted* swap that keeps feat-021's Gram+ peptides and only fills the Gram- gap is worse: the GA
+Gram-specialists are weak on Gram+/MDR, so as Gram- climbs (up to 0.75) MDR falls **below** the old
+floor (to 0.53) -- there is no free lunch. The ~0.014 floor gain sits well inside APEX's oracle noise
+(AUROC 0.62 on novel peptides, and the evolved peptides are further out-of-distribution than
+generator samples, where APEX is *less* reliable), and it trades feat-021's strongest, most-reliable
+category. **Not a defensible improvement -- feat-021 ships unchanged.** The disciplined read of the
+whole directed-evolution line: evolving against this oracle buys nothing real over feat-021, and the
+submodel cross-validation is what let us see that instead of shipping an overfit mirage.
+
+## Maximin selection: raise the floor, but not by sacrificing the standout categories (2026-09-28, feat-023)
+
+A fixed weighted sum (:func:`~amp_challenge_2027.oracle.balanced_success_score`) cannot maximise a
+*minimum*. Since the five categories are ranked separately, the weakest is arithmetically the
+highest-leverage number -- so we built a maximin top-list selector (``generate.select_maximin`` over
+``oracle.category_rates``): greedily fill the assayed top-50 with the peptide strongest in whichever
+category is currently weakest, held to the same non-hemolytic gate + < 80% novelty + 0.6 diversity
+screens, byte-deterministic. On the shipped 400k pool it does exactly what it claims -- top-50 floor
+**0.583 -> 0.627**:
+
+| selection | Broad | Gram- | Gram+ | MDR | floor | mean-4 | Selectivity (median P, max P) |
+|---|---|---|---|---|---|---|---|
+| **score** (feat-021, shipped) | 0.644 | 0.583 | **0.750** | **0.667** | 0.583 | **0.661** | **0.004, 0.06** |
+| maximin | 0.645 | **0.631** | 0.670 | 0.627 | **0.627** | 0.643 | 0.035, 0.49 |
+
+But the floor is the **wrong objective for this competition**, and the numbers show why. The five
+categories are ranked *separately* (`docs/COMPETITION.md`): there is no overall mean of category
+scores, and advancement (top-20) is decided on **library** quality, not the category scores. What wins
+is being a *standout* in individual categories -- and the shipped ``score`` selection dominates maximin
+in **four of the five**: it ties Broad, and wins Gram+ (0.75 vs 0.67), MDR (0.67 vs 0.63) and
+Selectivity (median predicted-hemolysis 0.004 vs 0.035, and maximin pushes one top-50 peptide to
+P = 0.49, right at the gate -- eroding the rare 0%-hemolytic standout most AMP designs cannot match).
+Maximin wins only Gram-, and has the lower mean-of-four. Trading three standout categories for one
+contested Gram- gain is a bad deal when each category is its own leaderboard.
+
+So maximin stays a documented, tested, byte-deterministic **alternative** (`--select maximin`) -- the
+right tool only if the scoring were ever an overall mean-of-category-*ranks* (where lifting your worst
+rank helps) or if one deliberately wanted a robust, no-weak-category entry -- while the shipped default
+remains `--select score` (feat-021). The exercise did surface one competition fact worth recording: the
+real assay panel is **15 Gram-negative + 5 Gram-positive** (75% Gram-), so the Broad category is
+Gram--dominated and APEX's 7/4 Gram-/Gram+ bucket split *under*-weights Gram- relative to reality -- a
+known oracle-transfer caveat (already flagged), not something to over-fit the selection to. Net across
+feat-022 + feat-023: two serious, GPU-heavy attempts to beat feat-021 (construct better peptides;
+re-balance the selection) both come back to feat-021 as the strongest *defensible* entry.

@@ -232,3 +232,29 @@ class ApexRanker:
             self._hemo.predict_proba([sequences[int(i)] for i in order]), dtype=float
         )
         return np.asarray(activity - self._lam * phemo, dtype=float).tolist()
+
+    def maximin_data(self, sequences: list[str]):
+        """Return ``(category_rates (n, 4), phemo (n,))`` for the maximin top-list selector.
+
+        ``category_rates`` columns are ``[Broad, Gram-, Gram+, MDR]`` hard Success Rates. ``phemo`` is
+        the ESMC P(hemolytic) computed exactly as in :meth:`score` -- on the ``refine_k`` most-active
+        candidates (ranked by the balanced activity), the rest left at 1.0 (assumed hemolytic, so the
+        selector gates them out). With no selectivity model, ``phemo`` is 0 (no gate).
+        """
+        import numpy as np
+
+        from .oracle import balanced_success_score, category_rates
+
+        mic = self._oracle.predict_mic(sequences)
+        rates = category_rates(mic)
+        n = len(sequences)
+        if self._hemo is None:
+            return rates, np.zeros(n, dtype=float)
+        activity = balanced_success_score(mic, self._gpw, self._mdrw, self._broadw, self._gnw)
+        k = min(n, self._refine_k) if self._refine_k > 0 else n
+        order = np.argsort(-activity, kind="stable")[:k]
+        phemo = np.ones(n, dtype=float)
+        phemo[order] = np.asarray(
+            self._hemo.predict_proba([sequences[int(i)] for i in order]), dtype=float
+        )
+        return rates, phemo

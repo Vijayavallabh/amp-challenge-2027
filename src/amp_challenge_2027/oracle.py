@@ -385,3 +385,23 @@ def balanced_success_score(
         + gn_weight * hit[:, list(GRAM_NEG)].mean(axis=1)
         + broad_weight * s.mean(axis=1)
     )
+
+
+def category_rates(mic: np.ndarray, threshold: float = POTENCY_THRESHOLD_UM) -> np.ndarray:
+    """Per-peptide hard Success Rate in each scored *activity* category, as an ``(n, 4)`` array with
+    columns ``[Broad-spectrum, Gram-negative, Gram-positive, MDR]`` -- each the fraction of that
+    bucket's strains cleared at <= ``threshold`` (Broad = all 11 strains).
+
+    This is what the maximin top-list selector (``generate.select_maximin``) needs: the competition
+    ranks the five categories *separately*, so the standing turns on the **weakest** one. A fixed
+    weighted sum (:func:`balanced_success_score`) cannot maximise a minimum; greedy maximin over these
+    per-category rates raises the floor directly. Selectivity (the 5th category) is handled separately
+    as the P(hemolytic) gate, not an activity rate.
+    """
+    hit = (mic <= threshold).astype(float)
+    return np.stack([
+        hit.mean(axis=1),
+        hit[:, list(GRAM_NEG)].mean(axis=1),
+        hit[:, list(GRAM_POS)].mean(axis=1),
+        hit[:, list(MDR)].mean(axis=1),
+    ], axis=1)

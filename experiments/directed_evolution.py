@@ -139,15 +139,27 @@ def main() -> int:
                  if ln.strip() and not ln.startswith(">")]
     ref_set = set(reference)
 
-    # --- seeds: best non-hemolytic peptides from the cached feat-020 pool -----------------------
+    # --- seeds: feat-021-STYLE selection from the pool (balanced - 1.5*P(hemo), then diversity +
+    # novelty), so the seed set SPANS Gram+/MDR/Gram- like the shipped top-50 -- NOT a top-by-balanced
+    # set, which is Gram-heavy (the diversity screen is what balances feat-021's top-50). This lets
+    # evolution start from Gram+-strong backbones and test whether it can ADD Gram- without losing them.
     d = np.load(REPO / args.seed_pool, allow_pickle=True)
     pseqs, pmic, pph = d["seqs"].tolist(), d["mic"].astype(np.float64), d["phemo"].astype(np.float64)
-    pr = reward(pmic)
-    ok = [i for i in range(len(pseqs)) if pph[i] < GATE and C.is_valid_sequence(str(pseqs[i]))]
-    ok.sort(key=lambda i: -pr[i])
-    seeds = [str(pseqs[i]) for i in ok[:args.seeds]]
-    print(f"[{time.time()-t0:5.0f}s] seeds: {len(seeds)} non-hemolytic from {args.seed_pool} "
-          f"(seed reward max {pr[ok[0]]:.3f})", flush=True)
+    pr = reward(pmic) - 1.5 * pph
+    cand = [i for i in range(len(pseqs)) if pph[i] < GATE and C.is_valid_sequence(str(pseqs[i]))]
+    cand.sort(key=lambda i: -pr[i])
+    seeds = []
+    for i in cand:
+        if len(seeds) >= args.seeds:
+            break
+        s = str(pseqs[i])
+        if not C.is_novel_enough(s, reference):
+            continue
+        if seeds and C.max_identity(s, seeds, cutoff=0.6) >= 0.6:
+            continue
+        seeds.append(s)
+    print(f"[{time.time()-t0:5.0f}s] seeds: {len(seeds)} diverse feat-021-style from {args.seed_pool} "
+          f"(seed score max {pr[cand[0]]:.3f})", flush=True)
 
     # archive: every scored sequence -> per-submodel MIC (8,11) and ESMC phemo (default 1.0 = unscored)
     mic8_by: dict[str, np.ndarray] = {}

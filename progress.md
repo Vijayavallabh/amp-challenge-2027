@@ -2,12 +2,15 @@
 
 ## Current State
 
-**Last Updated:** 2026-09-28 (session 3 — ReST + parallel APEX + ESMC selectivity + balanced Gram+/MDR objective)
-**Active Feature:** feat-010 SUBMIT (user-gated) — feat-015 (ReST) + feat-016 (parallel APEX) +
-feat-017 (ESMC-600M selectivity) + feat-018 (ESMFold2 structure check) + feat-019 (balanced
-hard-Gram+/MDR objective + 8× oversample) + feat-020 (GP/MDR-targeted selectivity-gated ReST
-generator) DONE; submission regenerated; pending final official-validator re-run on the new commit +
-the participant's team name and go-ahead.
+**Last Updated:** 2026-09-28 (session 3 — through feat-023: ESMC selectivity, balanced Gram+/MDR + Gram- objective, directed-evolution + maximin explorations)
+**Active Feature:** feat-010 SUBMIT (user-gated) — feat-015…feat-020 + **feat-021** (explicit hard
+Gram- term, top-50 Gram- 0.54→0.58 at zero Gram+/MDR cost) DONE and **official-validator PASS on the
+pushed commit 15c3b5e**. **feat-022** (submodel-cross-validated directed-evolution GA) and **feat-023**
+(maximin top-list selection, `--select maximin`) were both explored extensively on the free GPUs and
+**rejected as the default** — directed evolution overfits APEX (held-out submodels prove no real gain);
+maximin raises the Gram- floor but trades away feat-021's Gram+/MDR/Selectivity standouts, which is a
+bad deal when the five categories are ranked separately. feat-021 (`--select score`) remains the
+validated submission. Pending only the participant's team name + go-ahead from `j_v_v_07`.
 **Deadline:** 2026-09-30 22:00 UTC (1 October 2026, AOE) — see `docs/COMPETITION.md`
 
 `uv run generate` now produces a scientifically meaningful, reproducible submission: the trained

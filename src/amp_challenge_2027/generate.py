@@ -242,6 +242,102 @@ def select_top(
     return selected
 
 
+def select_maximin(
+    library: list[str],
+    ranker,
+    top_k: int,
+    reference: list[str],
+    *,
+    assayed_k: int = 50,
+    diversity_max_identity: float | None = None,
+    gate: float = 0.5,
+    shortlist: int = 8000,
+) -> list[str]:
+    """Select the top list to maximise the WEAKEST scored category (maximin), not a weighted sum.
+
+    The competition ranks Broad / Gram- / Gram+ / MDR / Selectivity *separately*, so a team's standing
+    turns on its weakest category. :func:`~amp_challenge_2027.oracle.balanced_success_score` is a fixed
+    weighted sum and cannot maximise a minimum. This selector greedily fills the *assayed* set (the top
+    ``assayed_k`` = 50, of which 25 are assayed at random) with the candidate that most raises the
+    running **minimum** per-category Success Rate, then pads to ``top_k`` with the least-hemolytic
+    strong actives (slots 51-100 are not assayed; they exist only so ``top`` is a subset of the
+    library). Candidates are gated to ESMC P(hemolytic) < ``gate`` (the Selectivity category) and held
+    to the same < 80% novelty and within-list diversity screens as :func:`select_top`. Deterministic:
+    stable ordering with a sequence tie-break, so the organizers' twice-run byte comparison holds.
+
+    Needs a ranker exposing ``maximin_data`` (:class:`~amp_challenge_2027.model.ApexRanker`); callers
+    fall back to :func:`select_top` when it is absent (e.g. the likelihood/random fallbacks).
+    """
+    rates, phemo = ranker.maximin_data(library)
+    weights = np.array([0.5, 0.75, 1.0, 1.0])  # Broad, Gram-, Gram+, MDR -- shortlist ordering only
+
+    # Shortlist: non-hemolytic, most-active first (so the expensive novelty screen vs 39k refs runs on
+    # a few thousand), ranked by summed category rates so generalists AND single-category specialists
+    # both enter -- maximin needs Gram-specialists to fill Gram- and Gram+ specialists to fill Gram+.
+    activity = rates @ weights
+    gated = [i for i in range(len(library)) if phemo[i] < gate]
+    gated.sort(key=lambda i: (-activity[i], library[i]))
+    short = gated[:shortlist]
+    novel = [i for i in short if C.is_novel_enough(library[i], reference)]
+
+    selected: list[int] = []
+    selected_seqs: set[str] = set()
+    running = np.zeros(4)
+
+    def diverse_ok(i: int) -> bool:
+        if diversity_max_identity is None or not selected:
+            return True
+        return C.max_identity(library[i], [library[j] for j in selected],
+                              cutoff=diversity_max_identity) < diversity_max_identity
+
+    # Phase 1 -- greedily fill the currently WEAKEST category. Each step, take the category with the
+    # least coverage so far (``argmin`` of the running totals; Broad at the start) and add the
+    # candidate strongest in it, breaking ties by the resulting floor, then total, then sequence. This
+    # is less myopic than "maximise the running minimum", which can grab a balanced-mediocre peptide
+    # first and lock in a worse set; filling the weak category directly raises the eventual floor.
+    remaining = list(novel)
+    while len(selected) < min(assayed_k, top_k) and remaining:
+        weak = int(np.argmin(running))
+        cand = np.asarray(remaining)
+        cr = rates[cand]
+        newmean = (running[None, :] + cr) / (len(selected) + 1)  # (m, 4)
+        key_weak = cr[:, weak]
+        key_min = newmean.min(axis=1)
+        key_sum = newmean.sum(axis=1)
+        order = sorted(range(len(remaining)),
+                       key=lambda j: (-key_weak[j], -key_min[j], -key_sum[j], library[remaining[j]]))
+        picked = None
+        for j in order:
+            if diverse_ok(remaining[j]):
+                picked = remaining[j]
+                break
+        if picked is None:
+            break
+        selected.append(picked)
+        selected_seqs.add(library[picked])
+        running = running + rates[picked]
+        remaining.remove(picked)
+
+    # Phase 2 -- pad to top_k with the least-hemolytic strong actives (not assayed).
+    for i in sorted(short, key=lambda i: (phemo[i], -activity[i], library[i])):
+        if len(selected) >= top_k:
+            break
+        if library[i] in selected_seqs:
+            continue
+        if C.is_novel_enough(library[i], reference) and diverse_ok(i):
+            selected.append(i)
+            selected_seqs.add(library[i])
+
+    if len(selected) < top_k:
+        raise RuntimeError(
+            f"maximin selected only {len(selected)} of {top_k}: the novelty/diversity/selectivity "
+            f"screens are too strict for this pool -- raise --oversample or relax the screens"
+        )
+    floor = (running / min(assayed_k, top_k)).min()
+    print(f"  maximin top-{min(assayed_k, top_k)} category floor (min of Broad/Gram-/Gram+/MDR SR): {floor:.3f}")
+    return [library[i] for i in selected]
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="generate",
@@ -337,6 +433,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                              "similar to an already-selected one, keeping the more-active of a "
                              "near-duplicate pair. Set to a value >= 1 to disable "
                              "(default: %(default)s)")
+    parser.add_argument("--select", choices=("score", "maximin"), default="score",
+                        help="top-list selection. 'score' (default, shipped) ranks by the balanced "
+                             "hard Success-Rate score minus the hemolysis penalty -- it keeps the "
+                             "Gram+/MDR and Selectivity STANDOUTS that win those separately-ranked "
+                             "categories. 'maximin' instead fills the assayed top-50 to maximise the "
+                             "WEAKEST category's Success Rate (a robust, no-weak-category profile); it "
+                             "raises the Gram- floor but trades away the Gram+/MDR/Selectivity "
+                             "standouts, so it is NOT the default -- see docs/RESEARCH.md (feat-023). "
+                             "maximin needs the APEX ranker; it falls back to 'score' otherwise "
+                             "(default: %(default)s)")
 
     args = parser.parse_args(argv)
     if args.length is not None:
@@ -367,8 +473,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Pool: {len(pool)} candidates ({args.oversample:g}x) for top-list selection")
 
     ranker = build_ranker(model, args)
-    top = select_top(pool, ranker, args.top_k, reference,
-                     diversity_max_identity=args.diversity_max_identity)
+    if args.select == "maximin" and hasattr(ranker, "maximin_data"):
+        top = select_maximin(pool, ranker, args.top_k, reference,
+                             diversity_max_identity=args.diversity_max_identity)
+    else:
+        if args.select == "maximin":
+            print("  maximin needs the APEX ranker (needs per-category MIC); using score ranking")
+        top = select_top(pool, ranker, args.top_k, reference,
+                         diversity_max_identity=args.diversity_max_identity)
 
     # Library = the top list first (guarantees the subset rule), then the pool in order,
     # de-duplicated and truncated to the required size.
