@@ -397,3 +397,22 @@ Gram--dominated and APEX's 7/4 Gram-/Gram+ bucket split *under*-weights Gram- re
 known oracle-transfer caveat (already flagged), not something to over-fit the selection to. Net across
 feat-022 + feat-023: two serious, GPU-heavy attempts to beat feat-021 (construct better peptides;
 re-balance the selection) both come back to feat-021 as the strongest *defensible* entry.
+
+## Latest-SOTA generator research: why we keep the ReST-optimised AR-Transformer (2026-09-28)
+
+Per the "research the latest/largest before committing" directive, we surveyed 2025-2026 AMP
+generators before spending hours on a generator swap. Findings: **(1)** the organizers' own baseline is
+**AMP-Diffusion** (ESM-2 latent diffusion + protein-LM embeddings, biorxiv 2024 -> Cell Biomaterials
+2025) -- generate 50k, filter/rank with APEX, 46 synthesised, 76% inhibited bacteria incl. MDR at low
+toxicity -- so reimplementing a big diffusion generator would reproduce the **excluded baseline**, not
+an edge. **(2)** Our edge over that baseline is exactly the **optimisation layer it lacks**: ReST
+fine-tuning of the generator toward the APEX hard-Success-Rate objective + an *independent* ESMC
+selectivity gate + diversity/novelty screens. The baseline only *filters* APEX; we *optimise* against
+it. **(3)** The newest generators (OmegAMP -- targeted, biologically-informed generation, arXiv 2025;
+AMPGAN v3 -- agentic non-canonical AMPs, 2026; multi-modal contrastive diffusion) are alternative
+*generators*, but the generator is **not our binding constraint** -- feat-019 showed the 0.6 diversity
+screen and the broad-spectrum-vs-hemolysis biology are, so a larger generator reimplemented in the
+remaining window is high risk for uncertain gain. **Decision:** keep the validated ReST-optimised
+AR-Transformer; the differentiator is optimisation against APEX + selectivity, which is precisely what
+the excluded baseline does not do. (Sources: AMP-Diffusion, Cell Biomaterials 2025 / biorxiv
+2024.03.03.583201; OmegAMP arXiv 2504.17247; AMPGAN v3 arXiv 2606.17127.)
