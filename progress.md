@@ -31,8 +31,11 @@ COMPLETE**: byte-determinism verified across GPUs (runs on GPU0==GPU4==explicit-
 `library.fasta`/`top.fasta`), and the **official validator PASSED on commit `6f1d73f`** — fresh clone +
 `uv sync` + generate ×2, *"All checks passed. Submission is valid!"*, ranking line
 `apex-balanced-success - 1.5*hemolysis + 0.2*amphipathicity`, all 8 checks incl. reproducibility; the
-fresh-clone output is byte-identical to the shipped feat-025 default. Commits `6f1d73f`/`e28f86f`/`67c9337`
-are ready to push. Pending only the participant's team name +
+fresh-clone output is byte-identical to the shipped feat-025 default. **Pushed to the public repo
+(`d3dd6e6..7995342`), and feat-008 PASSED against the pushed GitHub URL** — fresh GitHub clone + `uv sync`
++ generate ×2, *"Submission is valid!"*, output byte-identical to the shipped default (library `49451d15`,
+top `9bb8fe3b`), so the organizers' clone-and-run reproduces exactly this submission. Only feat-010 (the
+one-shot Kaggle submit) remains. Pending only the participant's team name +
 go-ahead from `j_v_v_07`.
 **Deadline:** 2026-09-30 22:00 UTC (1 October 2026, AOE) — see `docs/COMPETITION.md`
 **Advancement (phase-2) readiness verified with the organizers' own `seqme` framework (feat-026):**

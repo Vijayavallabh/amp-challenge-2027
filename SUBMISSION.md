@@ -276,13 +276,13 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       API, `userHasEntered=True` (feat-004)
 - [ ] Submitting from `j_v_v_07`, not from the machine's default token account
 - [ ] `./init.sh` green, including the two-run byte-identical check
-- [~] `scripts/verify_submission.py` on the feat-025 default: LOCAL fresh-clone run on commit `6f1d73f`
-      PASSED (2026-09-28) — *"All checks passed. Submission is valid!"*, ranking
-      `apex-balanced-success - 1.5*hemolysis + 0.2*amphipathicity`, generate ×2, all 8 checks incl.
-      byte-identical reproducibility; the fresh-clone output is byte-identical to the shipped default.
-      STILL TODO before submitting: push the feat-025 commits (`6f1d73f`, `e28f86f`, `67c9337`) and
-      re-run the validator against the **pushed public URL** (feat-008). (Prior pushed-URL PASS was
-      commit `7f08c5a`, feat-021, session 3.) Re-run once more immediately before submitting.
+- [x] `scripts/verify_submission.py` PASSED against the **pushed public URL** for the feat-025 default
+      (2026-09-29): cloned `https://github.com/Vijayavallabh/amp-challenge-2027.git` fresh, `uv sync`,
+      generate ×2 — *"All checks passed. Submission is valid!"*, ranking
+      `apex-balanced-success - 1.5*hemolysis + 0.2*amphipathicity`, all 8 checks incl. byte-identical
+      reproducibility. The GitHub-cloned output is byte-identical to the shipped default (library
+      `49451d15`, top `9bb8fe3b`), so the organizers' clone-and-run reproduces exactly this submission.
+      (Also PASSED locally on commit `6f1d73f`.) Re-run once more immediately before submitting.
 - [x] Every section above filled in, with no placeholder text left
 - [x] Repository public, MIT licensed, `uv.lock` and `.python-version` committed
 - [x] Weights committed or fetchable, and the inference path documented (`checkpoint/`, `oracle/apex/`)

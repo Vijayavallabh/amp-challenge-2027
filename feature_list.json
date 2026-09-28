@@ -116,7 +116,7 @@
         "feat-003"
       ],
       "status": "done",
-      "evidence": "2026-09-27: `uv run python scripts/verify_submission.py https://github.com/Vijayavallabh/amp-challenge-2027` -> 'All checks passed. Submission is valid!' in 7s. Fresh clone, uv sync, generate twice, all 8 checks including overlap, the 80% similarity screen, and byte-identical reproducibility. Re-run after any change to the generator."
+      "evidence": "2026-09-27: `uv run python scripts/verify_submission.py https://github.com/Vijayavallabh/amp-challenge-2027` -> 'All checks passed. Submission is valid!' in 7s. Fresh clone, uv sync, generate twice, all 8 checks including overlap, the 80% similarity screen, and byte-identical reproducibility. Re-run after any change to the generator. | RE-VALIDATED 2026-09-29 on the feat-025 default (pushed commit 7995342): fresh clone of the public GitHub URL + uv sync + generate x2 -> 'All checks passed. Submission is valid!', ranking 'apex-balanced-success - 1.5*hemolysis + 0.2*amphipathicity', all 8 checks incl. reproducibility; GitHub-cloned output byte-identical to the shipped default (library 49451d15, top 9bb8fe3b)."
     },
     {
       "id": "feat-009",
