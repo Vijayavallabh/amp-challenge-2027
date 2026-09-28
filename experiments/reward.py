@@ -51,17 +51,27 @@ def reward(mic: np.ndarray, phemo: np.ndarray | None = None, *,
 
 
 def balanced_reward(mic: np.ndarray, phemo: np.ndarray | None = None, *,
-                    gp_w: float = 1.0, mdr_w: float = 1.0, broad_w: float = 0.5,
-                    hemo_lambda: float = 1.5) -> np.ndarray:
-    """HARD Gram+/MDR Success Rate + a broad soft tie-break - hemo penalty.
+                    gp_w: float = 1.0, mdr_w: float = 1.0, gn_w: float = 0.75,
+                    broad_w: float = 0.5, hemo_lambda: float = 1.5) -> np.ndarray:
+    """HARD Gram+/MDR/Gram- Success Rate + a broad soft tie-break - hemo penalty.
 
-    Mirrors the shipped ``oracle.balanced_success_score`` ranker, so ReST fine-tunes the generator
-    toward exactly the peptides selection rewards: those that actually *clear* the hard Gram+/MDR
-    strains at <=16 uM (not merely sit near the threshold, which the soft ``activity_reward`` would
-    settle for) while staying non-hemolytic. Aligning the fine-tuning target with the ranker is what
-    lets ReST raise the frequency of the rare diverse non-hemolytic Gram+/MDR actives.
+    Mirrors the shipped ``oracle.balanced_success_score`` ranker (feat-021, incl. its ``gn_weight``),
+    so ReST fine-tunes the generator toward exactly the peptides selection rewards: those that actually
+    *clear* the hard Gram+/MDR strains at <=16 uM (not merely sit near the threshold, which the soft
+    ``activity_reward`` would settle for) while staying non-hemolytic. The ``gn_w`` hard Gram-negative
+    term (feat-024) adds the Gram- category to the ReST target so the generator is pushed toward
+    broad-spectrum ALL-ROUNDERS (strong on Gram-/Gram+/MDR at once), not the Gram+/MDR *specialists*
+    feat-020's pure-Gram+/MDR reward produced -- the aim being to lift the weak Gram- category at the
+    generator level (positive-sum) rather than trade it against Gram+/MDR at selection time.
+
+    SELECTIVITY NOTE: ``gn_w`` raises the activity ceiling (~2.5 -> 3.25 at default weights), so a
+    fixed ``hemo_lambda`` penalty is proportionally weaker against it. Prefer the hard ESMC gate
+    (``rest_finetune.py --hemo-gate 0.5 --hemo-lambda 0``, as feat-024 used -- selectivity is then
+    enforced by the gate, independent of the ceiling) or scale ``hemo_lambda`` up with the ceiling if
+    you rely on the penalty instead.
     """
-    r = gp_w * hard_sr(mic, GP) + mdr_w * hard_sr(mic, MDR) + broad_w * soft_success(mic)[:, ALL].mean(1)
+    r = (gp_w * hard_sr(mic, GP) + mdr_w * hard_sr(mic, MDR) + gn_w * hard_sr(mic, GN)
+         + broad_w * soft_success(mic)[:, ALL].mean(1))
     if phemo is not None and hemo_lambda > 0:
         r = r - hemo_lambda * np.asarray(phemo)
     return r

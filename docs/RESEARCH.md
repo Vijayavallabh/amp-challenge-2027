@@ -416,3 +416,43 @@ remaining window is high risk for uncertain gain. **Decision:** keep the validat
 AR-Transformer; the differentiator is optimisation against APEX + selectivity, which is precisely what
 the excluded baseline does not do. (Sources: AMP-Diffusion, Cell Biomaterials 2025 / biorxiv
 2024.03.03.583201; OmegAMP arXiv 2504.17247; AMPGAN v3 arXiv 2606.17127.)
+
+## Diverse out-of-the-box exploration on the free GPUs (2026-09-28, feat-024 + species/consensus/structure)
+
+Four orthogonal, parallel bets to find any real edge over feat-021 (and to de-risk it). All predictions,
+no wet-lab; feat-021 is the validated fallback so a null result costs nothing.
+
+**feat-024 -- "all-rounder" ReST (rejected).** feat-020's gated ReST rewarded *pure* Gram+/MDR, so the
+generator was never pushed toward broad-spectrum non-hemolytic ALL-ROUNDERS (strong on Gram-/Gram+/MDR
+at once). We added the ranker's hard Gram- term to the ReST reward (`reward.balanced_reward` gains
+`gn_w=0.75`, now pinned to the ranker by a parity test) and ran 4 gated rounds on the 8 H100s. It made
+things WORSE, not positive-sum: over the rounds the reward-top-100 went Broad 58.3->55.2, **Gram+
+43.2->35.8, MDR 42.7->39.0**, Gram- flat (66.9->66.3), reward 1.615->1.488. Rewarding Gram- just pulls
+the generator toward Gram--specialists at the expense of Gram+/MDR -- the same trade, at the generator
+level -- because true broad-spectrum non-hemolytic all-rounders are biologically rare (only ~5 clear
+*all* Gram- species per 150k). Generator + submission left untouched.
+
+**Species-level analysis -- the key finding (a real caveat, no clean fix).** APEX's Gram- bucket is
+E. coli-heavy (3 of 7 columns), so the aggregate Gram- SR (0.58) HID the per-species truth: feat-021's
+top-50 clears A. baumannii 1.00 and E. coli 1.00 but **K. pneumoniae 0.00 and P. aeruginosa 0.04** --
+the two hardest GN ESKAPE species, both on the real 20-strain panel. So feat-021's *real*-panel Gram-
+(and Broad, which is 75% Gram-) is likely below the oracle aggregate. Is it fixable? K. pneumoniae is a
+near-hard limit (7 non-hemolytic clearers per 150k, APEX median MIC 322 uM). P. aeruginosa is reachable
+(2318 clearers) and coverage can go 0.04->0.90 -- but the P. aeruginosa-killers are Gram--specialists
+that crater Gram+ (0.75->0.31) and MDR (0.67->0.37); the portfolio curve has no sweet spot (w=0.6 buys
+P. aeruginosa 0.35 only by dropping Gram+ to 0.585, MDR to 0.553). And chasing APEX's hard-species
+predictions is the highest-Goodhart-risk move (APEX is least reliable exactly on the hard species). Net:
+the hard-GN gap is a biological + oracle-transfer limit no achievable top-50 solves cleanly, so feat-021's
+choice -- bet on the Gram+/MDR/Selectivity standouts it CAN win, plus the easy Gram- species -- stands,
+now with this caveat explicit.
+
+**Multi-predictor consensus -- independent confirmation + selectivity validated (reassuring null).**
+Three independent AMP predictors (Macrel, amPEPpy, AI4AMP -- different architectures/data than APEX; a
+real Keras-3 silent-failure bug in AI4AMP caught and fixed) were run on the top-50 + a 5k pool sample.
+They CONFIRM the top-50 is genuinely AMP-like (every peptide called AMP by >=1 tool, 49/50 by >=2, 30/50
+unanimous), extending the earlier Macrel-only check to four models. But they do NOT usefully re-rank:
+correlation with APEX is ~0 (they are generic binary AMP classifiers; APEX is strain-specific MIC), and
+an unweighted activity-consensus is a TRAP -- it drifts the top-50 to median P(hemolytic) **0.93 vs our
+0.005**, because the generic classifiers reward the cationic/amphipathic signature that drives both
+activity AND hemolysis. This directly confirms our hemolysis gate is doing real, correct work. Keep
+APEX + the existing selection.

@@ -95,6 +95,9 @@ def main() -> int:
                          "'soft' = the older saturating soft-Success-Rate. Default balanced.")
     ap.add_argument("--gp-w", type=float, default=1.0)
     ap.add_argument("--mdr-w", type=float, default=1.0)
+    ap.add_argument("--gn-w", type=float, default=0.75,
+                    help="hard Gram-negative weight in the balanced reward (feat-024; mirrors the "
+                         "ranker's gn_weight). 0 recovers feat-020's pure-Gram+/MDR target.")
     ap.add_argument("--broad-w", type=float, default=0.5)
     ap.add_argument("--hemo-lambda", type=float, default=1.0)
     ap.add_argument("--hemo-gate", type=float, default=0.0,
@@ -147,7 +150,7 @@ def main() -> int:
     def rfn(mic, phemo):
         if args.reward == "balanced":
             return R.balanced_reward(mic, phemo, gp_w=args.gp_w, mdr_w=args.mdr_w,
-                                     broad_w=args.broad_w, hemo_lambda=args.hemo_lambda)
+                                     gn_w=args.gn_w, broad_w=args.broad_w, hemo_lambda=args.hemo_lambda)
         return R.reward(mic, phemo, gp_w=args.gp_w, mdr_w=args.mdr_w, hemo_lambda=args.hemo_lambda)
 
     def score_seqs(seqs):

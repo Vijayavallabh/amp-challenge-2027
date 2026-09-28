@@ -184,6 +184,46 @@ class TestMaximinSelection:
                                      diversity_max_identity=None, gate=0.5)  # deterministic
 
 
+class TestRewardRankerParity:
+    """The offline ReST reward (``experiments/reward.balanced_reward``) must MIRROR the shipped
+    selection ranker (``oracle.balanced_success_score``) at default weights -- otherwise the generator
+    is fine-tuned toward a different objective than selection scores by, which is exactly what happened
+    for three feature cycles (the reward regained the Gram- term only in feat-024). This pins the
+    invariant so the two cannot silently diverge again on the next objective tweak.
+    """
+
+    def _reward_module(self):
+        import importlib
+        import os
+        import sys
+        exp = os.path.join(os.path.dirname(__file__), "..", "experiments")
+        if exp not in sys.path:
+            sys.path.insert(0, exp)
+        return importlib.import_module("reward")
+
+    def test_balanced_reward_matches_ranker_at_default_weights(self):
+        R = self._reward_module()
+        mic = np.array([
+            [2.0] * 11,
+            [4.0, 4.0, 4.0] + [500.0] * 8,
+            [400.0] * 11,
+            [1.0, 20.0, 3.0, 50.0, 8.0, 100.0, 2.0, 4.0, 300.0, 6.0, 9.0],
+        ])
+        # phemo=None -> pure activity term; must equal the ranker's balanced_success_score exactly.
+        np.testing.assert_allclose(
+            R.balanced_reward(mic, None), O.balanced_success_score(mic), rtol=1e-9, atol=1e-12
+        )
+
+    def test_gn_w_zero_recovers_feat020_pure_gp_mdr_target(self):
+        R = self._reward_module()
+        mic = np.array([[2.0] * 11, [4.0] * 7 + [500.0] * 4])
+        np.testing.assert_allclose(
+            R.balanced_reward(mic, None, gn_w=0.0),
+            O.balanced_success_score(mic, gn_weight=0.0),
+            rtol=1e-9, atol=1e-12,
+        )
+
+
 @pytest.mark.skipif(
     os.environ.get("AMP_RUN_APEX_TESTS") != "1",
     reason="live APEX subprocess is heavy; set AMP_RUN_APEX_TESTS=1 to run",
