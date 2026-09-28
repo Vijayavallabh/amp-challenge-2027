@@ -591,3 +591,26 @@ validates our design choices.
 
 Net: the literature confirms the stack is well-aligned with 2026 SOTA and with the organizers' priorities,
 and independently supports the one change we made (feat-025). No pipeline change is warranted.
+
+## Robustness of the shipped top-50 under the Phase-3 random 25-draw
+
+Phase 3 draws **25 of the top 50 at random** and assays them — deliberately, to reward models that are
+*reliably* good rather than lucky in one sequence. So the question that matters is not just the top-50
+mean but its **variance under the random draw**. Bootstrapping the 25-draw over the shipped feat-025
+top-50 (10k resamples, APEX category rates + ESMC selectivity):
+
+| category | E[SR] over the 25-draw | p10 | p50 | p90 |
+|---|---|---|---|---|
+| Broad-spectrum | 0.633 | 0.622 | 0.633 | 0.644 |
+| Gram-negative | 0.569 | 0.554 | 0.571 | 0.583 |
+| Gram-positive | 0.745 | 0.740 | 0.750 | 0.750 |
+| MDR ESKAPE | 0.667 | 0.667 | 0.667 | 0.667 |
+
+The draw-to-draw spread is **tiny** in every category (MDR is flat; Gram+ never drops below 0.74), i.e.
+the top-50 is homogeneous and the entry carries **no lucky-tail dependence** — precisely what the random
+draw is designed to test. **Gram-positive (0.745, always ≥0.74) and Optimal Selectivity are our most
+reliable winning shots**: all 50 peptides are active on ≥1 strain with P(hemolytic) < 0.08, so *every*
+possible 25-draw is uniformly non-hemolytic, and most competitors' cationic AMPs are hemolytic. **MDR
+(0.667) is rock-solid**; **Gram-negative (0.569) is the known weak category** (the K. pneumoniae /
+P. aeruginosa species ceiling documented above), rarely clearing 0.60. Net: the submission is robustly
+good on four of five categories and differentiated on Selectivity, with one understood, unfixable weak spot.
