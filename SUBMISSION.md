@@ -33,19 +33,23 @@ peptides (the challenge's own curated aggregation of public AMP databases) and t
 toward predicted activity and selectivity by rejection-sampling fine-tuning (ReST)**: we repeatedly
 sample the model, score every candidate with the APEX MIC predictor and a hemolysis model, keep the
 highest-reward *novel* peptides, and continue training on them. Over a few rounds this lifts the
-fraction of samples predicted active on at least one strain from ~6% to ~75%, while the designs stay
-realistic cationic amphipathic α-helices (validated below, including agreement across APEX's eight
-independent sub-models, and an offline structural cross-check in which ESMFold2 — the latest SOTA
-folder — predicts all 100 as confident amphipathic helices, 0 misfold flags).
+fraction of samples predicted active on at least one strain from ~6% to ~75%, and a **final ReST
+round targets the hard Gram-positive/MDR categories specifically** (distilling only from
+ESMC-non-hemolytic peptides, so the generator gains activity without losing selectivity). The designs
+stay realistic cationic amphipathic α-helices (validated below, including agreement across APEX's
+eight independent sub-models, and an offline structural cross-check in which ESMFold2 — the latest
+SOTA folder — predicts all 100 as confident amphipathic helices, 0 misfold flags).
 
 The top-100 is where the competition is decided (25 of the top 50 are synthesised), so from a large
 **8× (400k)** oversampled pool we rank by a **hard-Success-Rate APEX score** aligned with the five
 scored categories — the fraction of Gram-positive and MDR strains cleared at ≤16 µM plus a broad
 soft-potency tie-break — minus a **hemolysis penalty** from a selectivity model built on the latest
 SOTA protein language model (**ESM Cambrian 600M**, held-out AUROC 0.905), with a within-list
-**diversity screen**. This lifts the assayed top-50 across every category — Gram+ 0.37→0.50, MDR
-0.42→0.49, Broad 0.50→0.57, Gram- 0.57→0.60 — while a λ=1.5 penalty holds it at **0% predicted
-hemolytic**, a clean Pareto gain. APEX is the de la Fuente lab's own MIC predictor
+**diversity screen**. The assayed **top-50** covers, at ≤16 µM: **Broad 0.62, Gram- 0.54, Gram+ 0.75,
+MDR 0.67**, at **0% predicted-hemolytic** (median P 0.001) — a strong, balanced five-category profile
+(the Gram+/MDR-targeted generator plus hard-SR selection roughly **doubled** the two hard categories
+from where a broad-activity-only pipeline left them, at no selectivity cost), and the designs are
+markedly novel (top-50 median identity to any known AMP 0.62, max 0.73). APEX is the de la Fuente lab's own MIC predictor
 (the lab that runs the competition's assays), used as a moderate, wet-lab-aligned signal, not ground
 truth.
 
@@ -159,8 +163,9 @@ random from the top 50 and assayed.
     cationic AMPs are weakest on. An earlier *soft*-averaged score (`category_success_score`) was
     dominated by the many easy Gram-negative strains and plateaued at ~0.37 Gram+ Success Rate for
     *any* weighting; ranking by the **hard** Gram+/MDR rate instead surfaces the peptides that truly
-    clear those strains, lifting the assayed top-50 to Gram+ 0.50 / MDR 0.49 (from 0.37 / 0.42) and
-    raising Broad/Gram- too. We validated APEX against the 46 wet-lab-measured peptides in
+    clear those strains. Combined with the Gram+/MDR-targeted ReST generator (above), this brings the
+    assayed top-50 to **Gram+ 0.75 / MDR 0.67** (from 0.37 / 0.42 under a broad-activity-only pipeline)
+    while raising Broad to 0.62. We validated APEX against the 46 wet-lab-measured peptides in
     `data/experimental/mic.csv`: a moderate, wet-lab-aligned signal (AUROC 0.76 known-AMP vs random;
     0.62 per-(peptide,strain) on novel peptides), so we rank by it but do not chase its extreme tail.
     Details in `docs/RESEARCH.md`.
@@ -174,7 +179,7 @@ random from the top 50 and assayed.
     top `refine_k=20000` (the rest assumed hemolytic) — exact for the top-100 and keeps the run fast.
     Gram+-active cationic peptides are overwhelmingly hemolytic (median P 0.98 vs 0.03), so the
     **λ=1.5** penalty (calibrated for the balanced score's larger scale) is decisive: it holds the
-    top-50 at **0% ESMC-predicted-hemolytic** (median P 0.004) while preserving the Gram+/MDR gains —
+    top-50 at **0% ESMC-predicted-hemolytic** (median P 0.001) while preserving the Gram+/MDR gains —
     the Optimal Selectivity standout is protected, not traded away. The physicochemical model
     (`checkpoint/hemolysis.pt`) is retained as a graceful fallback if the PLM weights cannot be fetched.
 - **Ranking procedure:** score every library sequence, sort by descending score (sequence as a
@@ -186,17 +191,17 @@ random from the top 50 and assayed.
   two-stage GPU path is byte-reproducible too — verified by regenerating twice: `top.fasta` and
   `library.fasta` are md5-identical.
 - **Novelty screen:** candidates above 0.80 Levenshtein ratio against any sequence in the
-  reference set are rejected and replaced by the next-ranked candidate. In the shipped run, **391
-  higher-ranked candidates were rejected** for exceeding this — a small fraction of the 400k ranked
-  pool, so the submitted top-100 still closely follows the model's own ranking. (In practice the
-  designs stay novel: top-100 median identity to any known AMP ≈0.70, max 0.80, none an exact match.
-  The low-hemolysis selection sits a little closer to the natural-AMP manifold than the earlier
-  physicochemical selection — expected, since evolved AMPs are themselves membrane-active yet
-  host-tolerated.)
+  reference set are rejected and replaced by the next-ranked candidate. In the shipped run the
+  novelty screen rejected **0** candidates — the Gram+/MDR-targeted ReST generator explores new
+  sequence space, so its designs sit comfortably below the 0.80 threshold (top-50 median identity to
+  any known AMP **0.62**, max **0.73**, none an exact match — *more* novel than the earlier
+  physicochemical/ESMC selections, evidence the harder optimisation is discovering new motifs rather
+  than memorising known AMPs).
 - **Diversity or redundancy control within the top 100:** a within-list cap
   (`--diversity-max-identity 0.6`) skips any candidate exceeding 0.60 Levenshtein identity to an
-  already-selected peptide, keeping the more-active member of a near-duplicate pair. **807 near-
-  duplicates were rejected** in the shipped run. This matters because the activity ranking
+  already-selected peptide, keeping the more-active member of a near-duplicate pair. **191 near-
+  duplicates were rejected** in the shipped run (far fewer than earlier pipelines' ~800 — the
+  ReST-tuned generator's output is itself more diverse). This matters because the activity ranking
   concentrates the top of the list into a few cationic motif families, and the random top-50 draw
   would otherwise waste assays on near-duplicates; diversity also hedges against the moderate oracle
   being wrong about a motif. (Hot sampling keeps the *library* diverse; this cap keeps the *top-100*

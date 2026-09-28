@@ -97,6 +97,11 @@ def main() -> int:
     ap.add_argument("--mdr-w", type=float, default=1.0)
     ap.add_argument("--broad-w", type=float, default=0.5)
     ap.add_argument("--hemo-lambda", type=float, default=1.0)
+    ap.add_argument("--hemo-gate", type=float, default=0.0,
+                    help="hard selectivity gate: distil only from peptides with P(hemolytic) below "
+                         "this (0 = off). Use with --hemo-lambda 0 so reward = pure Gram+/MDR "
+                         "activity among non-hemolytic peptides -- forces activity gains, not "
+                         "selectivity drift.")
     ap.add_argument("--hemo-model", choices=("esmc", "physchem"), default="esmc",
                     help="hemolysis scorer for the reward. 'esmc' = the accurate ESMC-600M PLM "
                          "(AUROC 0.905); 'physchem' = the older 11-descriptor model (over-optimistic "
@@ -200,7 +205,12 @@ def main() -> int:
         order = np.argsort(-rew)
 
         def _passes(i):
-            return uniq[i] not in train_set and minmic[i] <= R.THRESH
+            # hard selectivity GATE: distil ONLY from genuinely non-hemolytic peptides, so the
+            # generator cannot raise reward by lowering hemolysis instead of gaining Gram+/MDR
+            # activity (the failure mode of a soft -lambda*phemo penalty). The reward then ranks the
+            # gated set by pure activity.
+            gate_ok = args.hemo_gate <= 0 or phemo[i] < args.hemo_gate
+            return uniq[i] not in train_set and minmic[i] <= R.THRESH and gate_ok
 
         if args.dedup_cap > 0:
             from collections import Counter
@@ -218,8 +228,9 @@ def main() -> int:
                     break
         else:
             kept_idx = [i for i in order if _passes(i)][: args.keep_n]
-        if len(kept_idx) < 500:
-            kept_idx = [i for i in order if uniq[i] not in train_set][: args.keep_n]
+        if len(kept_idx) < 500:  # relax the ACTIVITY floor but keep the selectivity gate
+            kept_idx = [i for i in order if uniq[i] not in train_set
+                        and (args.hemo_gate <= 0 or phemo[i] < args.hemo_gate)][: args.keep_n]
         kept = [uniq[i] for i in kept_idx]
         n_active_pool = int((minmic <= R.THRESH).sum())
         # 3) build fine-tune set with a corpus anchor

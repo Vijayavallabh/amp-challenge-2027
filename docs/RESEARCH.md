@@ -251,3 +251,40 @@ selectivity task. It does **not** -- held-out AUROC 0.905 across three head seed
 600M model (the ceiling is set by the ~1000-peptide labelled dataset, not embedding size). So we keep
 ESMC-600M and avoid a ~10x inference cost for zero accuracy gain; the lever to push selectivity beyond
 0.905 is more hemolysis *data*, not a bigger model.
+
+## GP/MDR-targeted ReST with a selectivity gate: raising the hard-category ceiling (2026-09-28, feat-020)
+
+feat-019 lifted Gram+/MDR by better *selection*, but the ceiling was the generator's own output --
+only ~28 diverse non-hemolytic Gram+/MDR actives per 400k pool. To raise that ceiling we fine-tuned
+the generator toward the rare target by rejection sampling (ReST) on the 8 H100s: sample -> score with
+APEX (across all 8 GPUs) and the ESMC selectivity model -> keep the highest-reward peptides -> low-LR
+fine-tune -> repeat.
+
+**Reward design mattered -- the first attempt failed instructively.** A soft `activity - lambda*P(hemolytic)`
+reward made Gram+/MDR *decline* over rounds (top-100 Gram+ 0.31->0.28): the generator raised reward the
+easy way, by lowering predicted hemolysis, not by gaining the (biologically rare) Gram+/MDR hard-hits.
+The fix was a **hard selectivity gate**: distil *only* from peptides the ESMC model calls non-hemolytic
+(P<0.5) and reward *pure* Gram+/MDR hard Success Rate -- so the generator cannot trade activity for
+selectivity, and the only way to raise reward is to actually gain Gram+/MDR activity. With the gate the
+generator's whole distribution shifted toward activity over 4 rounds (20k-sample pool Gram+ Success Rate
+7.6%->9.5%->..., MDR 10.1%->12.5%, active fraction 32%->40%) while predicted hemolysis stayed flat (~0.27)
+and diversity held (div150=150, no mode collapse).
+
+**Result -- a large further Pareto gain (top-50, the assayed set), over feat-019:** Broad 0.57->0.62,
+**Gram+ 0.50->0.75, MDR 0.49->0.67**, Selectivity still **0% predicted-hemolytic** (median P 0.004->0.001),
+at a small Gram- cost (0.60->0.54 -- a *selection* effect: the balanced objective picks Gram+/MDR
+specialists, though the generator's Gram- output actually rose). Crucially the designs are **more novel**
+(median identity to known AMPs 0.62 vs 0.72, max 0.73 vs 0.80) -- the harder optimisation is *discovering*
+new Gram+/MDR motifs, not memorising known ones.
+
+**Anti-Goodhart -- all four checks pass.** (a) Novelty *rose*, not fell. (b) 0% hemolytic per the
+*independent* ESMC model. (c) The Gram+/MDR activity is real per APEX's own internal consensus: on the
+top-50, **86-89% of APEX's 8 ensemble members agree** on the active Gram+/MDR calls (82-86% with >=6/8
+agreement; median per-call log-MIC CV 0.37) -- not ensemble-mean-gaming. (d) ESMFold2 folds all 100 into
+confident helices (median pLDDT **0.702**, *higher* than feat-019's 0.683; helix 1.00; 0/100 misfold
+flags). One honest caveat: the Eisenberg hydrophobic moment is lower (0.29 vs 0.40) -- the ReST found a
+somewhat less classically-amphipathic Gram+/MDR motif class; it is still within the real-AMP range
+(melittin 0.35) and every hard check passes, but we flag it. As always these are *predictions* (APEX is
+only moderate on novel peptides, AUROC 0.62), so the real-world gain carries the usual oracle-transfer
+uncertainty and we make no wet-lab claim. The shipped generator is gated-ReST round 3; feat-019's
+generator is preserved (git history at `60afc5f`, and `experiments/cache/`).

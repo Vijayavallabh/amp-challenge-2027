@@ -45,7 +45,15 @@
       Gram+/MDR champions; λ 0.5→**1.5** holds 0% hemolytic (Gram+ activity ↔ hemolysis, median P
       0.98). **Top-50 Pareto gain:** Broad 0.50→0.57, GN 0.57→0.60, **GP 0.37→0.50, MDR 0.42→0.49**,
       0% hemolytic. Anti-Goodhart OK (ESMFold2 0/100 flags). ESMC-6B tested for selectivity → no gain
-      (0.905), kept 600M. Defaults flipped; 129 tests pass. Running: GP/MDR-targeted ReST round (8×H100).
+      (0.905), kept 600M. Defaults flipped; 129 tests pass.
+- [x] **feat-020** — **GP/MDR-targeted selectivity-gated ReST generator** raises the hard-category
+      ceiling. A soft `activity−λ·P(hemo)` reward *failed* (GP/MDR declined — generator lowered
+      hemolysis instead). A **hard selectivity gate** (distil only from ESMC-non-hemolytic; reward
+      pure GP/MDR hard-SR) worked: 4 rounds on 8×H100 shifted the generator toward activity at flat
+      hemolysis. Promoted round3 (feat-019 generator → `experiments/cache` + git `60afc5f`). **Top-50:
+      GP 0.50→0.75, MDR 0.49→0.67, Broad 0.57→0.62, GN 0.60→0.54, 0% hemolytic, MORE novel (0.62)**.
+      Anti-Goodhart all pass: novelty↑, 0% hemolytic (ESMC), 86–89% APEX 8-submodel agreement, ESMFold2
+      pLDDT 0.702/0 flags (caveat: muH 0.29). `rest_finetune.py` gained `--hemo-model/--reward/--hemo-gate`.
 - [x] Docs (SUBMISSION/RESEARCH/README), progress, feature_list, memory updated; committed + pushed.
 
 ## Final submission characterisation (local full 50k run, session 3)
