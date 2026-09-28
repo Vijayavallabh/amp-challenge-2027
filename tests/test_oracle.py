@@ -69,6 +69,25 @@ class TestAggregations:
         one = np.array([[16.0] + [1000.0] * 10])
         assert O.broad_potency_score(one)[0] == pytest.approx(0.0)
 
+    def test_balanced_success_rewards_hard_gp_mdr_hits(self):
+        # 'balanced' = gp*SR_hard(Gram+) + mdr*SR_hard(MDR) + broad*mean_soft (defaults 1,1,0.5)
+        s = O.balanced_success_score(MIC)
+        assert s[0] > s[1] > s[2]  # broad (clears GP+MDR) > narrow (Gram- only) > inactive
+        soft = O._soft_success(MIC)
+        # broadly-potent peptide clears all 4 Gram+ and all 3 MDR strains -> full hard SR on both
+        assert s[0] == pytest.approx(1.0 + 1.0 + 0.5 * soft[0].mean())
+        # narrow Gram-negative-only peptide clears zero Gram+/MDR -> only the soft tie-break term
+        assert s[1] == pytest.approx(0.5 * soft[1].mean())
+
+    def test_balanced_uses_hard_threshold_not_soft_margin(self):
+        # Two peptides that tie on hard Gram+ SR (both clear all 4) but differ in depth: 'balanced'
+        # rewards the hard hit fully and does not chase sub-uM depth -- the deep one wins only via
+        # the small broad soft tie-break, not by a large margin (unlike an unbounded potency score).
+        deep = np.array([[0.1] * 11])       # far below threshold on every strain
+        just_in = np.array([[15.0] * 11])   # just below the 16 uM threshold on every strain
+        gap = O.balanced_success_score(deep)[0] - O.balanced_success_score(just_in)[0]
+        assert 0.0 < gap < 0.5              # both get full hard SR; only the soft tie-break differs
+
 
 class TestBuildRanker:
     def test_likelihood_returns_the_model_itself(self):

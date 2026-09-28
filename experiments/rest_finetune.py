@@ -89,9 +89,18 @@ def main() -> int:
     ap.add_argument("--dedup-cap", type=int, default=0,
                     help="max near-duplicates (same MinHash sig) kept for fine-tuning; 0=off. "
                          "Fights mode-collapse so the generator keeps producing DIVERSE actives.")
-    ap.add_argument("--gp-w", type=float, default=0.5)
-    ap.add_argument("--mdr-w", type=float, default=0.5)
+    ap.add_argument("--reward", choices=("balanced", "soft"), default="balanced",
+                    help="reward form. 'balanced' = hard Gram+/MDR SR + broad soft tie-break "
+                         "(mirrors the shipped ranker; fine-tunes toward true hard-hitters); "
+                         "'soft' = the older saturating soft-Success-Rate. Default balanced.")
+    ap.add_argument("--gp-w", type=float, default=1.0)
+    ap.add_argument("--mdr-w", type=float, default=1.0)
+    ap.add_argument("--broad-w", type=float, default=0.5)
     ap.add_argument("--hemo-lambda", type=float, default=1.0)
+    ap.add_argument("--hemo-model", choices=("esmc", "physchem"), default="esmc",
+                    help="hemolysis scorer for the reward. 'esmc' = the accurate ESMC-600M PLM "
+                         "(AUROC 0.905); 'physchem' = the older 11-descriptor model (over-optimistic "
+                         "-- do NOT fine-tune against it). Default esmc.")
     ap.add_argument("--temperature", type=float, default=1.0)
     ap.add_argument("--gpu", type=int, default=0, help="device for sampling + fine-tuning")
     ap.add_argument("--gpus", type=str, default="0,1,2,3,4,5,6,7", help="APEX scoring GPUs")
@@ -118,10 +127,23 @@ def main() -> int:
 
     corpus = training_sequences()
     train_set = set(corpus)
-    hs = HemolysisScorer("checkpoint/hemolysis.pt")
+    if args.hemo_model == "esmc":
+        # The accurate PLM selectivity model, on the sampling/fine-tune GPU. Fine-tuning against the
+        # over-optimistic physchem model would chase peptides it *thinks* are non-hemolytic; ESMC is
+        # what the shipped selection uses, so the reward and the ranker agree.
+        from amp_challenge_2027.selectivity_esm import EsmcSelectivityScorer
+        hs = EsmcSelectivityScorer(device=f"cuda:{args.gpu}")
+    else:
+        hs = HemolysisScorer("checkpoint/hemolysis.pt")
 
     model = _nn.load_generator(resolve_repo_path(args.init), device)
     cfg = model.cfg
+
+    def rfn(mic, phemo):
+        if args.reward == "balanced":
+            return R.balanced_reward(mic, phemo, gp_w=args.gp_w, mdr_w=args.mdr_w,
+                                     broad_w=args.broad_w, hemo_lambda=args.hemo_lambda)
+        return R.reward(mic, phemo, gp_w=args.gp_w, mdr_w=args.mdr_w, hemo_lambda=args.hemo_lambda)
 
     def score_seqs(seqs):
         uniq, mic = bulk_apex.score(seqs, device="cuda", workers=8,
@@ -143,7 +165,7 @@ def main() -> int:
     def evaluate(tag, seed):
         seqs = sample(args.eval_n, seed)
         uniq, mic, phemo = score_seqs(seqs)
-        rew = R.reward(mic, phemo, gp_w=args.gp_w, mdr_w=args.mdr_w, hemo_lambda=args.hemo_lambda)
+        rew = rfn(mic, phemo)
         novel = sum(1 for s in uniq if s not in train_set) / max(1, len(uniq))
         # top-100 by reward: what selection would actually ship
         order_ev = np.argsort(-rew)
@@ -171,7 +193,7 @@ def main() -> int:
         # 1) sample + score
         pool = sample(args.n_raw, seed=1000 + r)
         uniq, mic, phemo = score_seqs(pool)
-        rew = R.reward(mic, phemo, gp_w=args.gp_w, mdr_w=args.mdr_w, hemo_lambda=args.hemo_lambda)
+        rew = rfn(mic, phemo)
         # 2) keep top-reward NOVEL peptides that are actually active (min-MIC <= 16); distilling
         #    from active peptides only keeps the fine-tune target on-target. Relax if too few.
         minmic = mic.min(axis=1)

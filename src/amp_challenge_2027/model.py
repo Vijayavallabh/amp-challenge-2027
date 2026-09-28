@@ -167,12 +167,13 @@ class ApexRanker:
         apex_dir: str | Path = "oracle/apex",
         *,
         device: str = "cpu",
-        objective: str = "category",
-        gp_weight: float = 0.5,
-        mdr_weight: float = 0.5,
+        objective: str = "balanced",
+        gp_weight: float = 1.0,
+        mdr_weight: float = 1.0,
+        broad_weight: float = 0.5,
         hemolysis_scorer: "HemolysisScorer | None" = None,
         hemolysis_penalty: float = 0.0,
-        refine_k: int = 4000,
+        refine_k: int = 20000,
     ) -> None:
         from .oracle import ApexScorer  # lazy: keeps model.py importable without the oracle
 
@@ -188,6 +189,7 @@ class ApexRanker:
         self._objective = objective
         self._gpw = float(gp_weight)
         self._mdrw = float(mdr_weight)
+        self._broadw = float(broad_weight)
         # Optional selectivity penalty: subtract lambda * P(hemolytic) from the activity score,
         # so that among comparably active peptides the less hemolytic ones rank higher. This
         # serves the Optimal Selectivity category and removes likely-toxic peptides, at a small
@@ -195,7 +197,9 @@ class ApexRanker:
         # nudge, not an authority -- lambda is kept modest and the peptides stay APEX-active.
         self._hemo = hemolysis_scorer
         self._lam = float(hemolysis_penalty)
-        base = "apex-success" if objective == "category" else "apex-broad-potency"
+        base = {"category": "apex-success", "balanced": "apex-balanced-success"}.get(
+            objective, "apex-broad-potency"
+        )
         self.name = (
             f"{base} - {self._lam:g}*hemolysis"
             if self._hemo is not None and self._lam > 0 else base
@@ -204,13 +208,15 @@ class ApexRanker:
     def score(self, sequences: list[str]) -> list[float]:
         import numpy as np
 
-        from .oracle import broad_potency_score, category_success_score
+        from .oracle import balanced_success_score, broad_potency_score, category_success_score
 
         mic = self._oracle.predict_mic(sequences)
         if self._objective == "broad":
             activity = broad_potency_score(mic)
-        else:
+        elif self._objective == "category":
             activity = category_success_score(mic, self._gpw, self._mdrw)
+        else:  # "balanced" -- hard Gram+/MDR Success Rate + broad soft tie-break (the shipped default)
+            activity = balanced_success_score(mic, self._gpw, self._mdrw, self._broadw)
         if self._hemo is None or self._lam <= 0:
             return np.asarray(activity, dtype=float).tolist()
         # Two-stage: score selectivity only on the ``refine_k`` most-active candidates (the PLM

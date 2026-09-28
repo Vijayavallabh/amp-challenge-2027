@@ -11,9 +11,11 @@ ranked top-100 list, reproducibly from a fixed seed.
 > `uv run generate` samples from an autoregressive Transformer (`checkpoint/generator.pt`) that has
 > been **fine-tuned toward predicted activity and selectivity by rejection sampling (ReST)** on the
 > H100s — so its samples are mostly predicted-active, not the ~6% of the pre-trained base — then
-> ranks the top-100 by a **success-rate-aligned APEX score** (Gram-positive/MDR up-weighted) minus an
-> **ESMC-600M selectivity** penalty (latest-SOTA protein LM, held-out AUROC 0.905; drives the top-100
-> to 0% predicted-hemolytic while slightly raising breadth), with a within-list diversity screen. The library is sampled hot
+> ranks the top-100 (from an 8×/400k oversampled pool) by a **hard Gram+/MDR Success-Rate APEX
+> score** minus an **ESMC-600M selectivity** penalty (latest-SOTA protein LM, held-out AUROC 0.905),
+> with a within-list diversity screen. This lifts the assayed top-50 across every category (Gram+
+> 0.37→0.50, MDR 0.42→0.49, Broad 0.50→0.57, Gram- 0.57→0.60) while λ=1.5 holds it at 0%
+> predicted-hemolytic — a clean Pareto gain, structurally confirmed by ESMFold2. The library is sampled hot
 > (temperature 1.6) so it stays diverse and novel for the phase-1 screen at no top-50 activity cost.
 > All figures are computational predictions, not measurements. `--rank likelihood` or `--baseline`
 > fall back if the oracle/checkpoint are unavailable. See [docs/RESEARCH.md](docs/RESEARCH.md) and

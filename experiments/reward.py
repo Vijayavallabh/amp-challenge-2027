@@ -50,6 +50,23 @@ def reward(mic: np.ndarray, phemo: np.ndarray | None = None, *,
     return r
 
 
+def balanced_reward(mic: np.ndarray, phemo: np.ndarray | None = None, *,
+                    gp_w: float = 1.0, mdr_w: float = 1.0, broad_w: float = 0.5,
+                    hemo_lambda: float = 1.5) -> np.ndarray:
+    """HARD Gram+/MDR Success Rate + a broad soft tie-break - hemo penalty.
+
+    Mirrors the shipped ``oracle.balanced_success_score`` ranker, so ReST fine-tunes the generator
+    toward exactly the peptides selection rewards: those that actually *clear* the hard Gram+/MDR
+    strains at <=16 uM (not merely sit near the threshold, which the soft ``activity_reward`` would
+    settle for) while staying non-hemolytic. Aligning the fine-tuning target with the ranker is what
+    lets ReST raise the frequency of the rare diverse non-hemolytic Gram+/MDR actives.
+    """
+    r = gp_w * hard_sr(mic, GP) + mdr_w * hard_sr(mic, MDR) + broad_w * soft_success(mic)[:, ALL].mean(1)
+    if phemo is not None and hemo_lambda > 0:
+        r = r - hemo_lambda * np.asarray(phemo)
+    return r
+
+
 def summarize(mic: np.ndarray, phemo: np.ndarray | None = None, idx: np.ndarray | None = None) -> dict:
     """Predicted profile of a peptide set (idx into mic), for logging."""
     m = mic if idx is None else mic[idx]

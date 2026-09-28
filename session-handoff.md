@@ -39,6 +39,13 @@
 - [x] **feat-018** — offline structural cross-check with **ESMFold2-Fast** (6.5B, latest SOTA folder):
       all 100 fold as confident amphipathic helices (median pLDDT 0.679, helix 1.00, 0/100 flagged),
       like known-AMP controls. `experiments/structure_validate.py`; NOT in the deterministic path.
+- [x] **feat-019** — **balanced hard-Gram+/MDR objective + 8× oversample** lifts the weak categories.
+      `balanced_success_score` = SR_hard(GP)+SR_hard(MDR)+0.5·mean_soft (soft averaging plateaued
+      Gram+ at ~0.39); oversample 3×→8× (400k) surfaces the diversity-screen-limited non-hemolytic
+      Gram+/MDR champions; λ 0.5→**1.5** holds 0% hemolytic (Gram+ activity ↔ hemolysis, median P
+      0.98). **Top-50 Pareto gain:** Broad 0.50→0.57, GN 0.57→0.60, **GP 0.37→0.50, MDR 0.42→0.49**,
+      0% hemolytic. Anti-Goodhart OK (ESMFold2 0/100 flags). ESMC-6B tested for selectivity → no gain
+      (0.905), kept 600M. Defaults flipped; 129 tests pass. Running: GP/MDR-targeted ReST round (8×H100).
 - [x] Docs (SUBMISSION/RESEARCH/README), progress, feature_list, memory updated; committed + pushed.
 
 ## Final submission characterisation (local full 50k run, session 3)

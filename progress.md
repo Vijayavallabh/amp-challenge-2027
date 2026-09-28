@@ -2,22 +2,23 @@
 
 ## Current State
 
-**Last Updated:** 2026-09-28 (session 3 — ReST + parallel APEX + ESMC-600M selectivity shipped)
+**Last Updated:** 2026-09-28 (session 3 — ReST + parallel APEX + ESMC selectivity + balanced Gram+/MDR objective)
 **Active Feature:** feat-010 SUBMIT (user-gated) — feat-015 (ReST) + feat-016 (parallel APEX) +
-feat-017 (ESMC-600M selectivity) DONE; submission regenerated with the ESMC two-stage selection;
-pending final official-validator re-run + the participant's team name and go-ahead.
+feat-017 (ESMC-600M selectivity) + feat-018 (ESMFold2 structure check) + feat-019 (balanced
+hard-Gram+/MDR objective + 8× oversample) DONE; submission regenerated; pending final
+official-validator re-run on the new commit + the participant's team name and go-ahead.
 **Deadline:** 2026-09-30 22:00 UTC (1 October 2026, AOE) — see `docs/COMPETITION.md`
 
 `uv run generate` now produces a scientifically meaningful, reproducible submission: the trained
 AR-Transformer samples a novel, cationic/amphipathic 50k library, and the top-100 is ranked by
-**a success-rate-aligned APEX score minus an ESMC-600M selectivity penalty**, with a within-list
-diversity cap. Verified byte-reproducible (two `uv run generate` runs md5-identical, incl. the ESMC
-GPU path) and by the official validator on a fresh clone. Final top-100 (local 50k run): mean
-category-success 0.914; hard Success-Rate (MIC ≤16 µM) 0.48 overall / 0.57 Gram− / 0.31 Gram+ / 0.38
-MDR; **0% predicted-hemolytic by the ESMC-600M model** (median P 0.006, vs 51% for the previous
-physchem selection); novel (median identity to nearest known AMP 0.69, max 0.80, 0 exact matches),
-within-list identity ≤0.60. The scientific pipeline (activity + selectivity + diversity) is in place;
-remaining work is optional structure-based validation, and the final validate-and-submit.
+a **hard Gram+/MDR Success-Rate APEX score** (from an 8×/400k oversampled pool) **minus a λ=1.5
+ESMC-600M selectivity penalty**, with a within-list diversity cap. Byte-reproducible and structurally
+cross-checked (ESMFold2). Final **top-50** (the assayed set) — a clean Pareto gain over the prior
+ESMC submission on all five categories: hard Success-Rate (MIC ≤16 µM) **Broad 0.57, Gram− 0.60,
+Gram+ 0.50, MDR 0.49**, and **0% ESMC-predicted-hemolytic** (median P 0.004); novel (median identity
+0.72, max 0.80, 0 exact), within-list identity ≤0.60. The scientific pipeline (activity + selectivity
++ diversity + structure) is in place; remaining is the final validate-and-submit (user-gated). A
+GP/MDR-targeted ReST round is running on the 8 H100s as a further-optimization bet (fallback = this).
 
 ## Status
 

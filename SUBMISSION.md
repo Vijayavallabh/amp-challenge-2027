@@ -38,13 +38,14 @@ realistic cationic amphipathic α-helices (validated below, including agreement 
 independent sub-models, and an offline structural cross-check in which ESMFold2 — the latest SOTA
 folder — predicts all 100 as confident amphipathic helices, 0 misfold flags).
 
-The top-100 is where the competition is decided (25 of the top 50 are synthesised), so we rank by a
-**success-rate-aligned APEX score** that mirrors the five scored categories — the mean predicted
-Success Rate across the 11-pathogen panel with the hard Gram-positive and MDR strains up-weighted —
-minus a **hemolysis penalty** from a selectivity model built on the latest SOTA protein language
-model (**ESM Cambrian 600M**, held-out AUROC 0.905; for the Optimal Selectivity category — it drives
-the fraction of the top-100 predicted hemolytic to 0% while slightly raising breadth), with a
-within-list **diversity screen**. APEX is the de la Fuente lab's own MIC predictor
+The top-100 is where the competition is decided (25 of the top 50 are synthesised), so from a large
+**8× (400k)** oversampled pool we rank by a **hard-Success-Rate APEX score** aligned with the five
+scored categories — the fraction of Gram-positive and MDR strains cleared at ≤16 µM plus a broad
+soft-potency tie-break — minus a **hemolysis penalty** from a selectivity model built on the latest
+SOTA protein language model (**ESM Cambrian 600M**, held-out AUROC 0.905), with a within-list
+**diversity screen**. This lifts the assayed top-50 across every category — Gram+ 0.37→0.50, MDR
+0.42→0.49, Broad 0.50→0.57, Gram- 0.57→0.60 — while a λ=1.5 penalty holds it at **0% predicted
+hemolytic**, a clean Pareto gain. APEX is the de la Fuente lab's own MIC predictor
 (the lab that runs the competition's assays), used as a moderate, wet-lab-aligned signal, not ground
 truth.
 
@@ -148,29 +149,33 @@ pre-filtered to the competition constraints (20 standard residues, length 8–50
 This is a required deliverable and it is what the competition measures — 25 peptides are drawn at
 random from the top 50 and assayed.
 
-- **Scoring function:** `score = category_success_score − 0.5·P(hemolytic)`.
-  - *category_success_score* — from **APEX-pathogen** (`oracle/apex`, run as an isolated `uv`
-    subprocess), which predicts MIC (µM) against 11 clinical pathogens. We aggregate as the mean
-    **soft Success Rate** (a saturating sigmoid of how far each strain's predicted MIC sits below the
-    16 µM Potency Threshold) across the panel, with the hard **Gram-positive and MDR** strains
-    up-weighted. Unlike an unbounded potency margin, this is *threshold-focused* — it rewards
-    clearing the 16 µM bar on **many** strains (the Success-Rate metric) rather than chasing
-    ever-deeper potency on a few easy strains — and the Gram+/MDR up-weight balances the five scored
-    categories (15 of 20 real strains are Gram-negative, where cationic peptides already excel). We
-    validated APEX against the 46 wet-lab-measured peptides in `data/experimental/mic.csv`: a
-    moderate, wet-lab-aligned signal (AUROC 0.76 known-AMP vs random; 0.62 per-(peptide,strain) on
-    novel peptides), so we rank by it but do not chase its extreme tail. Details in `docs/RESEARCH.md`.
+- **Scoring function:** `score = balanced_success_score − 1.5·P(hemolytic)`, applied to a large
+  **8× (400k)** oversampled candidate pool.
+  - *balanced_success_score* — from **APEX-pathogen** (`oracle/apex`, run as an isolated `uv`
+    subprocess), which predicts MIC (µM) against 11 clinical pathogens. We score the **hard
+    Gram-positive and MDR Success Rate** (the fraction of those strains cleared at ≤16 µM — exactly
+    the competition metric) plus a broad soft-Success-Rate tie-break:
+    `SR_hard(Gram+) + SR_hard(MDR) + 0.5·mean soft-success`. This directly targets the two categories
+    cationic AMPs are weakest on. An earlier *soft*-averaged score (`category_success_score`) was
+    dominated by the many easy Gram-negative strains and plateaued at ~0.37 Gram+ Success Rate for
+    *any* weighting; ranking by the **hard** Gram+/MDR rate instead surfaces the peptides that truly
+    clear those strains, lifting the assayed top-50 to Gram+ 0.50 / MDR 0.49 (from 0.37 / 0.42) and
+    raising Broad/Gram- too. We validated APEX against the 46 wet-lab-measured peptides in
+    `data/experimental/mic.csv`: a moderate, wet-lab-aligned signal (AUROC 0.76 known-AMP vs random;
+    0.62 per-(peptide,strain) on novel peptides), so we rank by it but do not chase its extreme tail.
+    Details in `docs/RESEARCH.md`.
   - *P(hemolytic)* — from a **selectivity model built on the latest SOTA protein language model,
     ESM Cambrian 600M** (ESM++ `Synthyra/ESMplusplus_large`, MIT, on GPU-if-available), with a small
     trained MLP head over its mean-pooled embeddings (`checkpoint/selectivity_esmc.pt`, trained on
     HemoPI-2). Held-out **AUROC 0.905** — a large upgrade over the 11 physicochemical descriptors it
-    replaces (0.778) and over ESM-2 150M (0.883). The expensive PLM is applied **two-stage**: rank the
-    whole pool by activity, then score selectivity only on the top `refine_k=4000` (the rest are
-    assumed hemolytic so they rank below) — exact for the top-100 and keeps the run fast. The `λ=0.5`
-    penalty (calibrated for the score's `[0, ~2]` scale) is decisive: it cuts the fraction of the
-    top-100 that the ESMC model predicts hemolytic from **51% to 0%** (median P(hemolytic) 0.54 →
-    0.006) **while slightly raising breadth** (category-success 0.884 → 0.914; MDR Success-Rate 0.36 →
-    0.38) — a Pareto gain for the Optimal Selectivity category. The physicochemical model
+    replaces (0.778) and over ESM-2 150M (0.883); the larger **ESMC-6B gives no further gain** (also
+    0.905 — the ceiling is the ~1000-peptide labelled dataset, not model size), so 600M is kept. The
+    PLM is applied **two-stage**: rank the whole pool by activity, then score selectivity only on the
+    top `refine_k=20000` (the rest assumed hemolytic) — exact for the top-100 and keeps the run fast.
+    Gram+-active cationic peptides are overwhelmingly hemolytic (median P 0.98 vs 0.03), so the
+    **λ=1.5** penalty (calibrated for the balanced score's larger scale) is decisive: it holds the
+    top-50 at **0% ESMC-predicted-hemolytic** (median P 0.004) while preserving the Gram+/MDR gains —
+    the Optimal Selectivity standout is protected, not traded away. The physicochemical model
     (`checkpoint/hemolysis.pt`) is retained as a graceful fallback if the PLM weights cannot be fetched.
 - **Ranking procedure:** score every library sequence, sort by descending score (sequence as a
   deterministic tiebreak), then walk down the list applying the novelty and diversity screens
@@ -181,16 +186,16 @@ random from the top 50 and assayed.
   two-stage GPU path is byte-reproducible too — verified by regenerating twice: `top.fasta` and
   `library.fasta` are md5-identical.
 - **Novelty screen:** candidates above 0.80 Levenshtein ratio against any sequence in the
-  reference set are rejected and replaced by the next-ranked candidate. In the shipped run, **189
-  higher-ranked candidates were rejected** for exceeding this — a small fraction of the 150k ranked
+  reference set are rejected and replaced by the next-ranked candidate. In the shipped run, **391
+  higher-ranked candidates were rejected** for exceeding this — a small fraction of the 400k ranked
   pool, so the submitted top-100 still closely follows the model's own ranking. (In practice the
-  designs stay novel: top-100 median identity to any known AMP ≈0.69, max 0.80, none an exact match.
+  designs stay novel: top-100 median identity to any known AMP ≈0.70, max 0.80, none an exact match.
   The low-hemolysis selection sits a little closer to the natural-AMP manifold than the earlier
   physicochemical selection — expected, since evolved AMPs are themselves membrane-active yet
   host-tolerated.)
 - **Diversity or redundancy control within the top 100:** a within-list cap
   (`--diversity-max-identity 0.6`) skips any candidate exceeding 0.60 Levenshtein identity to an
-  already-selected peptide, keeping the more-active member of a near-duplicate pair. **757 near-
+  already-selected peptide, keeping the more-active member of a near-duplicate pair. **807 near-
   duplicates were rejected** in the shipped run. This matters because the activity ranking
   concentrates the top of the list into a few cationic motif families, and the random top-50 draw
   would otherwise waste assays on near-duplicates; diversity also hedges against the moderate oracle

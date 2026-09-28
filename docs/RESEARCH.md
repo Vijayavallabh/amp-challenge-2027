@@ -211,3 +211,43 @@ is confidence: the top-100's median pLDDT (0.679) sits clearly above the random 
 approaches the known-AMP band (0.74+). So the structural evidence confirms the designs adopt the
 membrane-active amphipathic-helix fold characteristic of real AMPs and fold more confidently than
 noise — it is corroboration, not a wet-lab claim.
+
+## Balanced objective + large oversample: lifting the weak Gram+/MDR categories (2026-09-28, feat-019)
+
+The competition scores five *separate* categories by the mean per-peptide Success Rate over the
+assayed batch (25 drawn from the top 50). After the ESMC upgrade our top-50 was strong on
+Broad/Gram- and Selectivity but weak on the two hard categories: **Gram+ SR 0.37, MDR 0.42**. Two
+compounding causes, both fixed:
+
+1. **The ranking objective diluted the hard-hitters.** `category_success_score` averages *soft*
+   success across all 11 strains, dominated by the many (easy, for cationic peptides) Gram-negative
+   strains; re-weighting Gram+/MDR within it plateaued at ~0.39 Gram+ *for any weights*. Ranking by
+   **hard Gram+/MDR Success Rate** (`balanced_success_score` = SR_hard(GP) + SR_hard(MDR) + 0.5·mean
+   soft) surfaces the peptides that actually *clear* the hard strains at <=16 uM.
+2. **The pool was diversity-screen-starved of non-hemolytic Gram+/MDR actives.** At the old 3× (150k)
+   oversample only ~19 diverse (<=0.60 identity) non-hemolytic Gram+/MDR-active peptides exist; this
+   count grows ~linearly with pool size, so we raised the oversample to **8x (400k)** — affordable
+   because feat-016's parallel CPU-APEX scores 400k in ~7.5 min.
+
+**The Gram+/hemolysis tension, and the lambda fix.** Gram+-active cationic peptides are
+overwhelmingly hemolytic (median ESMC P(hemolytic) **0.975** for Gram+ SR>=0.5 vs 0.028 otherwise) --
+only ~30% are non-hemolytic. The `balanced` score's larger scale made the old lambda=0.5 hemolysis
+penalty too weak, letting hemolytic Gram+ hitters into the top-50 (fraction with P>0.5 rose to 24%).
+Raising the penalty to **lambda=1.5** restores **0% predicted-hemolytic** while keeping the gains --
+we deliberately protect the Selectivity standout rather than chase the aggressive lambda=0.5 profile
+(Gram+ 0.56 but 28% hemolytic).
+
+**Result (top-50, the assayed set), vs the previous ESMC-selected submission -- a clean Pareto gain
+on all five categories:** Broad 0.50->0.57, Gram- 0.57->0.60, **Gram+ 0.37->0.50, MDR 0.42->0.49**,
+Selectivity held at **0% predicted-hemolytic** (median P 0.007->0.004). The new top-100 stays novel
+(median identity to known 0.72, max 0.80, 0 exact matches) and -- cross-checked with ESMFold2 --
+still folds into confident amphipathic helices (median pLDDT 0.68, helix 1.00, muH 0.40, 0/100
+misfold flags), so the harder-optimised selection is not oracle-gaming. Byte-reproducible (two runs
+md5-identical).
+
+**Largest-model check (ESMC-6B).** Per the directive to use the largest models, we tested whether
+ESMC-6B (`Synthyra/ESMplusplus_6B`, the largest ESM-C, 6.4B params) beats ESMC-600M on the HemoPI-2
+selectivity task. It does **not** -- held-out AUROC 0.905 across three head seeds, identical to the
+600M model (the ceiling is set by the ~1000-peptide labelled dataset, not embedding size). So we keep
+ESMC-600M and avoid a ~10x inference cost for zero accuracy gain; the lever to push selectivity beyond
+0.905 is more hemolysis *data*, not a bigger model.
