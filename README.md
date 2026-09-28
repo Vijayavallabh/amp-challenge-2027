@@ -7,13 +7,15 @@ Competition Track challenge on discovering new antibiotics against drug-resistan
 `uv run generate` produces the two files the organizers validate: a 50,000-sequence library and a
 ranked top-100 list, reproducibly from a fixed seed.
 
-> **Status: trained generator + APEX activity ranking.** `uv run generate` samples from a trained
-> autoregressive Transformer (`checkpoint/generator.pt`) — novel, cationic/amphipathic peptides —
-> and ranks the top-100 by **APEX**-predicted MIC across the 11-pathogen panel (the wet-lab-aligned
-> oracle, run as an isolated subprocess; see [docs/RESEARCH.md](docs/RESEARCH.md)), with a
-> within-list diversity screen. This replaced model-likelihood ranking, which sat at only the ~30th
-> percentile of predicted potency. Selectivity (hemolysis) is next (feat-013). `--rank likelihood`
-> or `--baseline` fall back if the oracle/checkpoint are unavailable. See
+> **Status: activity-fine-tuned generator + category-aligned APEX/selectivity ranking.**
+> `uv run generate` samples from an autoregressive Transformer (`checkpoint/generator.pt`) that has
+> been **fine-tuned toward predicted activity and selectivity by rejection sampling (ReST)** on the
+> H100s — so its samples are mostly predicted-active, not the ~6% of the pre-trained base — then
+> ranks the top-100 by a **success-rate-aligned APEX score** (Gram-positive/MDR up-weighted) minus a
+> **hemolysis** penalty, with a within-list diversity screen. The library is sampled hot
+> (temperature 1.6) so it stays diverse and novel for the phase-1 screen at no top-50 activity cost.
+> All figures are computational predictions, not measurements. `--rank likelihood` or `--baseline`
+> fall back if the oracle/checkpoint are unavailable. See [docs/RESEARCH.md](docs/RESEARCH.md) and
 > [feature_list.json](feature_list.json).
 
 ## Quick start
@@ -59,11 +61,14 @@ Every flag has a default, so a bare `uv run generate` is a complete run.
 | `--out-dir` | `generate` | Output directory |
 | `--reference` | `data/antibacterial.fasta` | Known antibacterial peptides to screen against |
 | `--checkpoint` | `checkpoint/generator.pt` | Trained generator weights |
-| `--temperature` | `1.0` | Sampling temperature (trained generator) |
+| `--temperature` | `1.6` | Sampling temperature; hot sampling keeps the fine-tuned generator's library diverse/novel at no top-50 activity cost |
 | `--top-p` | `1.0` | Nucleus sampling cutoff (trained generator) |
 | `--oversample` | `3.0` | Pick the top-100 from this multiple of `--n-sequences` candidates (larger pool → stronger top list); `1.0` disables |
 | `--rank` | `apex` | Top-100 ranking: `apex` (predicted MIC) or `likelihood` (generator) |
-| `--hemolysis-penalty` | `2.0` | Selectivity weight λ: rank by `broad_potency − λ·P(hemolytic)`; `0` disables |
+| `--rank-objective` | `category` | APEX score: `category` (success-rate, Gram+/MDR up-weighted) or `broad` (potency margin) |
+| `--gp-weight` | `0.5` | Gram-positive up-weight in the `category` objective |
+| `--mdr-weight` | `0.5` | MDR up-weight in the `category` objective |
+| `--hemolysis-penalty` | `0.5` | Selectivity weight λ: rank by `category_success − λ·P(hemolytic)`; `0` disables |
 | `--apex-dir` | `oracle/apex` | APEX oracle project (isolated env), used when `--rank apex` |
 | `--diversity-max-identity` | `0.6` | Cap pairwise identity within the top-100; `>=1` disables |
 | `--baseline` | off | Force the random-baseline generator (no checkpoint / no torch needed) |

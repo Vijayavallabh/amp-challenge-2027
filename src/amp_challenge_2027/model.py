@@ -167,12 +167,22 @@ class ApexRanker:
         apex_dir: str | Path = "oracle/apex",
         *,
         device: str = "cpu",
+        objective: str = "category",
+        gp_weight: float = 0.5,
+        mdr_weight: float = 0.5,
         hemolysis_scorer: "HemolysisScorer | None" = None,
         hemolysis_penalty: float = 0.0,
     ) -> None:
         from .oracle import ApexScorer  # lazy: keeps model.py importable without the oracle
 
         self._oracle = ApexScorer(apex_dir, device=device)
+        # Ranking objective: "category" = success-rate aligned with the hard Gram+/MDR buckets
+        # up-weighted (oracle.category_success_score), which balances the five scored categories;
+        # "broad" = the older unbounded broad_potency margin. "category" is on a [0, ~2] scale, so
+        # the hemolysis lambda is O(1), not O(2) as it was for the broad margin.
+        self._objective = objective
+        self._gpw = float(gp_weight)
+        self._mdrw = float(mdr_weight)
         # Optional selectivity penalty: subtract lambda * P(hemolytic) from the activity score,
         # so that among comparably active peptides the less hemolytic ones rank higher. This
         # serves the Optimal Selectivity category and removes likely-toxic peptides, at a small
@@ -180,16 +190,22 @@ class ApexRanker:
         # nudge, not an authority -- lambda is kept modest and the peptides stay APEX-active.
         self._hemo = hemolysis_scorer
         self._lam = float(hemolysis_penalty)
-        if self._hemo is not None and self._lam > 0:
-            self.name = f"apex-mic - {self._lam:g}*hemolysis"
+        base = "apex-success" if objective == "category" else "apex-broad-potency"
+        self.name = (
+            f"{base} - {self._lam:g}*hemolysis"
+            if self._hemo is not None and self._lam > 0 else base
+        )
 
     def score(self, sequences: list[str]) -> list[float]:
-        from .oracle import broad_potency_score
+        import numpy as np
+
+        from .oracle import broad_potency_score, category_success_score
 
         mic = self._oracle.predict_mic(sequences)
-        scores = broad_potency_score(mic)
+        if self._objective == "broad":
+            scores = broad_potency_score(mic)
+        else:
+            scores = category_success_score(mic, self._gpw, self._mdrw)
         if self._hemo is not None and self._lam > 0:
-            import numpy as np
-
             scores = scores - self._lam * np.asarray(self._hemo.predict_proba(sequences))
-        return scores.tolist()
+        return np.asarray(scores, dtype=float).tolist()

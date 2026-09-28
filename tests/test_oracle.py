@@ -128,3 +128,19 @@ class TestApexLive:
         seqs = ["KWKLFKKIGAVLKVL", "GGGGGGGGGGGGGGGG", "KWKLFKKIGAVLKVL"]
         mic = sc.predict_mic(seqs)
         assert np.array_equal(mic[0], mic[2])               # duplicate rows identical
+
+    def test_parallel_cpu_scoring_is_byte_reproducible(self):
+        # feat-016: CPU scoring shards over single-threaded workers. The submission's two-run
+        # byte comparison depends on this being deterministic AND independent of worker count.
+        import random
+        rng = random.Random(1)
+        aa = "ACDEFGHIKLMNPQRSTVWY"
+        seqs = sorted({
+            "".join(rng.choice(aa) for _ in range(rng.randint(8, 30))) for _ in range(4000)
+        })[:3500]                                            # n >= 3000 triggers the parallel path
+        par = O.ApexScorer(device="cpu", workers=6)
+        m1 = par.predict_mic(seqs)
+        assert m1.shape == (len(seqs), 11)
+        assert np.array_equal(m1, par.predict_mic(seqs))     # deterministic across runs
+        # a different worker count must give byte-identical results (single-threaded shards)
+        assert np.array_equal(m1, O.ApexScorer(device="cpu", workers=12).predict_mic(seqs))

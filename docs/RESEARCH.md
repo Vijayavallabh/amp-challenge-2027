@@ -112,3 +112,45 @@ breadth 5.26→4.62 (~12% cost) while mean P(hemolytic) halves 0.73→0.36 and s
 peptides (P<0.3) rise 12→53. λ=2 is the shipped default (4 of 5 categories are activity and the
 hemolysis signal is noisier than APEX, so the nudge is deliberately modest); tunable via
 `--hemolysis-penalty`.
+
+---
+
+## Activity/selectivity fine-tuning by rejection sampling (ReST) — session 3 (2026-09-28)
+
+**Problem.** The pre-trained generator wastes ~94% of its samples: only ~6% are predicted active
+(APEX MIC ≤16 µM on ≥1 strain). Ranking finds the rare actives, but the *distribution* is weak.
+
+**Method.** Rejection-sampling fine-tuning on the 8 H100s. Each round: (1) sample ~200k peptides;
+(2) score all with APEX (sharded across the 8 GPUs via a CUDA build of APEX's torch, offline only —
+the shipped path stays CPU-deterministic) and the hemolysis model; (3) keep the highest-reward
+*novel, active* peptides; (4) continue training at low LR with a corpus anchor. Reward = the
+category success-rate score (Gram+/MDR up-weighted) − λ·P(hemolytic).
+
+**Result (predicted, not measured).** Whole-pool active fraction 6% → ~75% over five rounds; top-50
+mean predicted breadth ~3.9 → ~6 of 11 strains, Gram-negative Success Rate to ~70%, P(hemolytic)
+0.29 → <0.1. A parallel sweep over λ and the Gram+/MDR up-weight mapped the tradeoff: the up-weight
+rebalances Gram-negative↔Gram-positive; λ trades breadth for selectivity.
+
+**Anti-Goodhart checks (all pass).** (a) The learned peptides are realistic cationic amphipathic
+α-helices (e.g. `ILGKLLSTAAKLLSKL`, charge +3..+4, length 15–18), not adversarial noise. (b) On
+APEX's eight *independent* sub-models, ~95% of "active" calls are backed by ≥6/8 sub-models, and
+breadth via sub-models {0-3} vs {4-7} agrees (corr 0.67) — the activity is not an artifact of gaming
+the ensemble mean. (c) The physicochemical envelope stays in the real-AMP range. (d) Verbatim
+novelty is preserved. APEX remains a *moderate* signal, so selection also layers novelty, diversity
+and a hemolysis penalty; we make no wet-lab efficacy claim.
+
+**Diversity/novelty vs activity — the temperature fix.** Fine-tuning concentrates the sampling
+distribution: over rounds, within-pool diversity collapses (a top-region diversity proxy fell
+150 → ~17) and median identity to known AMPs rose (0.51 → ~0.72), which would hurt the phase-1
+diversity/novelty screen. Capping near-duplicates in the fine-tune set barely helped. What worked is
+**sampling at an elevated temperature**: on a mid ReST round, temperature 1.6 restored library
+diversity (≈30% → ≈79% of a random sample mutually <0.6 identity) and novelty (median identity to
+known 0.73 → 0.50) **with no measured top-50 activity cost**, because the top-100 is still chosen by
+APEX from a now-broader active manifold. The shipped generator is therefore a mid ReST round sampled
+at temperature 1.6.
+
+**Shipped ranking.** Switched from the unbounded `broad_potency` margin to `category_success_score`
+(mean saturating soft-Success-Rate, Gram+/MDR up-weighted) − 0.5·P(hemolytic): threshold-focused
+(rewards clearing 16 µM on many strains, not sub-µM depth on a few), and balanced across the five
+scored categories. CPU-APEX is now sharded over single-threaded workers — byte-reproducible and
+independent of core count (feat-016), which makes a larger oversample affordable at ship time.

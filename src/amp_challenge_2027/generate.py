@@ -88,6 +88,9 @@ def build_ranker(model: PeptideGenerator, args: argparse.Namespace):
                           f"only", file=sys.stderr)
             ranker = ApexRanker(
                 args.apex_dir,
+                objective=args.rank_objective,
+                gp_weight=args.gp_weight,
+                mdr_weight=args.mdr_weight,
                 hemolysis_scorer=hemo,
                 hemolysis_penalty=args.hemolysis_penalty if hemo is not None else 0.0,
             )
@@ -258,8 +261,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="write the files without running the local compliance check")
     parser.add_argument("--checkpoint", type=str, default=DEFAULT_CHECKPOINT,
                         help="trained generator checkpoint (default: %(default)s)")
-    parser.add_argument("--temperature", type=float, default=1.0,
-                        help="sampling temperature for the trained generator (default: %(default)s)")
+    parser.add_argument("--temperature", type=float, default=1.6,
+                        help="sampling temperature for the trained generator. The activity-tuned "
+                             "generator concentrates on the active manifold, so hot sampling "
+                             "(1.6) restores base-generator library diversity and novelty at no "
+                             "measured top-50 activity cost -- the top-100 is still selected by "
+                             "APEX (default: %(default)s)")
     parser.add_argument("--top-p", type=float, default=1.0,
                         help="nucleus sampling cutoff for the trained generator (default: %(default)s)")
     parser.add_argument("--baseline", action="store_true",
@@ -271,10 +278,23 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--apex-dir", type=str, default="oracle/apex",
                         help="APEX oracle project directory, used when --rank apex "
                              "(default: %(default)s)")
-    parser.add_argument("--hemolysis-penalty", type=float, default=2.0,
-                        help="selectivity weight lambda: rank by APEX broad-potency minus "
+    parser.add_argument("--rank-objective", choices=("category", "broad"), default="category",
+                        help="APEX activity score for ranking: 'category' = success-rate aligned "
+                             "with the hard Gram+/MDR buckets up-weighted (balances the five scored "
+                             "categories), 'broad' = the older broad_potency margin "
+                             "(default: %(default)s). Only used with --rank apex.")
+    parser.add_argument("--gp-weight", type=float, default=0.5,
+                        help="up-weight for the Gram-positive Success Rate in the 'category' "
+                             "objective (default: %(default)s)")
+    parser.add_argument("--mdr-weight", type=float, default=0.5,
+                        help="up-weight for the MDR Success Rate in the 'category' objective "
+                             "(default: %(default)s)")
+    parser.add_argument("--hemolysis-penalty", type=float, default=0.5,
+                        help="selectivity weight lambda: rank by the APEX activity score minus "
                              "lambda * P(hemolytic), so less-hemolytic actives rank higher "
-                             "(serves the Optimal Selectivity category). 0 disables "
+                             "(serves the Optimal Selectivity category). Calibrated for the "
+                             "'category' score's [0,~2] scale; 0.5 roughly halves predicted "
+                             "hemolysis of the top-100 at a small breadth cost. 0 disables "
                              "(default: %(default)s). Only used with --rank apex.")
     parser.add_argument("--hemolysis-checkpoint", type=str, default="checkpoint/hemolysis.pt",
                         help="hemolysis/selectivity model weights (default: %(default)s)")

@@ -2,8 +2,10 @@
 
 ## Current State
 
-**Last Updated:** 2026-09-27 (session 2)
-**Active Feature:** feat-009 — SUBMISSION.md write-up (feat-007/013 done; feat-014 mostly done)
+**Last Updated:** 2026-09-28 (session 3 — activity/selectivity fine-tuning shipped)
+**Active Feature:** feat-010 SUBMIT (user-gated) — feat-015 (ReST) + feat-016 (parallel APEX) DONE;
+submission regenerated from the fine-tuned generator; pending final official-validator re-run + the
+participant's team name and go-ahead.
 **Deadline:** 2026-09-30 22:00 UTC (1 October 2026, AOE) — see `docs/COMPETITION.md`
 
 `uv run generate` now produces a scientifically meaningful, reproducible submission: the trained
@@ -139,3 +141,70 @@ problem, and the random draw means a single good sequence cannot carry the entry
 Two official starter kits target this exact submission format and are worth reading before
 writing a model from scratch: `szczurek-lab/ampdiffusion-starter-kit` and
 `szczurek-lab/hydramp-starter-kit`.
+
+---
+
+## Session 3 (2026-09-28) — optimize-to-deadline (goal: maximize win odds on 8xH100)
+
+**Compute unlocked:** stood up a CUDA torch 2.5.1 env (scratch, gitignored) so APEX scores on
+all 8 H100s: **50k peptides in 9.5s (~5.3k/s)**. Shipped path stays CPU-deterministic; GPU APEX is
+offline only. Reusable `experiments/bulk_apex.py` (shards over CPU cores or 8 GPUs -> cached npz).
+
+**Objective bake-off (experiments/analyze_objective.py, cached 50k lib):** tested a category-aligned
+success-rate objective vs the shipped `broad_potency`. **Hypothesis DISPROVEN / not adopted:** on this
+generator's pool, `broad_potency` already gives higher predicted Gram-neg SR (74 vs 64) and Broad SR
+(57 vs 55); the category objective only trades GN -> GP/MDR. Keep `broad_potency`-style activity ranking.
+
+**Real weaknesses found (predicted; no wet-lab claims):**
+1. Pool is **Gram-negative-leaning**: top-50 predicted SR GN=74%, but **GP=28%**, MDR~35%. Gram-Positive
+   coverage is the weak scored category. This is a *generator distribution* gap, not a selection gap.
+2. Most APEX-active peptides are predicted **hemolytic** (P~0.76 pre-penalty) -> activity/selectivity tension.
+
+**Plan (prioritized):**
+- [feat-015] **ReST generator fine-tuning** on the 8 H100s: sample -> APEX+hemolysis score -> keep
+  high-reward NOVEL, diverse samples -> low-LR fine-tune -> repeat. Reward = broad soft-Success-Rate
+  (hard Gram+/MDR strains up-weighted) - lambda*P(hemolytic). Guards: novelty+diversity monitored every
+  round (Phase-2 gate), physchem-envelope check, held-out APEX sub-model validation, saturating success
+  (no chasing APEX's sub-uM tail). Goal: lift GP + selectivity without losing GN/broad. Fan out parallel
+  chains (different lambda / GP-weight) across GPUs, pick best by held-out reward.
+- [feat-016] **Deterministic parallel CPU-APEX** in shipped `oracle.py` (shard per-seq over cores;
+  reassemble by sequence -> byte-identical). Cuts shipped runtime ~20x, affords larger oversample.
+- Preserve the validated working submission at all times; re-run official validator before any ship.
+
+**feat-015 ReST — validated + sweep running (2026-09-28):** 1-round smoke test: generator's
+whole-pool active fraction **6.5% -> 50.5%**, novelty held 0.916 -> 0.934, charge 2.5 -> 6.0
+(real-AMP-like), top-100 SR_broad 28.8 -> 38.5, GN 31.9 -> 46.3, P(hemolytic) 0.137 -> 0.071. No
+collapse. Launched an 8-chain parallel Pareto sweep (one per H100) over lambda in {0.5,1,1.5,2} x
+gp/mdr up-weight in {0,0.5,1}, 5 rounds each, plus a seed replicate. Diagnostics per round:
+novelty (verbatim), div150 (diverse survivors of top-600 at 0.6 cap), physchem envelope, per-bucket
+SR, P(hemolytic). Tools in experiments/ (bulk_apex, reward, sample_pool, rest_finetune,
+preview_select, apex_permodel, pick_winner). Winner gets a held-out APEX sub-model check + a
+reference-novelty check before it can replace checkpoint/generator.pt; then re-run the official
+validator. Shipped deterministic path UNCHANGED until then.
+
+**Sweep results + validation (2026-09-28, session 3):**
+- 8-chain sweep: **gp_w drives the Gram balance** — gp=0.5 -> GN-specialist (GN~92, GP~26); gp=1.0 ->
+  balanced (c3: GN 60/GP 53/MDR 50, phemo 0.046; c5: GN 67/GP 69/MDR 60, phemo 0.17). c1==c7 (seed
+  replicate) -> ReST is reproducible. All chains lifted whole-pool active 6.5% -> ~79% over 5 rounds.
+- **Anti-Goodhart checks PASS:** (a) top peptides are realistic amphipathic alpha-helical AMPs
+  (e.g. ILGKLLSTAAKLLSKL, q=+3..+4, L15-18, breadth 9-10/11, minMIC ~1.5uM), not adversarial noise;
+  (b) held-out APEX sub-model agreement 0.95 (>=6/8 submodels agree on 95% of active calls); breadth
+  via submodels {0-3}=7.5 vs {4-7}=7.8, corr 0.67 -> activity generalizes across the ensemble, not
+  gaming the mean; (c) physchem envelope sane; (d) verbatim novelty preserved (0.92 -> 0.97).
+- **Only weakness: diversity collapse** — top-reward region concentrates to ~16 motif families
+  (div150 150 -> ~16). Competition rewards a DIVERSE top-50 (25 drawn at random) + a diverse 50k
+  library (Phase-2 screen), so this must be fixed. Launched a diversity-aware sweep (--dedup-cap 3,
+  MinHash near-dup capping in the fine-tune set) from the diverse base generator: d0 (lam1,gp1),
+  d1 (lam0.5,gp1), d2 (lam1,gp0.5), d3 (lam1.5,gp1).
+- **feat-016 DONE + validated:** shipped CPU-APEX now shards over single-threaded workers ->
+  byte-reproducible AND worker-count-independent (workers8==workers24, max|diff| 0.0), ~2x+ faster,
+  memory-guarded auto worker count. 127 tests pass. Enables a larger shipped oversample.
+
+**BREAKTHROUGH — sampling temperature fixes diversity AND novelty (2026-09-28):**
+dedup-cap failed to stop collapse, and earlier rounds trade activity for diversity. But sampling
+the ReST generator at **temperature 1.3** broadens the active manifold: on c3/round3, library
+diversity 30% -> **57%**, novelty median 0.73 -> **0.60** (frac>0.8 0.27 -> 0.095), with top-50
+**activity unchanged** (breadth 6.1, GN 71). So the shipped generator can be a strong late-ish ReST
+round sampled hot -- active AND diverse AND novel. Decision converging on **c3/round3 + temperature
+1.3**, category selection (gp_w 0.5, lambda 0.5, diversity 0.6). Shipped ranker + oracle already
+updated (category_success_score); feat-016 parallel APEX makes the larger oversample affordable.

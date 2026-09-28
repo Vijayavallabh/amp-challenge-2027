@@ -28,43 +28,69 @@ activity- and selectivity-based ranking; the sections below describe that method
 ## Abstract
 
 We design antimicrobial peptides with a **from-scratch autoregressive Transformer** language model
-over the 20-amino-acid alphabet (10.7M parameters), trained on 39,448 known antibacterial peptides
-(the challenge's own curated aggregation of public AMP databases). The model samples a diverse,
-novel 50,000-peptide library of cationic/amphipathic sequences; early stopping keeps it from
-memorising the corpus, so designs are genuinely novel (top-100 median Levenshtein identity to any
-known AMP ≈ 0.33, far below the 0.80 limit).
+over the 20-amino-acid alphabet (10.7M parameters), first pre-trained on 39,448 known antibacterial
+peptides (the challenge's own curated aggregation of public AMP databases) and then **fine-tuned
+toward predicted activity and selectivity by rejection-sampling fine-tuning (ReST)**: we repeatedly
+sample the model, score every candidate with the APEX MIC predictor and a hemolysis model, keep the
+highest-reward *novel* peptides, and continue training on them. Over a few rounds this lifts the
+fraction of samples predicted active on at least one strain from ~6% to ~75%, while the designs stay
+realistic cationic amphipathic α-helices (validated below, including agreement across APEX's eight
+independent sub-models).
 
-The top-100 is where the competition is decided (25 of the top 50 are synthesised), so we rank not
-by generator likelihood but by **predicted wet-lab outcome**. Each candidate is scored by **APEX**
-(the de la Fuente lab's MIC predictor across the 11-pathogen panel — the same lab that runs the
-competition's assays), aggregated into a smooth **breadth-of-coverage** score aligned with the
-competition's Success-Rate metric (strains inhibited at ≤16 µM). Because APEX-potent peptides tend
-to be hyper-cationic and hemolytic, we subtract a **hemolysis penalty** from a lightweight
-selectivity model, and enforce **sequence diversity** within the list. The result is a top-100 that
-is predicted-active on multiple strains, comparatively non-hemolytic (serving the Optimal
-Selectivity category), novel, and diverse. All predictors are computational estimates, not
-measurements; we make no wet-lab efficacy claims.
+The top-100 is where the competition is decided (25 of the top 50 are synthesised), so we rank by a
+**success-rate-aligned APEX score** that mirrors the five scored categories — the mean predicted
+Success Rate across the 11-pathogen panel with the hard Gram-positive and MDR strains up-weighted —
+minus a **hemolysis penalty** from a lightweight selectivity model (for the Optimal Selectivity
+category), with a within-list **diversity screen**. APEX is the de la Fuente lab's own MIC predictor
+(the lab that runs the competition's assays), used as a moderate, wet-lab-aligned signal, not ground
+truth.
+
+Activity fine-tuning would normally narrow the library, which the phase-1 screen penalises, so we
+sample the library at an **elevated temperature (1.6)**: because the fine-tuned model concentrates on
+the active manifold, hot sampling restores base-generator-level diversity and novelty at no measured
+top-50 activity cost.
+
+The result (all figures are **computational predictions, not measurements** — we make no wet-lab
+efficacy claim): a 50,000-peptide library that is **diverse** (≈81% of a random 500-sample mutually
+<0.6 identity), **novel** (median Levenshtein identity to any known AMP ≈0.50, 3% above 0.80), and
+AMP-like (84% net-cationic, mean length 18); and a **top-100 that is 100% predicted-active** (median
+best-strain MIC ≈2.4 µM), broad-spectrum (top-50 mean ≈5.3 of 11 strains inhibited at ≤16 µM,
+Gram-negative Success Rate ≈56%, Gram-positive ≈34%, MDR ≈38%), comparatively **non-hemolytic** (mean
+predicted P(hemolytic) ≈0.07, vs ≈0.75 for unpenalised actives), and **novel** (top-50 median
+identity to any known AMP ≈0.59, all ≤0.75, within the 0.80 rule).
 
 ## Model
 
 - **Approach:** generative autoregressive language model over the 20-amino-acid alphabet (a
-  generative method, as required). Candidates are ranked by an external activity oracle (APEX) minus
-  a hemolysis-selectivity penalty, with a diversity screen — see *Selection and ranking* below and
-  `docs/RESEARCH.md`.
+  generative method, as required), **fine-tuned toward predicted activity/selectivity by
+  rejection-sampling fine-tuning (ReST)**. Candidates are then ranked by an external activity oracle
+  (APEX) with a hemolysis-selectivity penalty and a diversity screen — see *Selection and ranking*
+  below and `docs/RESEARCH.md`.
 - **Architecture and size:** decoder-only Transformer (`src/amp_challenge_2027/nn.py`) — 6 layers,
   d_model 384, 6 heads, ~10.68M parameters, trained from scratch on the AMP corpus.
-- **Conditioning or guidance:** none yet (unconditional sampling with temperature/nucleus controls);
-  property/activity conditioning is planned (feat-012).
-- **Weights:** `checkpoint/generator.pt` — the best-validation checkpoint (early-stopped at epoch 20)
-  of an 8-model ensemble trained one-per-H100; see `docs/MODEL_PLAN.md` and `training/`.
+- **Activity/selectivity fine-tuning (ReST):** starting from the pre-trained checkpoint, each round
+  we (1) sample ~200k peptides, (2) score every one with APEX (across the 8 H100s) and the hemolysis
+  model, (3) keep the highest-reward peptides that are active (predicted MIC ≤16 µM on ≥1 strain) and
+  *novel* (not a verbatim training peptide), and (4) continue training on that set at a low learning
+  rate, with a slice of the original corpus mixed in as an anchor. The reward is the
+  success-rate-aligned score used at selection time (below). Guards checked every round: verbatim
+  novelty and physicochemical envelope are held, and a held-out check confirms the gains hold across
+  APEX's eight independent sub-models (agreement ≈0.95) — evidence the peptides are genuinely active,
+  not adversarial to the predictor. See `docs/RESEARCH.md` and `experiments/`.
+- **Weights:** `checkpoint/generator.pt` — the fine-tuned generator (a mid ReST round chosen to
+  balance activity against library diversity/novelty). The pre-trained base is preserved in git
+  history; the training/fine-tuning code is in `training/` and `experiments/`.
 - **Entry point:** `uv run generate` → `generate/library.fasta`, `generate/top.fasta`. Samples on
   GPU when available, else CPU. `torch` is a runtime dependency; `--baseline` falls back to a
   non-neural placeholder.
 - **Seed:** 42 (fixed default). Two runs on the same machine are byte-identical
   (`torch.use_deterministic_algorithms` + seeded sampling); verified in `./init.sh`.
-- **Note on the generator choice:** the organizers' SOTA baseline (AMP-Diffusion) requires a GPU to
-  generate; this model also runs on CPU, so the submission degrades gracefully. AMP-Diffusion may be
-  added offline as an additional candidate source (feat-012).
+- **Note on the generator choice:** the organizers' SOTA baseline (AMP-Diffusion + APEX ranking)
+  samples an *unoptimised* library and ranks it. Our edge is to close the loop — **fine-tune the
+  generator against APEX and hemolysis** (ReST) so the candidate distribution itself concentrates on
+  active, selective peptides, rather than relying on ranking to find rare actives in an unoptimised
+  pool. The compact from-scratch Transformer also runs on CPU, so the submission degrades gracefully
+  where the diffusion baseline would not.
 
 ## Training data
 
@@ -93,10 +119,12 @@ pre-filtered to the competition constraints (20 standard residues, length 8–50
 
 ## Library generation
 
-- **How the 50,000 sequences were produced:** autoregressive sampling from the trained
-  `checkpoint/generator.pt` on GPU (falls back to CPU), temperature 1.0 and nucleus `top_p` 1.0
+- **How the 50,000 sequences were produced:** autoregressive sampling from the fine-tuned
+  `checkpoint/generator.pt` on GPU (falls back to CPU), **temperature 1.6** and nucleus `top_p` 1.0
   (defaults), in batches of 4096, from a torch RNG seeded off the run seed (default 42). Sampling
-  tops up in rounds until 50,000 unique, valid, novel sequences are collected.
+  tops up in rounds until 50,000 unique, valid, novel sequences are collected. The elevated
+  temperature is deliberate: it restores the diversity/novelty that activity fine-tuning would
+  otherwise narrow (see the abstract and `docs/RESEARCH.md`), at no measured top-50 activity cost.
 - **Constraint handling:** alphabet, length 8–50, uniqueness, and exclusion of exact matches to
   `data/antibacterial.fasta` are enforced in `src/amp_challenge_2027/constraints.py` and applied
   during generation (`build_library` collects into a `dict` for order-stable de-duplication).
@@ -104,46 +132,53 @@ pre-filtered to the competition constraints (20 standard residues, length 8–50
   is highly valid and diverse, so the library fills in a few over-drawn rounds (over-draw factor
   1.2). Rejections are duplicates, the rare invalid sequence, and any exact match to the reference
   set. The library is 50,000 unique valid sequences; a fresh run reproduces it byte-for-byte.
-- **Library characterization (for the phase-1 diversity/novelty/physicochemical screen):** highly
-  **diverse** (median pairwise Levenshtein identity 0.24; 0.1% of pairs above 0.6), highly **novel**
-  (median max-identity to any known AMP 0.23, 90th percentile 0.40, none above 0.80), and
-  physicochemically **AMP-like** — 77% net-positive charge (matching the training corpus), length
-  8–50 (mean 18), moderate hydrophobicity. So the library is not merely valid but distributionally
-  realistic and non-redundant.
+- **Library characterization (for the phase-1 diversity/novelty/physicochemical screen):**
+  **diverse** (≈81% of a random 500-peptide sample are mutually below 0.6 Levenshtein identity),
+  **novel** (median max-identity to any known AMP ≈0.50, 90th percentile ≈0.72, only ≈3% above 0.80
+  — and the library rule only forbids *exact* matches), and physicochemically **AMP-like** — 84%
+  net-cationic, length 8–50 (mean ≈18), moderate hydrophobicity. Activity fine-tuning did not
+  collapse the library: hot sampling (temperature 1.6) keeps it distributionally realistic and
+  non-redundant, comparable to the un-fine-tuned base generator.
 
 ## Selection and ranking of the top 100
 
 This is a required deliverable and it is what the competition measures — 25 peptides are drawn at
 random from the top 50 and assayed.
 
-- **Scoring function:** `score = broad_potency − 2·P(hemolytic)`.
-  - *broad_potency* — from **APEX-pathogen** (`oracle/apex`, run as an isolated `uv` subprocess),
-    which predicts MIC (µM) against 11 clinical pathogens. We aggregate as
-    `Σ_strains max(0, log10(16/MIC))` — a smooth count of how far each strain's predicted MIC sits
-    below the 16 µM Potency Threshold, so the score rewards **breadth of coverage** (the
-    competition's Success-Rate metric), not just the single best strain. We validated APEX against
-    the 46 wet-lab-measured peptides in `data/experimental/mic.csv`: it is a moderate, wet-lab-
-    aligned signal (AUROC 0.76 known-AMP vs random; 0.62 per-(peptide,strain) inhibition on novel
-    peptides), so we rank by it but do not chase its extreme tail. Details in `docs/RESEARCH.md`.
+- **Scoring function:** `score = category_success_score − 0.5·P(hemolytic)`.
+  - *category_success_score* — from **APEX-pathogen** (`oracle/apex`, run as an isolated `uv`
+    subprocess), which predicts MIC (µM) against 11 clinical pathogens. We aggregate as the mean
+    **soft Success Rate** (a saturating sigmoid of how far each strain's predicted MIC sits below the
+    16 µM Potency Threshold) across the panel, with the hard **Gram-positive and MDR** strains
+    up-weighted. Unlike an unbounded potency margin, this is *threshold-focused* — it rewards
+    clearing the 16 µM bar on **many** strains (the Success-Rate metric) rather than chasing
+    ever-deeper potency on a few easy strains — and the Gram+/MDR up-weight balances the five scored
+    categories (15 of 20 real strains are Gram-negative, where cationic peptides already excel). We
+    validated APEX against the 46 wet-lab-measured peptides in `data/experimental/mic.csv`: a
+    moderate, wet-lab-aligned signal (AUROC 0.76 known-AMP vs random; 0.62 per-(peptide,strain) on
+    novel peptides), so we rank by it but do not chase its extreme tail. Details in `docs/RESEARCH.md`.
   - *P(hemolytic)* — a lightweight MLP over 11 physicochemical descriptors (`checkpoint/hemolysis.pt`,
-    trained on HemoPI-2, held-out AUROC 0.778). The `λ=2` penalty pushes the list toward selective
-    (non-hemolytic) actives, serving the Optimal Selectivity category and removing likely-toxic
-    peptides. Used as a soft signal, given its moderate accuracy.
+    trained on HemoPI-2, held-out AUROC 0.778). The `λ=0.5` penalty (calibrated for the score's
+    `[0, ~2]` scale) roughly halves the predicted hemolysis of the top-100 at a small breadth cost,
+    serving the Optimal Selectivity category. A soft signal, given its moderate accuracy.
 - **Ranking procedure:** score every library sequence, sort by descending score (sequence as a
   deterministic tiebreak), then walk down the list applying the novelty and diversity screens
-  below until 100 are selected. Fully deterministic (APEX in eval mode on CPU), so two runs are
-  byte-identical.
+  below until 100 are selected. Fully deterministic — APEX runs in eval mode on CPU, sharded over
+  single-threaded workers whose per-sequence results are reassembled by input order, so the output
+  is byte-identical across runs regardless of the machine's core count.
 - **Novelty screen:** candidates above 0.80 Levenshtein ratio against any sequence in the
-  reference set are rejected and replaced by the next-ranked candidate. In the shipped run, **215
-  higher-ranked candidates were rejected** for exceeding this — a small fraction of the ranked
+  reference set are rejected and replaced by the next-ranked candidate. In the shipped run, **338
+  higher-ranked candidates were rejected** for exceeding this — a small fraction of the 150k ranked
   pool, so the submitted top-100 still closely follows the model's own ranking. (In practice the
-  designs are far more novel than required: top-100 median identity to any known AMP ≈ 0.33.)
+  designs are comfortably novel: top-50 median identity to any known AMP ≈0.59, all ≤0.75.)
 - **Diversity or redundancy control within the top 100:** a within-list cap
   (`--diversity-max-identity 0.6`) skips any candidate exceeding 0.60 Levenshtein identity to an
-  already-selected peptide, keeping the more-active member of a near-duplicate pair. **69 near-
-  duplicates were rejected** in the shipped run. This matters because APEX concentrates the top of
-  the list into one cationic motif family, and the random top-50 draw would otherwise waste assays
-  on near-duplicates; diversity also hedges against the moderate oracle being wrong about a motif.
+  already-selected peptide, keeping the more-active member of a near-duplicate pair. **785 near-
+  duplicates were rejected** in the shipped run. This matters because the activity ranking
+  concentrates the top of the list into a few cationic motif families, and the random top-50 draw
+  would otherwise waste assays on near-duplicates; diversity also hedges against the moderate oracle
+  being wrong about a motif. (Hot sampling keeps the *library* diverse; this cap keeps the *top-100*
+  diverse.)
 
 ## Manual intervention and computational filters
 
@@ -171,9 +206,11 @@ Required disclosure. State plainly what was applied, including "none".
 - Verified with `uv run python scripts/verify_submission.py https://github.com/Vijayavallabh/amp-challenge-2027`
   on **2026-09-27**: *"All checks passed. Submission is valid!"* — fresh clone, `uv sync`, generate
   twice on GPU, all 8 checks including byte-identical reproducibility.
-- Hardware and runtime: generation on a single CUDA GPU (falls back to CPU); APEX scoring on CPU.
-  A full 50k run is a few minutes on GPU. Trained on 8×H100 (offline); inference needs one GPU or
-  CPU. If the APEX/hemolysis models cannot load, `generate` degrades gracefully (likelihood, then a
+- Hardware and runtime: generation on a single CUDA GPU (falls back to CPU); APEX scoring on CPU,
+  **sharded over single-threaded worker subprocesses** (auto-sized to the machine's cores and free
+  memory) so it is fast yet byte-reproducible and independent of the core count. The generator was
+  pre-trained and **ReST-fine-tuned on 8×H100 offline**; inference needs one GPU or CPU. If the
+  APEX/hemolysis models cannot load, `generate` degrades gracefully (likelihood ranking, then a
   random baseline) so a valid submission is always produced.
 
 ## Checklist before submitting
@@ -184,8 +221,9 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       API, `userHasEntered=True` (feat-004)
 - [ ] Submitting from `j_v_v_07`, not from the machine's default token account
 - [ ] `./init.sh` green, including the two-run byte-identical check
-- [x] `scripts/verify_submission.py` run against the **pushed public URL** and passing (2026-09-27;
-      re-run immediately before submitting, as the pipeline may still change)
+- [ ] `scripts/verify_submission.py` re-run against the **pushed public URL** after the
+      activity-fine-tuning changes (session 3) — the pipeline changed substantially, so the
+      2026-09-27 pass is superseded; re-verify before submitting
 - [x] Every section above filled in, with no placeholder text left
 - [x] Repository public, MIT licensed, `uv.lock` and `.python-version` committed
 - [x] Weights committed or fetchable, and the inference path documented (`checkpoint/`, `oracle/apex/`)

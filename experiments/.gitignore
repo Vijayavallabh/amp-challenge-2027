@@ -1,0 +1,5 @@
+# Offline experiment artifacts: large, regenerable, not part of the shipped submission.
+cache/
+rest/
+*.npz
+*.log

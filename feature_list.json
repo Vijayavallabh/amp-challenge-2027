@@ -73,8 +73,9 @@
       "dependencies": [
         "feat-006"
       ],
-      "status": "not-started",
-      "evidence": ""
+      "status": "superseded",
+      "evidence": "",
+      "title": "Conditioning/ensemble \u2014 SUPERSEDED by feat-015 (ReST closes the activity loop)"
     },
     {
       "id": "feat-007",
@@ -138,6 +139,16 @@
       ],
       "status": "not-started",
       "evidence": ""
+    },
+    {
+      "id": "feat-015",
+      "title": "ReST generator fine-tuning (activity+selectivity) on 8xH100 \u2014 DONE",
+      "status": "done"
+    },
+    {
+      "id": "feat-016",
+      "title": "Deterministic parallel CPU-APEX in shipped oracle \u2014 DONE",
+      "status": "done"
     }
   ]
 }
