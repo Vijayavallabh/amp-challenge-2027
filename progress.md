@@ -6,7 +6,7 @@
 > `uv run generate` defaults to **`--top-temperature 0.8` + `--lys-hedge 0.4`** on the feat-020/021 generator
 > (`checkpoint/generator.pt` = `da70fb42`). Top-50 (seed 42): **Broad 0.71, Gram- 0.68, Gram+ 0.76, MDR 0.67, 0%
 > predicted-hemolytic, µH 0.51**; Phase-2 diversity 0.837 / novelty 1.0 / uniqueness 1.0. Official validator
-> PASSED on `2f7bb3c` (library `9a3278c9` / top `61becbab`).
+> PASSED on `2f7bb3c`, `c33126c`, and current HEAD `f4eed63` (fresh clone + generate ×2, all 8 checks; library `9a3278c9` / top `61becbab`, byte-identical).
 > **feat-032 (Lys-conditioned Gram- ReST generator) — EXPLORED then REVERTED.** A ReST fine-tune (wet-lab Lys
 > prior in the reward, gn_w 1.5) produced a generator that *appeared* to strictly dominate feat-031 (APEX Broad
 > 0.751, GN 0.749; held-out submodel GN 0.633→0.843) and passed the official validator + seed-robustness. A

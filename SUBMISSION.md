@@ -249,7 +249,7 @@ random from the top 50 and assayed.
   `library.fasta` are md5-identical.
 - **Novelty screen:** candidates above 0.80 Levenshtein ratio against any sequence in the
   reference set are rejected and replaced by the next-ranked candidate. In the shipped run the
-  novelty screen rejected **1** candidate — the Gram+/MDR-targeted ReST generator explores new
+  novelty screen rejected **21** higher-ranked candidates — the Gram+/MDR-targeted ReST generator explores new
   sequence space, so its designs sit comfortably below the 0.80 threshold (top-50 median identity to
   any known AMP **0.69**, top-100 max **0.79**, none an exact match — *more* novel than the earlier
   physicochemical/ESMC selections, evidence the harder optimisation is discovering new motifs rather
@@ -323,8 +323,9 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       same held-out Gram- 0.83 without the wet-lab prior, and APEX has ~0 real-activity correlation) and it
       regressed near-exact novelty ~2.6× (a Phase-2 advancement-axis risk); feat-031 keeps the genuine
       wet-lab win via the safe selection route. See docs/RESEARCH.md (feat-032). The official
-      validator PASSED again on the revert commit `c33126c` (fresh clone + generate ×2, all 8 checks,
-      byte-identical `9a3278c9`/`61becbab`). Re-run once more immediately before submitting.
+      validator PASSED again on the revert commit `c33126c` and on the current HEAD `f4eed63` (docs-only
+      atop the revert; fresh clone + `uv sync` + generate ×2, all 8 checks, fresh-clone output byte-identical
+      `9a3278c9`/`61becbab`). Re-run once more immediately before submitting.
 - [x] Every section above filled in, with no placeholder text left
 - [x] Repository public, MIT licensed, `uv.lock` and `.python-version` committed
 - [x] Weights committed or fetchable, and the inference path documented (`checkpoint/`, `oracle/apex/`)
