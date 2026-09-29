@@ -1019,9 +1019,15 @@ documented `/api/v1/...` is dead — HTTP 200, empty body) and harvested **1,164
   within-band regime, so composition wins *for us* — confirmed independently (n=142–284), matching the 46.
 - The strong n=46 side-effects were partly inflated: DBAASP full-range says argfrac ≈ neutral (+0.05, not −0.43)
   and aromatic ≈ neutral, and **length** is the biggest full-range signal (+0.26). But *within* the APEX band,
-  more Lysine weight monotonically raises real broad **and Gram-positive** (0.60→0.71) — so the Lysine push
-  helps all categories in our regime, and the APEX-Gram+ *prediction* dropping is APEX mis-scoring the
-  chemotype, not a real loss.
+  more Lysine weight monotonically raises real **broad** activity, and on DBAASP-within-band real
+  **Gram-positive** too (0.60→0.71). **Honesty caveat (adversarial audit, 2026-09-29):** the Gram-positive
+  half does NOT replicate on the matched 46 — pure composition's real Gram+ there is ≈ band-random (Spearman
+  +0.12, top-7-by-comp real Gram+ 0.214 vs band 0.207). The shipped ranker *does* lift real Gram+/MDR on the
+  46 (top-7 Broad 0.468 / Gram+ 0.357 / MDR 0.464 vs band 0.269/0.207/0.250), but Check A of the audit shows
+  that gain comes from the **−phemo selectivity penalty** (−phemo alone → Gram+ 0.286), not the Lysine push.
+  So we do not claim composition itself wins Gram+; APEX is kept only as the gate (its low Gram+ *prediction*
+  is mis-scoring within the band, not a real loss), and the selectivity penalty — not composition — is what
+  carries real Gram+/MDR in our regime. See the "feat-033 adversarial code review" section below.
 
 **Calibration (what to ship, and what not to).** `scratchpad/dbaasp_within.py`, `dbaasp_hybrid.py`,
 `bigpool_hybrid.py`:
@@ -1131,3 +1137,46 @@ The review also surfaced real robustness/clarity gaps, now fixed and covered by 
   argsort-band + PLM-phemo block (previously hand-synced in three methods) is one shared helper.
 Findings #11–#14 (micro-efficiency on the numpy ranking path, which is dwarfed by the APEX/ESMC passes)
 were assessed and consciously deferred as churn on a validated one-shot artifact for no measurable gain.
+
+## feat-033 adversarial STRATEGY audit — a byte-reproducibility DQ risk, caught and fixed (2026-09-29)
+
+The code review above scrutinised the *implementation*. A separate 5-agent adversarial workflow then attacked
+the *strategic* decisions (each agent tried to REFUTE one, a synthesis judge rated each). Four of five
+self-refuted to "keep the status quo" — but one surfaced a genuine, previously-missed defect.
+
+**Actionable flaw — the APEX sequential path was not byte-reproducible (FIXED).** `ApexScorer._run_pool` (the
+parallel CPU path) pins `OMP/MKL/OPENBLAS/NUMEXPR_NUM_THREADS=1` *because* the authors established that
+multi-threaded oneDNN/MKL GRU reductions are not bit-reproducible — but `_run_apex` (the sequential path,
+taken when `_resolve_workers→1`: small inputs, `device='cuda'`, or a low-memory/low-core grader where
+`_auto_workers` returns 1) built its subprocess env WITHOUT those pins, and `APEX_predict.py` sets no threads
+itself. So on any grader that took the sequential path, APEX ran multi-threaded → a boundary peptide could
+flip at the 20k active-band edge → `top.fasta`/`library.fasta` bytes differ between the validator's two runs →
+**check #8 fails = disqualification**, irreversible on a one-shot entry. Our DGX takes the *parallel* path
+(44 workers), so our byte-repro passed and never exercised the hole; the prior 14-finding review missed it,
+and the lone byte-repro test forces the parallel path. **Fix:** a single shared `_apex_env()` helper used by
+both paths (root-cause, so the asymmetry cannot re-drift), plus a regression-guard test. Proven byte-neutral
+on the shipped artifact — `_apex_env()` returns the identical env `_run_pool` built inline, and the parallel
+path is our only path — so `dc37c540`/`06e30960` are preserved; and per `_run_pool`'s own invariant,
+single-threaded APEX is identical regardless of sharding, so the now-pinned sequential path yields the *same*
+bytes as the parallel path on any grader.
+
+**Two "worth-testing" challenges — both confirmed the status quo on ground truth (`scratchpad/confirm_audit.py`).**
+- *Per-category λ effect (the one un-run validation):* λ had only ever been scored against real BROAD SR. Broken
+  out per category on the 46, the shipped `comp − 1.5·phemo` lifts **every** category above band mean — Broad
+  0.468 / Gram+ 0.357 / MDR 0.464 vs band 0.269/0.207/0.250 — so the penalty does not hurt Gram+/MDR; it helps
+  them. DBAASP's per-category potency "cost" is hemolytic-bought (pure-comp Gram+ 0.682 at ESMC phemo 0.589 vs
+  shipped 0.477 at 0.013). λ=1.5 confirmed across all four potency categories, not just Broad.
+- *A charge-patterning signal (muH) vs composition:* composition is permutation-invariant, so an amphipathic
+  moment is a real un-benchmarked axis. But WITH the phemo gate applied, neither variant meets the
+  pre-registered bar (tie Broad AND strictly beat Gram+ on BOTH datasets at ≤2% hemolytic): a `z(comp)+z(muH)`
+  blend "wins" on DBAASP only by re-admitting **51.6% hemolytic** peptides (muH overlaps the hemolysis axis the
+  gate removes) and *hurts* Gram+ on the matched 46 (0.357→0.321); a gated 70/30 split is matched-regime-worse
+  (Gram+ 0.357→0.250). Composition stands.
+
+**One honesty fix.** The "more Lysine → real Gram+ 0.60→0.71" claim is DBAASP-within-band only; on the matched
+46 composition alone is ≈ band-random on Gram+, and the shipped ranker's real Gram+/MDR gain comes from the
+−phemo penalty, not the Lysine push. The feat-033 write-up above is corrected to say so.
+
+Net: the strategic thesis (composition ranking within an APEX gate, minus a selectivity penalty) is intact and
+now validated per-category; the one concrete defect was a reproducibility hole, fixed byte-neutrally before the
+one-shot submit.

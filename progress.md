@@ -36,6 +36,19 @@
 > graceful out-of-band gate (APEX-ordered, no magic sentinel); `aromatic_weight` guard; superseded-flag NOTE;
 > corrected README table; shared aromatic set + shared band helper.
 >
+> **Strategic adversarial audit (5-agent workflow) + BYTE-REPRO FIX (2026-09-29).** A devil's-advocate panel
+> attacking the strategic decisions caught one genuine defect the 14-finding review missed: `ApexScorer._run_apex`
+> (the sequential APEX path, taken when `_resolve_workers→1`: small input, `device=cuda`, or a low-mem/low-core
+> grader) omitted the `OMP/MKL/OPENBLAS/NUMEXPR=1` thread-pinning that `_run_pool` sets — so on such a grader APEX
+> runs multi-threaded → non-bit-reproducible → validator check #8 (two-run byte match) could fail = **DQ**. Fixed
+> via a shared `_apex_env()` helper (both paths) + regression test; **proven byte-neutral** (our DGX takes the
+> parallel path; `_apex_env()` == the old inline env; `dc37c540`/`06e30960` preserved). 156 tests pass. The two
+> "worth-testing" challenges were run on cached ground truth (`scratchpad/confirm_audit.py`) and both **confirm
+> the status quo**: the λ penalty helps every category on the matched 46 (Broad 0.47/GP 0.36/MDR 0.46 vs band
+> 0.27/0.21/0.25), and a muH charge-patterning blend fails the pre-registered bar (re-admits 51.6% hemolytic on
+> DBAASP, hurts GP on the 46). Softened a Gram+ overclaim in RESEARCH.md for honesty. Re-validating the fixed
+> commit on a fresh clone before the submit.
+>
 > **feat-031 (now the FALLBACK, `--composition-weight 0`) — the previous shipped default.**
 > `--top-temperature 0.8` + `--lys-hedge 0.4` on the same generator. Top-50 (seed 42): **Broad 0.71, Gram- 0.68,
 > Gram+ 0.76, MDR 0.67, 0% predicted-hemolytic, µH 0.51** (APEX-predicted); Phase-2 diversity 0.837 / novelty 1.0 /

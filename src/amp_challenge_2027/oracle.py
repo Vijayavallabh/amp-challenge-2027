@@ -132,6 +132,24 @@ class ApexScorer:
             )
         return np.array([mic_by_seq[s] for s in sequences], dtype=float)
 
+    @staticmethod
+    def _apex_env() -> dict[str, str]:
+        """Subprocess environment for every APEX run, sequential or pooled.
+
+        Drops ``VIRTUAL_ENV`` (so ``uv`` resolves the APEX project's own env) and pins every math
+        library to ONE thread. Multi-threaded oneDNN/MKL GRU reductions are not bit-reproducible
+        (thread-timing-dependent accumulation order), which would break the validator's two-run
+        byte comparison. Single-threaded scoring is fully deterministic AND identical regardless of
+        how sequences are sharded across workers, so BOTH code paths -- the sequential
+        :meth:`_run_apex` and the pooled :meth:`_run_pool` -- must use this, or the active-band gate
+        that feeds the top-100 becomes non-reproducible whenever the sequential path is taken (small
+        inputs, ``device='cuda'``, or a low-memory/low-core grader where ``_auto_workers`` returns 1).
+        """
+        env = {k: v for k, v in os.environ.items() if k != "VIRTUAL_ENV"}
+        for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
+            env[var] = "1"
+        return env
+
     def _run_apex(self, sequences: list[str]) -> dict[str, np.ndarray]:
         with tempfile.TemporaryDirectory() as tmp:
             in_fa = Path(tmp) / "in.fasta"
@@ -145,9 +163,11 @@ class ApexScorer:
                 "python", "APEX_predict.py",
                 "-i", str(in_fa), "-o", str(out_csv), "-g", self._gpu_flag,
             ]
-            # Run from the APEX dir so its ``from APEX_models import ...`` resolves and the
-            # weights load relative to the script. Keep VIRTUAL_ENV out of uv's way.
-            env = {k: v for k, v in os.environ.items() if k != "VIRTUAL_ENV"}
+            # Run from the APEX dir so its ``from APEX_models import ...`` resolves and the weights
+            # load relative to the script. Use the shared thread-pinned env so this sequential path
+            # is bit-reproducible too (previously it inherited the ambient thread count, which made
+            # the top-100's active-band gate non-reproducible on any grader that took this path).
+            env = self._apex_env()
             try:
                 subprocess.run(
                     cmd, cwd=self.apex_dir, env=env, check=True,
@@ -197,14 +217,10 @@ class ApexScorer:
         """
         import time
 
-        env = {k: v for k, v in os.environ.items() if k != "VIRTUAL_ENV"}
-        # Pin each worker to ONE thread. Multi-threaded oneDNN/MKL GRU reductions are not
-        # bit-reproducible (thread-timing-dependent accumulation order), which would break the
-        # validator's two-run byte comparison. Single-threaded scoring is fully deterministic
-        # AND independent of how many workers/shards we use, so the merged result is identical
-        # on any machine; parallelism comes from running many single-threaded workers at once.
-        for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
-            env[var] = "1"
+        # Shared thread-pinned env (see :meth:`_apex_env`): single-threaded workers make the merged
+        # result deterministic and independent of worker/shard count; parallelism comes from running
+        # many single-threaded workers at once.
+        env = self._apex_env()
 
         results: dict[str, np.ndarray] = {}
         with tempfile.TemporaryDirectory() as td:
