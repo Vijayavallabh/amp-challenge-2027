@@ -729,3 +729,14 @@ improve Phase-2 further. It does not pay: diversity rises only marginally (1.6->
 -> 0.851) while FBD -- distributional AMP-realism -- degrades sharply (1.94 -> 3.95 at temp 2.0, i.e. 35%
 -> 72% of the way to random). The Phase-2 screen rewards libraries that are diverse AND realistic, so
 trading a large realism loss for +0.01 diversity is net-negative. Keep the library body at 1.6.
+
+**Top-temperature is also near-optimal at 1.0 (don't go lower).** Because mixed-temperature decouples the
+top pool, we can push --top-temperature below 1.0 with no Phase-2 cost. Measured (full pipeline): 0.9 and
+0.8 give only marginal top-50 gains (0.8: Gram- 0.640->0.663, Broad 0.680->0.696, GP/MDR ~flat, muH up),
+all within APEX's 0.62-AUROC noise -- but the source pool becomes heavily peaked: the within-list
+diversity screen rejects 1533 near-duplicates at top-temp 1.0, 2274 at 0.9, and 3918 at 0.8. The screened
+top-50 self-identity is flat (0.593), but the underlying motif base narrows sharply, so a cooler top pool
+concentrates the top-50 onto fewer motifs -- a correlated-failure risk when 25 are drawn at random and
+assayed (one motif failing in vitro would sink many). For a one-shot submission that rewards reliability,
+top-temperature 1.0 is the robust choice; the marginal <=0.02 gain from 0.8 is not worth the motif
+concentration. feat-028 ships top-temperature 1.0.

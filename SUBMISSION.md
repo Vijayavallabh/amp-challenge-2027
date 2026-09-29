@@ -293,9 +293,11 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       valid!"*, ranking `apex-balanced-success - 1.5*hemolysis + 0.2*amphipathicity`, pool line
       `top-temperature 1 for the top list; temperature 1.6 for the library body`, all 8 checks incl.
       byte-identical reproducibility; fresh-clone output byte-identical to the shipped mixed default
-      (library `5270743d`, top `25be6843`). STILL TODO before submitting: push the feat-028 commit and
-      re-run against the **pushed public URL** (feat-008). (Prior pushed-URL PASS: feat-025 `7995342`.)
-      Re-run once more immediately before submitting.
+      (library `5270743d`, top `25be6843`). **feat-008 also PASSED against the pushed public URL**
+      (`https://github.com/Vijayavallabh/amp-challenge-2027.git`, commit `75a85a7`, 2026-09-29): fresh
+      GitHub clone reproduces the mixed default byte-for-byte, all 8 checks incl. reproducibility. So the
+      organizers' clone-and-run reproduces exactly this submission. Re-run once more immediately before
+      submitting.
 - [x] Every section above filled in, with no placeholder text left
 - [x] Repository public, MIT licensed, `uv.lock` and `.python-version` committed
 - [x] Weights committed or fetchable, and the inference path documented (`checkpoint/`, `oracle/apex/`)
