@@ -248,9 +248,11 @@ random from the top 50 and assayed.
     (feat-025, feat-031).
 - **Ranking procedure:** score every library sequence, sort by descending score (sequence as a
   deterministic tiebreak), then walk down the list applying the novelty and diversity screens
-  below until 100 are selected. Fully deterministic — APEX runs in eval mode on CPU, sharded over
-  single-threaded workers whose per-sequence results are reassembled by input order, so the output
-  is byte-identical across runs regardless of the machine's core count. The ESMC selectivity head
+  below until 100 are selected. Fully deterministic — APEX runs in eval mode on CPU with every math
+  library pinned to one thread (both the pooled and the sequential scoring paths, via a shared env
+  helper — multi-threaded MKL/oneDNN reductions are not bit-reproducible), and per-sequence results
+  are reassembled by input order, so the output is byte-identical across runs regardless of the
+  machine's core count *or* available memory (which selects the path). The ESMC selectivity head
   runs in eval mode under `torch.use_deterministic_algorithms` with a fixed cuBLAS workspace, so the
   two-stage GPU path is byte-reproducible too — verified by regenerating twice: `top.fasta` and
   `library.fasta` are md5-identical.
@@ -320,11 +322,13 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       API, `userHasEntered=True` (feat-004)
 - [ ] Submitting from `j_v_v_07`, not from the machine's default token account
 - [ ] `./init.sh` green, including the two-run byte-identical check
-- [x] `scripts/verify_submission.py` **PASSED on the shipped feat-033 default** (commit `84e2b78`): fresh
-      GitHub clone + `uv sync` + generate ×2 — *"All checks passed. Submission is valid!"*, all 8 checks incl.
-      byte-identical reproducibility, the ≤80% novelty gate, and the real ESM++/ESMC selectivity path;
-      fresh-clone output library `06e30960`, top `dc37c540` (byte-identical to local). **Re-run once more on
-      the final pushed commit immediately before submitting.** History: the earlier **feat-031 APEX-ranked
+- [x] `scripts/verify_submission.py` **PASSED on the byte-repro-hardened commit `1c091e5`** (feat-033 default,
+      after the adversarial-audit fix to the sequential APEX path): fresh GitHub clone + `uv sync` + generate ×2
+      — *"All checks passed. Submission is valid!"*, all 8 checks incl. byte-identical reproducibility, the ≤80%
+      novelty gate, and the real ESM++/ESMC selectivity path; fresh-clone output library `06e30960`, top
+      `dc37c540` (byte-identical to local, and to the pre-fix `84e2b78` — the fix is byte-neutral on the shipped
+      parallel path). Head is now `4108f3b` (docs-only atop `1c091e5`). **Re-run once more on the final pushed
+      commit immediately before submitting.** History: the earlier **feat-031 APEX-ranked
       default PASSED** the official validator on commit `f4eed63` (fresh-clone output `9a3278c9`/`61becbab`);
       recover it with `--composition-weight 0`. **feat-032 (a Lys-conditioned Gram--ReST generator) was
       explored and REVERTED** (its APEX "domination" was ensemble-Goodhart; it regressed near-exact

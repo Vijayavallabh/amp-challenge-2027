@@ -46,8 +46,12 @@
 > "worth-testing" challenges were run on cached ground truth (`scratchpad/confirm_audit.py`) and both **confirm
 > the status quo**: the λ penalty helps every category on the matched 46 (Broad 0.47/GP 0.36/MDR 0.46 vs band
 > 0.27/0.21/0.25), and a muH charge-patterning blend fails the pre-registered bar (re-admits 51.6% hemolytic on
-> DBAASP, hurts GP on the 46). Softened a Gram+ overclaim in RESEARCH.md for honesty. Re-validating the fixed
-> commit on a fresh clone before the submit.
+> DBAASP, hurts GP on the 46). Softened a Gram+ overclaim in RESEARCH.md for honesty. **Official validator
+> PASSED on the byte-fix commit `1c091e5`** (fresh clone + generate ×2, all 8 checks, fresh-clone output
+> byte-identical `06e30960`/`dc37c540` = the approved artifact, confirming the fix is byte-neutral). Also ran
+> the audit's Phase-2 *relative* diagnostic (`4108f3b`): corrected a stale FBD (1.938→3.44, pre-mixed-temp) and
+> showed our library is 2.7× more novel (near-exact) than the un-ReST base — a defensible Phase-2 entry, no
+> library change. HEAD `4108f3b` (docs atop `1c091e5`). Re-run the validator on the final commit before submit.
 >
 > **feat-031 (now the FALLBACK, `--composition-weight 0`) — the previous shipped default.**
 > `--top-temperature 0.8` + `--lys-hedge 0.4` on the same generator. Top-50 (seed 42): **Broad 0.71, Gram- 0.68,
