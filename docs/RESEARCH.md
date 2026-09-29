@@ -938,3 +938,43 @@ rollback. Predictions only — no wet-lab claim. **Official validator PASSED** o
 (fresh GitHub clone + `uv sync` + generate ×2, all 8 checks incl. byte-identical reproducibility + ≤80% novelty +
 real ESM++/ESMC path — *"All checks passed. Submission is valid!"*; fresh-clone output library `7e3641fa` / top
 `de8ed8a2`, byte-identical to local). The top-50 profile is seed-robust (identical at seeds 42/43/44).
+
+### feat-032 REVERTED — the adversarial review caught an ensemble-Goodhart illusion (2026-09-29)
+
+The feat-032 adoption above was **reverted** after a 4-agent adversarial review + first-hand verification
+disproved its central claims. This is the devil's-advocate discipline working, and the lesson is important
+enough to record in full.
+
+**What was wrong with the "strict domination":**
+1. **The APEX gains don't transfer.** APEX has ~0 correlation with real activity on novel peptides (feat-031's
+   own decisive test: Gram- rho −0.13). So Broad 0.707→0.751 / GN 0.680→0.749 are gains in a currency that
+   does not convert to the real (wet-lab) score — the axis on which the competition is actually judged.
+2. **The held-out "generalisation" is mechanical, not real.** APEX's 8 "submodels" are hyperparameter variants
+   of ONE model on ONE dataset (train[0-5]/holdout[6-7] correlation **r≈0.82** on Gram- log-MIC), so any reward
+   gain transfers to the "held-out" block regardless of real activity. The **decisive matched control** — an
+   APEX-only ReST (`gn_w=1.5, lys_w=0`, i.e. feat-032 minus *only* the wet-lab term) — reached held-out Gram-
+   **0.829**, essentially equal to feat-032's 0.843, **without the wet-lab prior**. So the "wet-lab prior made
+   it generalise where feat-024 didn't" story is false; the lift is a harder GN push through correlated
+   submodels. The aggregate Gram- is also **easy-species inflation** (A. baumannii / E. coli saturate ~0.99,
+   while the hard clinical *K. pneumoniae* clears just 0.022).
+3. **A real near-exact novelty regression (~2.6×).** The Lys-conditioning ReST pulled the generator onto the
+   known-AMP manifold: library sequences within 0.80 Levenshtein-identity of a known AMP rose **1.56% → 4.08%**
+   (within 0.90: 0.52% → 1.32%), and it **regenerated Penetratin exactly**. COMPETITION.md Phase-2 does
+   "exact and near-exact matching against DBAASP, dbAMP, APD" — so this is a genuine advancement-axis regression.
+
+**Why revert (winning-maximising, one-shot):** feat-032's real edge over feat-031 is thin (composition
+R/(R+K) 0.60→0.50 and selectivity 0.0030→0.0012, both already in the wet-lab-favourable blend zone) and
+feat-031 **already banks that composition win via the safe selection route** — without a generator swap, without
+the near-exact regression, and without the diversity collapse (pool 0.36→0.12). On a no-resubmission one-shot,
+the clean, validated, novel feat-031 maximises the real chance of winning: clean Phase-2 advancement **and** a
+real (if modest) top-50 win, versus feat-032's Goodhart-illusory gains bought with an unquantified advancement
+risk. Checkpoint restored to feat-031 (`da70fb42`); the feat-032 checkpoint is kept at
+`experiments/rest/lys_gramneg/best.pt` for the record.
+
+**Methodological lesson (the durable takeaway):** the held-out-submodel guard we relied on **cannot detect
+ensemble-wide Goodhart** — a bias shared by all 8 submodels (like APEX's Arg-bias, or here the joint over-rating
+of easy/saturated species) transfers straight through a train/test split of correlated submodels. Two checks
+are mandatory before trusting an oracle-optimised gain: **(a) a matched control that isolates the genuinely-new
+term** (here, lys_w=0 showed the gain was not from the wet-lab prior), and **(b) at least one truly independent
+axis** (wet-lab composition; near-exact novelty). The one lever that survived both this session is the wet-lab
+composition prior applied at *selection* time (feat-031) — cheap, reversible, and independently grounded.

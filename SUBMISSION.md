@@ -33,16 +33,9 @@ peptides (the challenge's own curated aggregation of public AMP databases) and t
 toward predicted activity and selectivity by rejection-sampling fine-tuning (ReST)**: we repeatedly
 sample the model, score every candidate with the APEX MIC predictor and a hemolysis model, keep the
 highest-reward *novel* peptides, and continue training on them. Over a few rounds this lifts the
-fraction of samples predicted active on at least one strain from ~6% to ~75%, a **ReST
+fraction of samples predicted active on at least one strain from ~6% to ~75%, and a **final ReST
 round targets the hard Gram-positive/MDR categories specifically** (distilling only from
-ESMC-non-hemolytic peptides, so the generator gains activity without losing selectivity), and a
-**final ReST round targets the weak Gram-negative category using an *oracle-independent* wet-lab
-prior** (its reward subtracts an Arg-over-Lys-excess term, since our 46 measured MICs show real Gram-
-activity favours Lysine while APEX is Arg-biased) — this lifts the top-50 Gram-negative Success Rate
-from 0.68 to 0.75 and Broad from 0.71 to 0.75, with the improvement **generalising across held-out APEX
-sub-models** (a train/test split of the eight sub-models: held-out Gram- 0.63→0.84) and the composition
-shifting the *independently-validated* wet-lab-favourable way, while Gram+/MDR, the 0%-hemolytic
-selectivity, novelty and Phase-2 diversity are all held. The designs
+ESMC-non-hemolytic peptides, so the generator gains activity without losing selectivity). The designs
 stay realistic cationic amphipathic α-helices (validated below, including agreement across APEX's
 eight independent sub-models, and an offline structural cross-check in which ESMFold2 — the latest
 SOTA folder — predicts all 100 as confident amphipathic helices, 0 misfold flags).
@@ -56,7 +49,7 @@ SOTA protein language model (**ESM Cambrian 600M**, held-out AUROC 0.905), with 
 **diversity screen**, plus a closed-form **amphipathicity** reward on the Eisenberg hydrophobic moment.
 The top-100 candidate pool is sampled at a cooler **mixed temperature** (feat-028) so its best peptides
 sit on the generator's high-activity modes, while the 50k library body stays hot for diversity. The
-assayed **top-50** covers, at ≤16 µM: **Broad 0.75, Gram- 0.75, Gram+ 0.76, MDR 0.67**, at **0%
+assayed **top-50** covers, at ≤16 µM: **Broad 0.71, Gram- 0.68, Gram+ 0.76, MDR 0.67**, at **0%
 predicted-hemolytic** (every top-50 P < 0.08) and strong amphipathicity (µH median 0.51) — a strong,
 balanced five-category
 profile (the Gram+/MDR-targeted generator plus hard-SR selection roughly **doubled** the two hard
@@ -319,13 +312,16 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       API, `userHasEntered=True` (feat-004)
 - [ ] Submitting from `j_v_v_07`, not from the machine's default token account
 - [ ] `./init.sh` green, including the two-run byte-identical check
-- [x] `scripts/verify_submission.py` **PASSED on the shipped feat-032 generator** (`checkpoint/generator.pt`
-      = the Lys-conditioned Gram--ReST `best.pt`; `--top-temperature 0.8 --lys-hedge 0.4`): fresh GitHub
-      clone of commit `efa6784` + `uv sync` + generate ×2 — *"All checks passed. Submission is valid!"*,
-      all 8 checks incl. byte-identical reproducibility and the ≤80% novelty gate, real ESM++/ESMC path.
-      Fresh-clone output reproduces byte-for-byte: library `7e3641fa`, top `de8ed8a2` (identical to local).
-      The top-50 profile is also seed-robust (identical at seeds 42/43/44). (feat-031 previously PASSED on
-      `2f7bb3c`; feat-032 changes only the generator weights.) Re-run once more immediately before submitting.
+- [x] `scripts/verify_submission.py` **PASSED on the shipped feat-031 default** (`--top-temperature 0.8
+      --lys-hedge 0.4`): fresh GitHub clone of commit `2f7bb3c` + `uv sync` + generate ×2 —
+      *"All checks passed. Submission is valid!"*, all 8 checks incl. byte-identical reproducibility and
+      the ≤80% novelty gate, real ESM++/ESMC selectivity path; fresh-clone output library `9a3278c9`, top
+      `61becbab` (byte-identical to local). **feat-032 (a Lys-conditioned Gram--ReST generator) was
+      explored and REVERTED** — its APEX "domination" was Goodhart (a matched APEX-only ReST reached the
+      same held-out Gram- 0.83 without the wet-lab prior, and APEX has ~0 real-activity correlation) and it
+      regressed near-exact novelty ~2.6× (a Phase-2 advancement-axis risk); feat-031 keeps the genuine
+      wet-lab win via the safe selection route. See docs/RESEARCH.md (feat-032). A validator re-run on the
+      reverted commit + once more immediately before submitting.
 - [x] Every section above filled in, with no placeholder text left
 - [x] Repository public, MIT licensed, `uv.lock` and `.python-version` committed
 - [x] Weights committed or fetchable, and the inference path documented (`checkpoint/`, `oracle/apex/`)
