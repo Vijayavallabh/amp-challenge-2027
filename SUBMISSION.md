@@ -256,9 +256,10 @@ random from the top 50 and assayed.
   than memorising known AMPs).
 - **Diversity or redundancy control within the top 100:** a within-list cap
   (`--diversity-max-identity 0.6`) skips any candidate exceeding 0.60 Levenshtein identity to an
-  already-selected peptide, keeping the more-active member of a near-duplicate pair. **202 near-
-  duplicates were rejected** in the shipped run (far fewer than earlier pipelines' ~800 — the
-  ReST-tuned generator's output is itself more diverse). This matters because the activity ranking
+  already-selected peptide, keeping the more-active member of a near-duplicate pair. **3,119 near-
+  duplicates were rejected** in the shipped run — the cooler top-temperature sampling (feat-028/029)
+  concentrates the ranked top into a few high-activity motif families, so the 0.6 cap does more work to
+  keep the top-100 diverse. This matters because the activity ranking
   concentrates the top of the list into a few cationic motif families, and the random top-50 draw
   would otherwise waste assays on near-duplicates; diversity also hedges against the moderate oracle
   being wrong about a motif. (Hot sampling keeps the *library* diverse; this cap keeps the *top-100*
