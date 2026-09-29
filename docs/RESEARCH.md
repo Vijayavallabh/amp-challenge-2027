@@ -546,22 +546,34 @@ pulling low-muH standouts, not a library-wide defect -- which is exactly the sco
 
 **FBD -- is the novelty "AMP-like" or "garbage"?** Novelty=1.0 by exact match is trivially easy (any
 perturbation achieves it), so we measured Frechet Biological Distance in ESM2-650M embedding space
-against real AMPs, with two controls for calibration:
+against real AMPs, with two controls for calibration.
 
-| set (vs real-AMP anchor) | FBD |
-|---|---|
-| real-AMP held-out half (positive floor) | 0.074 |
-| **our library** | **1.938** |
-| uniform-random peptides, matched lengths (negative ceiling) | 5.418 |
+**Correction (2026-09-29, adversarial STRATEGY audit).** The originally-recorded FBD **1.938** was measured
+on the *feat-021* library, **before** feat-028/029 introduced mixed-temperature sampling. Re-measured on the
+**shipped feat-033 library** (byte-identical to the submission, `06e30960`), the numbers are:
 
-Our library sits **~35% of the way from real AMPs to random** -- i.e. 3x closer to the real-AMP
-distribution than to random garbage -- while holding Novelty=1.0 and Diversity=0.839. It is genuinely
-**"novel *and* AMP-like,"** which is precisely what the Phase-2 gate rewards. The residual FBD gap from
-0.074 is the expected, *desirable* cost of deliberately maximising diversity and novelty (spreading off
-the natural manifold is what those two axes reward). Chasing lower FBD by retraining the generator would
-trade away diversity (an equally-weighted scored axis) and risk the validated feat-021 top-50, so we do
-**not** touch the generator: this measurement is a confirmation, not a call to action. Net effect: the
-advancement gate, previously an unquantified risk, is now measured and strong.
+| set (vs real-AMP anchor, ESM2-650M) | FBD | Diversity | Novelty(exact) | near-exact >0.80 to known AMPs |
+|---|---|---|---|---|
+| real-AMP held-out half (positive floor) | 0.078 | — | — | — |
+| **shipped feat-033 library** | **3.44** | 0.837 | 1.0 | **1.80%** |
+| un-ReST base generator (baseline) | 2.36 | 0.865 | 1.0 | 4.87% |
+| uniform-random peptides (negative ceiling) | 5.43 | — | — | — |
+
+So the hotter temp-1.6 body **did** push the library further off-manifold than the old number implied (3.44,
+~62% of the way to random, not 35%) -- an honest Phase-2 realism cost of the mixed-temperature Phase-3 gain
+that had never been re-measured. **But the relative read is not a loss.** Against the naive un-ReST baseline
+(the challenge's proposed competitor proxy), the base is modestly more diverse (0.865 vs 0.837) and lower-FBD
+(2.36) -- yet that lower FBD is substantially **memorization**: the base near-copies known AMPs at **2.7× our
+rate** (4.87% vs 1.80% within 0.80 identity; 1.53% vs 0.67% within 0.90), and *near-exact matching against
+DBAASP/dbAMP/APD is an explicit Phase-2 criterion that penalises exactly that*. Our fine-tuning bought genuine
+**novelty** (fewer near-copies) and **cationicity** (88% vs 64%, net charge 4.8 vs 1.5, appropriate for AMPs)
+at the price of a higher FBD from **specialisation toward the active chemotype** -- not from degeneracy
+(homopolymer/low-complexity rate is ~0.6% in both). Net: on the axes Phase-2 actually scores, the shipped
+library and the base trade wins (base: diversity +0.028; ours: near-exact novelty 2.7× better) -- a wash, so
+the library remains a **defensible** Phase-2 entry, and moving toward the base would sacrifice near-exact
+novelty *and* the Phase-3 activity the fine-tuning exists for. We therefore do **not** touch the generator;
+this is now a competitor-relative measurement, not just an absolute one. (`scratchpad/measure_shipped.log`,
+`measure_base.log`, and the near-exact sample.)
 
 ## SOTA literature check (2025-2026): confirm the stack, don't swap it
 
