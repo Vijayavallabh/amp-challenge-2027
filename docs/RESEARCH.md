@@ -890,4 +890,6 @@ categories at all three seeds (improves at 42/44, neutral at 43, never worse) �
 **Phase-2 non-regression (seqme, ESM2-650M):** h0.4 library = h0.0 to 5 dp — Uniqueness 1.0, Diversity
 0.83673 (vs 0.83673), Novelty 1.0, 3-gram-Jaccard 0.00211, charge 4.82, muH 0.371 (only 100/50,000 =
 0.2% of the library changes). **Adopted as the shipped default `--lys-hedge 0.4`** (feat-029's top-temp 0.8
-and the ESMC gate otherwise unchanged). Official-validator byte-repro recorded on the adoption commit.
+and the ESMC gate otherwise unchanged). **Official validator PASSED** on the pushed commit `2f7bb3c` (fresh GitHub clone + `uv sync` + generate ×2,
+all 8 checks incl. byte-identical reproducibility and the ≤80% novelty gate, real ESM++/ESMC path — *"All
+checks passed. Submission is valid!"*; fresh-clone output library `9a3278c9` / top `61becbab`, byte-identical to local).

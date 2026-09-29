@@ -312,14 +312,16 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       API, `userHasEntered=True` (feat-004)
 - [ ] Submitting from `j_v_v_07`, not from the machine's default token account
 - [ ] `./init.sh` green, including the two-run byte-identical check
-- [ ] `scripts/verify_submission.py` on the **shipped feat-031 default** (`--top-temperature 0.8 --lys-hedge
-      0.4`): PENDING on the feat-031 adoption commit — to be recorded here after the fresh-clone run
-      (ranking `apex-balanced-success - 1.5*hemolysis + 0.2*amphipathicity - 0.4*arg_excess`; local run
-      hashes library `9a3278c9`, top `61becbab`). The prior feat-029 default (`--top-temperature 0.8`, no
-      hedge) PASSED all 8 checks on commits `e34a069` and `b6b6f10` (fresh GitHub clone + `uv sync` +
-      generate ×2 byte-identical, ≤80% novelty gate, real ESM++/ESMC path; output library `06a6658e`, top
-      `483fecae`); feat-031 changes only the top-100 ranking (a deterministic composition term), so the
-      contract and byte-reproducibility path are unchanged. Re-run once more immediately before submitting.
+- [x] `scripts/verify_submission.py` **PASSED on the shipped feat-031 default** (`--top-temperature 0.8
+      --lys-hedge 0.4`): fresh GitHub clone of commit `2f7bb3c` + `uv sync` + generate ×2 —
+      *"All checks passed. Submission is valid!"*, all 8 checks incl. byte-identical reproducibility and
+      the ≤80% novelty gate, real ESM++/ESMC selectivity path. Ranking line
+      `apex-balanced-success - 1.5*hemolysis + 0.2*amphipathicity - 0.4*arg_excess`, pool
+      `top-temperature 0.8 for the top list; temperature 1.6 for the library body`. Fresh-clone output
+      reproduces byte-for-byte: library `9a3278c9`, top `61becbab` (verified identical to the local run).
+      (The prior feat-029 default also PASSED on `e34a069`/`b6b6f10`, output `06a6658e`/`483fecae`;
+      feat-031 changes only the deterministic top-100 ranking term.) Re-run once more immediately before
+      submitting.
 - [x] Every section above filled in, with no placeholder text left
 - [x] Repository public, MIT licensed, `uv.lock` and `.python-version` committed
 - [x] Weights committed or fetchable, and the inference path documented (`checkpoint/`, `oracle/apex/`)

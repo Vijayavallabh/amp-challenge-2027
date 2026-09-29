@@ -16,8 +16,9 @@
 > de-biased 0.82→0.70 (median R/(R+K) 0.667→0.60), **seed-robust (≥ baseline on all 4 cats at seeds 42/43/44)**,
 > Phase-2 unchanged, 140 tests pass. PubMed-verified literature corroborates (Hackney 2026 Lys>Arg; Zou 2007;
 > Wang 2025) with the "mild tie-breaker, penalize excess not pure-Lys, don't hurt Gram+" refinements adopted.
-> **Official validator: PENDING on the feat-031 adoption commit (feat-029 baseline PASSED, hashes 06a6658e /
-> 483fecae; h0.4 local hashes library `9a3278c9` / top `61becbab`).** Only **feat-010 (one-shot Kaggle submit)**
+> **Official validator: PASSED on the feat-031 adoption commit `2f7bb3c`** — all 8 checks, fresh GitHub clone
+> + `uv sync` + generate ×2 byte-identical, ≤80% novelty gate, real ESM++/ESMC path; fresh-clone output
+> library `9a3278c9` / top `61becbab` (byte-identical to local). Only **feat-010 (one-shot Kaggle submit)**
 > remains — user-gated (team name + `j_v_v_07` go-ahead; rotate the `KGAT_` token).
 
 **Last Updated:** 2026-09-29 (session 5 — feat-031: wet-lab Arg-excess Gram- hedge ADOPTED as `--lys-hedge 0.4`, seed-robust Pareto improvement + Phase-2 preserved; validator pending)

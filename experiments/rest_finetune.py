@@ -99,6 +99,9 @@ def main() -> int:
                     help="hard Gram-negative weight in the balanced reward (feat-024; mirrors the "
                          "ranker's gn_weight). 0 recovers feat-020's pure-Gram+/MDR target.")
     ap.add_argument("--broad-w", type=float, default=0.5)
+    ap.add_argument("--lys-w", type=float, default=0.0,
+                    help="feat-031 wet-lab Gram- prior: subtract lys_w*arg_excess (Arg-over-Lys excess) "
+                         "from the ReST reward, distilling toward Lys-rich Gram-actives APEX under-samples")
     ap.add_argument("--hemo-lambda", type=float, default=1.0)
     ap.add_argument("--hemo-gate", type=float, default=0.0,
                     help="hard selectivity gate: distil only from peptides with P(hemolytic) below "
@@ -147,11 +150,17 @@ def main() -> int:
     model = _nn.load_generator(resolve_repo_path(args.init), device)
     cfg = model.cfg
 
-    def rfn(mic, phemo):
+    def rfn(mic, phemo, seqs):
         if args.reward == "balanced":
-            return R.balanced_reward(mic, phemo, gp_w=args.gp_w, mdr_w=args.mdr_w,
-                                     gn_w=args.gn_w, broad_w=args.broad_w, hemo_lambda=args.hemo_lambda)
-        return R.reward(mic, phemo, gp_w=args.gp_w, mdr_w=args.mdr_w, hemo_lambda=args.hemo_lambda)
+            r = R.balanced_reward(mic, phemo, gp_w=args.gp_w, mdr_w=args.mdr_w,
+                                  gn_w=args.gn_w, broad_w=args.broad_w, hemo_lambda=args.hemo_lambda)
+        else:
+            r = R.reward(mic, phemo, gp_w=args.gp_w, mdr_w=args.mdr_w, hemo_lambda=args.hemo_lambda)
+        if args.lys_w > 0:  # feat-031 wet-lab Gram- prior: penalise Arg-over-Lys excess so ReST
+            # distils toward the Lys-rich Gram-actives APEX under-samples (independent of APEX)
+            from amp_challenge_2027.oracle import arg_excess
+            r = r - args.lys_w * arg_excess(list(seqs))
+        return r
 
     def score_seqs(seqs):
         uniq, mic = bulk_apex.score(seqs, device="cuda", workers=8,
@@ -173,7 +182,7 @@ def main() -> int:
     def evaluate(tag, seed):
         seqs = sample(args.eval_n, seed)
         uniq, mic, phemo = score_seqs(seqs)
-        rew = rfn(mic, phemo)
+        rew = rfn(mic, phemo, uniq)
         novel = sum(1 for s in uniq if s not in train_set) / max(1, len(uniq))
         # top-100 by reward: what selection would actually ship
         order_ev = np.argsort(-rew)
@@ -201,7 +210,7 @@ def main() -> int:
         # 1) sample + score
         pool = sample(args.n_raw, seed=1000 + r)
         uniq, mic, phemo = score_seqs(pool)
-        rew = rfn(mic, phemo)
+        rew = rfn(mic, phemo, uniq)
         # 2) keep top-reward NOVEL peptides that are actually active (min-MIC <= 16); distilling
         #    from active peptides only keeps the fine-tune target on-target. Relax if too few.
         minmic = mic.min(axis=1)
