@@ -1044,7 +1044,11 @@ band. **This changes only the top-100 — the 50k library is byte-identical, so 
 untouched.** feat-033a top-50: R/(R+K) 0.60→**0.33** (Lys>Arg in 14%→**94%**), aromatic 0.20→**0.10**; ESMC
 P(hemolytic) max **0.038**; novelty 0/50 above 0.80 (top-50 median 0.69, top-100 max 0.80), near-exact clean
 (0 above 0.90); within-list diversity clean; all 140 tests pass; compliance PASS; **byte-reproducible** (two
-default runs → top `dc37c540…`, library `06e30960…`).
+default runs → top `dc37c540…`, library `06e30960…`). The **official validator PASSED** on the pushed commit
+`84e2b78` (fresh GitHub clone + `uv sync` + generate ×2, all 8 checks incl. the ≤0.80 novelty gate and
+byte-identical reproducibility; fresh-clone output `06e30960`/`dc37c540`). **Seed-robust:** seeds 43/44 reproduce
+the same top-50 composition (argfrac 0.33, frac_K 0.28, aromatic 0.11), selectivity (ESMC P(hemolytic) max <0.04,
+0% hemolytic) and novelty (0/50 above 0.80) as seed 42 — not a seed-42 artifact.
 
 **Honest reporting of the APEX numbers.** The top-50's APEX-predicted Success Rates are **Broad 0.64 / Gram-
 0.85 / Gram+ 0.26 / MDR 0.33**. The very high Gram− and low Gram+/MDR *both* reflect APEX's chemotype bias, not
@@ -1060,3 +1064,17 @@ external data** to *correct* the oracle's within-band ranking error, and the cor
 oracle never touched. It is an explicit, reversible, one-shot-appropriate bet backed by two independent datasets
 — an informational edge a pure oracle pipeline cannot find. Adopted as the shipped default with the participant's
 explicit go-ahead; the actual Kaggle submission remains user-gated.
+
+**"Why not just train a better oracle?" — we tried; it anti-transfers.** The obvious alternative to a
+hand-picked composition signal is a *learned* oracle on the new real data. We trained an independent
+ESMC-600M-embedding ridge regressor on the 1,164 DBAASP peptides' real broad-ESKAPE Success Rate
+(`scratchpad/dbaasp_oracle.py`). It fits DBAASP well (5-fold CV Spearman **+0.56**) — but on the 46
+held-out peptides (our generated-peptide regime) it **anti-transfers, Spearman −0.15**, worse than
+random and no better than APEX (−0.28), while the simple composition score stays best (**+0.45**;
+top-15 real broad SR 0.46 vs the oracle's 0.24). A sophisticated learned oracle overfits its training
+distribution exactly as APEX does; the *reason* composition wins is that it is the one signal whose
+direction is consistent across distributions (the matched 46 and the independent DBAASP within-band
+both agree). This is the anti-Goodhart property, and it is why the shipped ranker is a two-term
+composition score, not a model. It also closes the ranking search: APEX-ranking, a learned
+ESMC-DBAASP oracle, a rank-blend hybrid, and a length term were each tested and rejected on real data;
+composition is the winner.

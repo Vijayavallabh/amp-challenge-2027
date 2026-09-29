@@ -320,11 +320,11 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       API, `userHasEntered=True` (feat-004)
 - [ ] Submitting from `j_v_v_07`, not from the machine's default token account
 - [ ] `./init.sh` green, including the two-run byte-identical check
-- [ ] `scripts/verify_submission.py` on the **feat-033 composition-ranking default** — **re-run on the
-      pushed commit before submitting** (it clones the public repo, `uv sync`, generate ×2, all 8 checks
-      incl. byte-identical reproducibility, the ≤80% novelty gate, and the real ESM++/ESMC selectivity
-      path). Locally, feat-033 regenerates **byte-identically** (two default runs → top `dc37c540…`,
-      library `06e30960…`) and the compliance check passes. History: the earlier **feat-031 APEX-ranked
+- [x] `scripts/verify_submission.py` **PASSED on the shipped feat-033 default** (commit `84e2b78`): fresh
+      GitHub clone + `uv sync` + generate ×2 — *"All checks passed. Submission is valid!"*, all 8 checks incl.
+      byte-identical reproducibility, the ≤80% novelty gate, and the real ESM++/ESMC selectivity path;
+      fresh-clone output library `06e30960`, top `dc37c540` (byte-identical to local). **Re-run once more on
+      the final pushed commit immediately before submitting.** History: the earlier **feat-031 APEX-ranked
       default PASSED** the official validator on commit `f4eed63` (fresh-clone output `9a3278c9`/`61becbab`);
       recover it with `--composition-weight 0`. **feat-032 (a Lys-conditioned Gram--ReST generator) was
       explored and REVERTED** (its APEX "domination" was ensemble-Goodhart; it regressed near-exact

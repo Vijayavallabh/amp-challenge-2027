@@ -18,8 +18,10 @@
 > top `dc37c540` / lib `06e30960`). APEX-*predicted* profile Broad 0.64/GN 0.85/GP 0.26/MDR 0.33 — the GP/MDR drop
 > is APEX mis-scoring the Lysine chemotype; on every real-data test composition selection ties-or-beats APEX
 > selection on all 4 categories. **Adopted with the participant's explicit go-ahead** (a strategic call on the
-> one-shot graded submission). The official validator must be **re-run on the pushed commit before submitting**;
-> `--composition-weight 0` recovers feat-031. Only the user-gated Kaggle submit remains.
+> one-shot graded submission). Official validator **PASSED on the pushed commit `84e2b78`** (fresh clone + `uv
+> sync` + generate ×2, all 8 checks, fresh-clone output byte-identical `06e30960`/`dc37c540`); re-run once more
+> on the final commit before submitting. `--composition-weight 0` recovers feat-031. Only the user-gated Kaggle
+> submit remains.
 >
 > **feat-031 (now the FALLBACK, `--composition-weight 0`) — the previous shipped default.**
 > `--top-temperature 0.8` + `--lys-hedge 0.4` on the same generator. Top-50 (seed 42): **Broad 0.71, Gram- 0.68,
