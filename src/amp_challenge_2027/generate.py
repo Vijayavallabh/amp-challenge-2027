@@ -97,6 +97,17 @@ def build_ranker(model: PeptideGenerator, args: argparse.Namespace):
                     except Exception as exc2:  # noqa: BLE001 -- degrade to activity-only ranking
                         print(f"WARNING: hemolysis model unavailable ({exc2}); ranking on activity "
                               f"only", file=sys.stderr)
+            # Composition ranking maximises Lys-richness; without the selectivity penalty a PURE
+            # composition top-50 is measured 22% ESMC-hemolytic (max P 0.93) on our pool -- the
+            # penalty is what keeps it clean (docs/RESEARCH.md feat-033). So if the selectivity model
+            # could not be loaded (hemo is None), composition ranking would ship hemolytic peptides:
+            # fall back to APEX activity ranking (the validated feat-031 path) instead of that.
+            comp_w = args.composition_weight
+            if comp_w > 0 and hemo is None:
+                print("WARNING: composition ranking needs the selectivity model to stay non-hemolytic "
+                      "and it is unavailable; falling back to APEX activity ranking (feat-031).",
+                      file=sys.stderr)
+                comp_w = 0.0
             ranker = ApexRanker(
                 args.apex_dir,
                 objective=args.rank_objective,
@@ -109,10 +120,19 @@ def build_ranker(model: PeptideGenerator, args: argparse.Namespace):
                 refine_k=args.refine_k,
                 amphipathicity_bonus=args.amphipathicity_bonus,
                 lys_hedge=args.lys_hedge,
-                composition_weight=args.composition_weight,
+                composition_weight=comp_w,
                 aromatic_weight=args.aromatic_weight,
             )
             print(f"Ranking: {ranker.name}")
+            if comp_w > 0:  # honest disclosure: composition mode supersedes these enabled-by-default flags
+                ignored = []
+                if args.amphipathicity_bonus > 0:
+                    ignored.append(f"--amphipathicity-bonus {args.amphipathicity_bonus:g}")
+                if args.lys_hedge > 0:
+                    ignored.append(f"--lys-hedge {args.lys_hedge:g}")
+                if ignored:
+                    print(f"  NOTE: composition ranking supersedes and ignores {', '.join(ignored)} "
+                          f"(pass --composition-weight 0 to apply them)", file=sys.stderr)
             return ranker
         except Exception as exc:  # noqa: BLE001 -- any failure must degrade, not crash
             print(f"WARNING: APEX ranker unavailable ({exc}); ranking by likelihood",

@@ -229,7 +229,12 @@ class ApexRanker:
         # (both no-ops in this mode). 0.0 = off (the APEX-ranked feat-031 path). Non-finite/negative -> off.
         cw = float(composition_weight)
         self._compw = cw if (cw == cw and cw not in (float("inf"), float("-inf")) and cw >= 0.0) else 0.0
-        self._aromw = float(aromatic_weight)
+        # Guard the aromatic weight exactly like its three sibling weights above: a non-finite or
+        # negative value (which would REWARD aromatics, or poison the scores with NaN via ``inf * 0.0``
+        # on aromatic-free peptides) degrades to 0.0 = no aromatic penalty, rather than silently
+        # corrupting the composition signal. The shipped 0.5 passes through unchanged.
+        aw = float(aromatic_weight)
+        self._aromw = aw if (aw == aw and aw not in (float("inf"), float("-inf")) and aw >= 0.0) else 0.0
         base = {"category": "apex-success", "balanced": "apex-balanced-success"}.get(
             objective, "apex-broad-potency"
         )
@@ -246,6 +251,32 @@ class ApexRanker:
                 self.name += f" + {self._amphi:g}*amphipathicity"
             if self._lyshedge > 0:  # provenance: an enabled hedge must be visible in the printed ranker name
                 self.name += f" - {self._lyshedge:g}*arg_excess"
+
+    def _active_band(self, n: int, activity) -> "np.ndarray":
+        """Indices of the top-``refine_k`` candidates by APEX activity (the active-band gate).
+
+        A stable argsort of the fixed activity array keeps the band byte-deterministic across the
+        two-run reproducibility check. Shared by :meth:`score`, :meth:`_composition_rank`, and
+        :meth:`maximin_data` so the gate is defined in exactly one place.
+        """
+        import numpy as np
+
+        k = min(n, self._refine_k) if self._refine_k > 0 else n
+        return np.argsort(-activity, kind="stable")[:k]
+
+    def _band_phemo(self, sequences: list[str], band, n: int) -> "np.ndarray":
+        """P(hemolytic) computed only on the ``band`` (the expensive PLM); the rest left at 1.0.
+
+        Candidates outside the band are assumed hemolytic (penalty 1.0) so they rank below the
+        scored band. Requires a selectivity model (callers guard ``self._hemo is not None``).
+        """
+        import numpy as np
+
+        phemo = np.ones(n, dtype=float)
+        phemo[band] = np.asarray(
+            self._hemo.predict_proba([sequences[int(i)] for i in band]), dtype=float
+        )
+        return phemo
 
     def score(self, sequences: list[str]) -> list[float]:
         import numpy as np
@@ -273,14 +304,9 @@ class ApexRanker:
             return activity.tolist()
         # Two-stage: score selectivity only on the ``refine_k`` most-active candidates (the PLM
         # model is expensive), leaving the rest assumed hemolytic (penalty 1.0) so they rank below.
-        # A stable argsort of the fixed activity array keeps this byte-deterministic.
         n = len(sequences)
-        k = min(n, self._refine_k) if self._refine_k > 0 else n
-        order = np.argsort(-activity, kind="stable")[:k]
-        phemo = np.ones(n, dtype=float)
-        phemo[order] = np.asarray(
-            self._hemo.predict_proba([sequences[int(i)] for i in order]), dtype=float
-        )
+        band = self._active_band(n, activity)
+        phemo = self._band_phemo(sequences, band, n)
         return (activity - self._lam * phemo).tolist()  # activity is already a float ndarray
 
     def _composition_rank(self, sequences: list[str], activity) -> list[float]:
@@ -301,18 +327,28 @@ class ApexRanker:
 
         n = len(sequences)
         comp = self._compw * composition_score(sequences, self._aromw)
-        k = min(n, self._refine_k) if self._refine_k > 0 else n
-        band = np.argsort(-activity, kind="stable")[:k]  # APEX active-band gate (its documented strength)
+        band = self._active_band(n, activity)  # APEX active-band gate (its documented strength)
         final = comp.astype(float)
         if self._hemo is not None and self._lam > 0:
-            phemo = np.ones(n, dtype=float)
-            phemo[band] = np.asarray(
-                self._hemo.predict_proba([sequences[int(i)] for i in band]), dtype=float
-            )
-            final = final - self._lam * phemo
-        mask = np.zeros(n, dtype=bool)
-        mask[band] = True
-        final[~mask] = -1e9  # hard gate: APEX-inactive candidates are never selected into the top-100
+            final = final - self._lam * self._band_phemo(sequences, band, n)
+        # Gate: out-of-band candidates rank strictly below every in-band one. Rather than a single
+        # magic sentinel (which would sort APEX-inactive peptides *lexicographically* if the novelty/
+        # diversity screens ever exhaust the band, and could be crossed by a large composition_weight),
+        # order them by APEX activity in a band just below the in-band minimum -- so any overflow is
+        # filled by the next-most-active peptides (the feat-031 fallback), not junk. With the shipped
+        # refine_k (20000) >> top_k the band is never exhausted, so the top list comes entirely from
+        # the band and this branch does not affect the shipped output (byte-reproducibility holds).
+        in_band = np.zeros(n, dtype=bool)
+        in_band[band] = True
+        out = ~in_band
+        if out.any():
+            a = activity[out].astype(float)
+            span = float(a.max() - a.min())
+            band_min = float(final[band].min())
+            # Highest-activity out-of-band candidate sits at band_min-1 (strictly below every in-band
+            # score); lower activity ranks lower. So overflow is filled by the next-most-active
+            # peptides, never a lexicographic tie among equal sentinels.
+            final[out] = band_min - 1.0 - (a.max() - a) / (span if span > 0 else 1.0)
         return final.tolist()
 
     def maximin_data(self, sequences: list[str]):
@@ -333,10 +369,5 @@ class ApexRanker:
         if self._hemo is None:
             return rates, np.zeros(n, dtype=float)
         activity = balanced_success_score(mic, self._gpw, self._mdrw, self._broadw, self._gnw)
-        k = min(n, self._refine_k) if self._refine_k > 0 else n
-        order = np.argsort(-activity, kind="stable")[:k]
-        phemo = np.ones(n, dtype=float)
-        phemo[order] = np.asarray(
-            self._hemo.predict_proba([sequences[int(i)] for i in order]), dtype=float
-        )
-        return rates, phemo
+        band = self._active_band(n, activity)
+        return rates, self._band_phemo(sequences, band, n)

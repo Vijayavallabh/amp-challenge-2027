@@ -491,9 +491,11 @@ def arg_excess(sequences: list[str], floor: float = ARG_EXCESS_FLOOR) -> np.ndar
     return out
 
 
-#: Aromatic residues (Phe/Trp/Tyr). On the 46 wet-lab MICs their fraction ANTI-correlates with real
-#: broad/Gram- Success Rate (Spearman -0.31 / -0.32), so the composition ranker penalises them.
-_AROMATIC = "FWY"
+#: Aromatic residues (Phe/Trp/Tyr) -- reuse the single definition in :mod:`physchem` (also a
+#: ``frozenset``/``set`` of ``FWY``) so the two never silently diverge. On the 46 wet-lab MICs their
+#: fraction ANTI-correlates with real broad/Gram- Success Rate (Spearman -0.31 / -0.32), so the
+#: composition ranker penalises them.
+from .physchem import _AROMATIC  # noqa: E402  (membership test is identical to the old "FWY" string)
 
 
 def lys_fraction(sequences: list[str]) -> np.ndarray:

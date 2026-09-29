@@ -14,7 +14,8 @@
 > R/(R+K) 0.60→**0.33** (Lys>Arg 14%→94%), aromatic 0.20→0.10, **0% predicted-hemolytic (ESMC max 0.038, better
 > than feat-031's 0.073)**, novelty 0/50 >0.80 (top-50 median 0.69, top-100 max 0.80), diversity clean. Library
 > **byte-identical to feat-031's save the top-100**, so Phase-2 (diversity 91% NN<0.6 / novelty median 0.60, 1.3%
-> >0.80 / uniqueness 1.0) is unchanged. 140 tests pass; compliance PASS; **byte-reproducible** (two default runs →
+> >0.80 / uniqueness 1.0) is unchanged. **155 tests pass** (feat-033 hardening added `tests/test_composition.py`,
+> 15 cases, for the previously-untested default-on path); compliance PASS; **byte-reproducible** (two default runs →
 > top `dc37c540` / lib `06e30960`). APEX-*predicted* profile Broad 0.64/GN 0.85/GP 0.26/MDR 0.33 — the GP/MDR drop
 > is APEX mis-scoring the Lysine chemotype; on every real-data test composition selection ties-or-beats APEX
 > selection on all 4 categories. **Adopted with the participant's explicit go-ahead** (a strategic call on the
@@ -22,6 +23,18 @@
 > sync` + generate ×2, all 8 checks, fresh-clone output byte-identical `06e30960`/`dc37c540`); re-run once more
 > on the final commit before submitting. `--composition-weight 0` recovers feat-031. Only the user-gated Kaggle
 > submit remains.
+>
+> **Adversarial code-review hardening (2026-09-29, docs/RESEARCH.md "feat-033 adversarial code review").** A
+> delegated review's load-bearing question — is the shipped λ=1.5 hemolysis penalty still the pure-composition
+> ordering we validated? — was checked against ground truth for the first time (`scratchpad/verify_lambda.py`,
+> `decisive_lambda.py`). Result: our band's phemo is **bimodal** (median 0.031, 24% >0.5), so `comp − λ·phemo`
+> acts as a de-facto gate — λ∈{0.5,0.75,1.5} give a near-identical top-50 — and the penalty is **necessary**
+> (pure comp ships a 22%-ESMC-hemolytic top-50, max P 0.93). On the matched-regime 46 the penalty ties-or-beats
+> pure comp on real activity; the DBAASP "cost" is a broad-regime potency–toxicity artifact that would require
+> shipping hemolytic peptides. **λ=1.5 validated; no change to the shipped bytes.** Robustness fixes applied and
+> tested (all preserving the byte-identical output): no-selectivity-model fallback → APEX ranking not pure-Lys;
+> graceful out-of-band gate (APEX-ordered, no magic sentinel); `aromatic_weight` guard; superseded-flag NOTE;
+> corrected README table; shared aromatic set + shared band helper.
 >
 > **feat-031 (now the FALLBACK, `--composition-weight 0`) — the previous shipped default.**
 > `--top-temperature 0.8` + `--lys-hedge 0.4` on the same generator. Top-50 (seed 42): **Broad 0.71, Gram- 0.68,

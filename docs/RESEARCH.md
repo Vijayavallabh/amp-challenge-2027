@@ -1078,3 +1078,56 @@ both agree). This is the anti-Goodhart property, and it is why the shipped ranke
 composition score, not a model. It also closes the ranking search: APEX-ranking, a learned
 ESMC-DBAASP oracle, a rank-blend hybrid, and a length term were each tested and rejected on real data;
 composition is the winner.
+
+## feat-033 adversarial code review — the selectivity λ, ground-truth-validated (2026-09-29)
+
+A delegated adversarial code review of the shipped feat-033 raised 14 findings. The one load-bearing
+*scientific* question (its #4): the hemolysis penalty λ=1.5 was calibrated on the balanced-activity
+scale (feat-019) but reused unchanged on the ~5×-smaller composition scale, so *is the shipped
+`comp − 1.5·phemo` ordering still the pure-`comp` ordering we validated against real activity?* We had
+never checked λ against ground truth — only against the predicted-hemolytic %. So we did, on the actual
+ESMC selectivity model, on our 238k generation pool **and** the 46 wet-lab + 946 DBAASP peptides within
+the APEX-active band (`scratchpad/verify_lambda.py`, `scratchpad/decisive_lambda.py`).
+
+**The penalty is a de-facto gate, so λ is not load-bearing.** On our pool the active band's phemo is
+strongly **bimodal** — median 0.031 but 24% above 0.5. So `comp − λ·phemo` barely moves the near-zero
+clean majority and strongly suppresses the confident-hemolytic tail: **λ = 0.5, 0.75 and 1.5 give a
+near-identical top-50** (our pool: all clean, phemo max <0.08; the 46: real-SR 0.468 either way; DBAASP:
+0.523–0.529). The review's "scale-mismatch" concern is therefore empirically **null** — there is no
+continuum of mid-range phemo values for λ to mis-weight.
+
+**The penalty is necessary, not cosmetic.** A pure-composition top-50 (λ=0) is measured **22%
+ESMC-hemolytic, max P(hemolytic) 0.93** — confirming the `oracle.composition_score` docstring's 0.89
+warning. Dropping the penalty would ship hemolytic candidates and forfeit the Optimal Selectivity
+category (which needs a high HC50).
+
+**On the matched regime the penalty does not cost potency; the apparent cost is a broad-regime artifact.**
+Within the APEX band, `−phemo` *positively* predicts real activity on the 46 (our closest analog:
+top-7 real SR **0.468** with the penalty vs **0.351** pure-comp) and *negatively* on DBAASP (the classic
+potency–toxicity correlation across a much wider peptide range: pure-comp 0.769 vs 0.523). Pure comp's
+higher DBAASP potency is unusable — it is bought by selecting the potent-**and-hemolytic** peptides, which
+is matched-regime-worse and disqualifying for Selectivity. A hard phemo gate + pure comp was also tested
+and does **not** beat the soft penalty (both ~0.52 on DBAASP; the gate cannot recover pure-comp's 0.77
+because DBAASP's potent peptides *are* the hemolytic ones). **Conclusion: λ=1.5 is correct; no change to
+the byte-validated shipped artifact.** Finding #4 was worth checking and it vindicated the current ranker.
+
+**Hardening applied (all preserve the byte-identical default output `top dc37c540` / `lib 06e30960`).**
+The review also surfaced real robustness/clarity gaps, now fixed and covered by new tests
+(`tests/test_composition.py`, 15 cases — the default-on composition path previously had none):
+- **No-selectivity-model fallback (#2):** if *both* the ESMC and physchem selectivity models fail to
+  load, composition mode would have degraded to pure-Lys-maximisation — i.e. the 22%-hemolytic path
+  above. `build_ranker` now falls back to APEX activity ranking (the validated feat-031 path) instead,
+  with a clear warning.
+- **Graceful gate (#1/#7):** out-of-band candidates were marked with a single `−1e9` sentinel, so if the
+  novelty/diversity screens ever exhausted the band the overflow would be filled *lexicographically*.
+  They are now ordered by APEX activity just below the in-band minimum, so any overflow degrades to the
+  feat-031 next-most-active peptides, not junk — and the gate no longer relies on a magic constant.
+- **Weight guard (#3):** `aromatic_weight` now clamps non-finite/negative values to 0.0 like its three
+  sibling weights (a NaN/inf could otherwise silently destroy the ranking via `inf·0.0`).
+- **Honest disclosure (#8):** composition mode prints a NOTE that it supersedes the enabled-by-default
+  `--amphipathicity-bonus`/`--lys-hedge`; the stale README options table (#6, five wrong defaults) is
+  corrected and the composition flags documented.
+- **De-duplication (#9/#10):** the aromatic-residue set is now sourced once from `physchem`; the
+  argsort-band + PLM-phemo block (previously hand-synced in three methods) is one shared helper.
+Findings #11–#14 (micro-efficiency on the numpy ranking path, which is dwarfed by the APEX/ESMC passes)
+were assessed and consciously deferred as churn on a validated one-shot artifact for no measurable gain.

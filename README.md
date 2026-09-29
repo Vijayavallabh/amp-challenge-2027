@@ -73,12 +73,14 @@ Every flag has a default, so a bare `uv run generate` is a complete run.
 | `--checkpoint` | `checkpoint/generator.pt` | Trained generator weights |
 | `--temperature` | `1.6` | Sampling temperature; hot sampling keeps the fine-tuned generator's library diverse/novel at no top-50 activity cost |
 | `--top-p` | `1.0` | Nucleus sampling cutoff (trained generator) |
-| `--oversample` | `3.0` | Pick the top-100 from this multiple of `--n-sequences` candidates (larger pool → stronger top list); `1.0` disables |
-| `--rank` | `apex` | Top-100 ranking: `apex` (predicted MIC) or `likelihood` (generator) |
-| `--rank-objective` | `category` | APEX score: `category` (success-rate, Gram+/MDR up-weighted) or `broad` (potency margin) |
-| `--gp-weight` | `0.5` | Gram-positive up-weight in the `category` objective |
-| `--mdr-weight` | `0.5` | MDR up-weight in the `category` objective |
-| `--hemolysis-penalty` | `0.5` | Selectivity weight λ: rank by `category_success − λ·P(hemolytic)`; `0` disables |
+| `--oversample` | `8.0` | Pick the top-100 from this multiple of `--n-sequences` candidates (larger pool → stronger top list); `1.0` disables |
+| `--rank` | `apex` | Top-100 ranking backbone: `apex` (APEX oracle, used as the active-band gate) or `likelihood` (generator) |
+| `--composition-weight` | `1.0` | **Shipped ranking (feat-033):** within the APEX-active band, rank by `composition-weight·(lys_fraction − aromatic-weight·aromatic_fraction)`; `0` recovers the earlier APEX-potency ranking |
+| `--aromatic-weight` | `0.5` | Aromatic (F/W/Y) penalty inside the composition score — aromatics anti-predict real activity and track hemolysis |
+| `--rank-objective` | `balanced` | APEX active-band score: `balanced` (hard Gram+/MDR/Gram− Success Rate + broad tie-break), `category`, or `broad` (potency margin) |
+| `--gp-weight` | `1.0` | Gram-positive up-weight in the APEX active-band objective |
+| `--mdr-weight` | `1.0` | MDR up-weight in the APEX active-band objective |
+| `--hemolysis-penalty` | `1.5` | Selectivity weight λ: subtract `λ·P(hemolytic)` (ESMC) from the rank score, keeping the top-50 non-hemolytic; `0` disables |
 | `--apex-dir` | `oracle/apex` | APEX oracle project (isolated env), used when `--rank apex` |
 | `--diversity-max-identity` | `0.6` | Cap pairwise identity within the top-100; `>=1` disables |
 | `--baseline` | off | Force the random-baseline generator (no checkpoint / no torch needed) |
