@@ -800,3 +800,30 @@ right profile to take on a one-shot ranked entry.
 Gram- 0.640→0.663, Broad 0.680→0.696, GP 0.750→0.755, MDR 0.667→0.673, muH 0.537→0.558, phemo-max
 0.079→0.073, novelty and top-50 diversity held, Phase-2 unchanged, byte-deterministic. Official
 validator re-run on the pushed URL (all 8 checks incl. the ≤80% novelty gate and reproducibility).
+
+## feat-030 — Lys/Arg composition lever for Gram- (wet-lab-validated signal, but REJECTED as a selection bonus)
+
+A 29-agent adversarial audit (the only surviving proposal of 10) surfaced an **oracle-independent** lever for
+the weakest category. On `data/experimental/mic.csv` (46 wet-lab MICs, the sole APEX-independent ground truth),
+Gram-negative Success Rate correlates with **Lysine-richness**: Spearman Gram- vs R/(R+K) rho **−0.44 (p=0.003)**,
+vs frac-K +0.46 (p=0.001); Gram+ is null (p=0.32, so Gram-specific); and R/(R+K) is **not confounded** with net
+charge / hydrophobicity / length (p=0.13/0.23/0.14) — an independent compositional axis. All reproduced
+independently (manual Spearman/Mann-Whitney; scipy absent from the env). Meanwhile APEX drove the shipped top-50
+to **~82% Arg-dominant (median R/(R+K) 0.67)** — the *opposite* of what wet-lab favours. Crucially this Arg-bias
+is **shared across all 8 APEX submodels**, so the held-out-submodel guard is blind to it (raising `--gn-weight`
+to 2.0 stays Arg-dominant and "passes" 8/8 while chasing a biased target); only external data catches it.
+
+**Attempt:** a closed-form `--lys-bonus` term added to the top-pool ranking activity (mirroring the amphipathicity
+bonus), tested as a Lys-dominant-tail clip and as the more-faithful continuous K/(R+K) form, swept over gamma with
+per-submodel do-no-harm + ESMC selectivity + novelty + poly-K-degeneracy gates.
+
+**Result — REJECTED as a default:** the APEX-Arg-dominant pool lacks enough high-APEX-activity Lys-rich candidates
+for a selection bonus to move the composition. At do-no-harm-safe gamma the top-50 **median R/(R+K) does not shift
+(stays 0.667, still in the wet-lab low-Gram- regime)** — only frac-K nudges +0.02 (within noise). Forcing a real
+shift needs a gamma that degrades MDR/muH and drives poly-K runs (tail γ0.8 also broke 0%-hemolytic). An offline
+map hinted the continuous form could shift at γ0.2, but the full ESMC two-stage pipeline does not reproduce that
+shift. So the Lys signal is **genuine wet-lab biology but not cleanly implementable as a ranking bonus** on this
+oracle-selected pool without collateral damage. The lever would need generation-side conditioning (a larger,
+higher-risk change), not selection re-ranking. **feat-029 (top-temperature 0.8, validated) stands unchanged.**
+The methodological lesson — "all 8 submodels agreeing is necessary but not sufficient; a bias shared by the whole
+oracle needs an independent check" — is the durable takeaway.

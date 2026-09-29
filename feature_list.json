@@ -231,6 +231,15 @@
         "feat-028"
       ],
       "evidence": "2026-09-29: Re-examined feat-028's 'keep top-temperature 1.0' decision (its stated reason -- a cooler pool concentrates the top-50 onto fewer motifs -> correlated-failure risk -- is refuted: screened top-50 self-identity is FLAT across temps (0.465->0.476, 1.0->0.8), the <60% within-list diversity screen hard-caps the selected set, and only the diverse SELECTED top-50 ship). Rigorous frontier 0.6-1.0 (experiments/bulk_permodel.py, per-submodel): 0.8 is a clean INTERIOR optimum -- ensemble top-50 Broad 0.680->0.696, Gram- 0.640->0.663, GP 0.750->0.755, MDR 0.667->0.673, muH 0.537->0.558, phemo-max 0.079->0.073; 0.7 and 0.6 regress. ANTI-GOODHART: tt0.8 beats tt1.0 on Gram- 8/8 and Broad 7/8 held-out APEX submodels (not an ensemble-ranking artifact). SEED-ROBUST: tt0.8 beats tt1.0 on Gram- AND Broad held-out means at seeds 42/43/44 (structural, not seed-42 argmax luck; margin shrinks at 43/44 so the shipped seed-42 draw is favourable and the true expected gain is consistent-but-modest). NOVELTY (full 39,448-AMP reference): tt0.8 top-50 median nearest-known-AMP id 0.69, top-100 max 0.788 -- MORE novel on the worst case than shipped tt1.0's 0.800, fewer high-id peptides (2 vs 4 >0.75). PHASE-2 UNTOUCHED: library bodies byte-identical beyond the prepended top-100 across all temps (md5), so diversity/novelty/FBD unchanged -- pure Phase-3 upside. Byte-deterministic (fresh default run == generate_tt0.8; tt1.0 regen == feat-028 generate_mixed). ADOPTED: --top-temperature default 1.0->0.8 in generate.py. Re-run scripts/verify_submission.py on the pushed URL (all 8 checks incl. <=0.80 novelty gate + reproducibility)."
+    },
+    {
+      "id": "feat-030",
+      "title": "Lys/Arg composition lever for Gram- -- wet-lab-validated signal, REJECTED as a selection bonus -- DONE",
+      "status": "done",
+      "dependencies": [
+        "feat-029"
+      ],
+      "evidence": "2026-09-29: 29-agent adversarial audit surfaced (1 of 10 survivors) an oracle-INDEPENDENT Gram- lever: on the 46 wet-lab MICs, Gram- SR correlates with Lys-richness (Spearman rho -0.44 p=0.003; frac-K +0.46 p=0.001; Gram+ null p=0.32; UNconfounded with charge/hydrophobicity/length p=0.13/0.23/0.14 -- reproduced independently). APEX is Arg-biased (shipped top-50 ~82% Arg-dominant, median R/(R+K)=0.67) and the bias is SHARED across all 8 submodels, so held-out-submodel CV is blind to it (gn-weight up to 2.0 stays Arg-dominant, offline CV confirmed). Implemented a closed-form --lys-bonus (tail-clip and continuous K/(R+K) forms), swept gamma w/ per-submodel do-no-harm + ESMC selectivity + novelty + poly-K gates. REJECTED as default: at safe gamma the full-pipeline top-50 median R/(R+K) does NOT shift (stays 0.667, wet-lab low-Gram- regime); frac-K +0.02 only (noise); forcing a shift needs harmful gamma (MDR/muH down, poly-K, tail-0.8 broke 0%-hemolytic). Pool too Arg-dominant for a selection bonus; would need generation-side conditioning (higher-risk, not pursued). Code reverted; feat-029 (tt0.8, validator PASS on e34a069) unchanged. Insight saved to memory (insight-apex-arg-bias-gram-neg)."
     }
   ]
 }
