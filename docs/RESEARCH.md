@@ -934,6 +934,7 @@ gives a smaller held-out gain (GN 0.699), so `best.pt` is chosen. 140 tests pass
 
 **Adoption.** Promoting `best.pt` → `checkpoint/generator.pt` was auto-mode-gated as a shared-resource change and
 **user-authorised**; feat-031's generator is backed up at `experiments/rest/feat031_generator_backup/` for instant
-rollback. Predictions only — no wet-lab claim. Official validator PENDING on the adoption commit (local byte-repro
-confirmed; feat-031 PASSED the official validator on `2f7bb3c`, and feat-032 changes only the generator weights,
-so the code/contract/byte-repro path is unchanged).
+rollback. Predictions only — no wet-lab claim. **Official validator PASSED** on the pushed commit `efa6784`
+(fresh GitHub clone + `uv sync` + generate ×2, all 8 checks incl. byte-identical reproducibility + ≤80% novelty +
+real ESM++/ESMC path — *"All checks passed. Submission is valid!"*; fresh-clone output library `7e3641fa` / top
+`de8ed8a2`, byte-identical to local). The top-50 profile is seed-robust (identical at seeds 42/43/44).

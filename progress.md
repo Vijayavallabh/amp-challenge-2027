@@ -27,9 +27,10 @@
 > de-biased 0.82→0.70 (median R/(R+K) 0.667→0.60), **seed-robust (≥ baseline on all 4 cats at seeds 42/43/44)**,
 > Phase-2 unchanged, 140 tests pass. PubMed-verified literature corroborates (Hackney 2026 Lys>Arg; Zou 2007;
 > Wang 2025) with the "mild tie-breaker, penalize excess not pure-Lys, don't hurt Gram+" refinements adopted.
-> **Official validator: PENDING on the feat-032 adoption commit** (local byte-repro CONFIRMED: two full runs
-> md5-identical library `7e3641fa` / top `de8ed8a2`; feat-031 previously PASSED the official validator on `2f7bb3c`,
-> and feat-032 changes only the generator weights + docs — the code/contract path is unchanged, so byte-repro holds).
+> **Official validator: PASSED on the feat-032 adoption commit `efa6784`** — fresh GitHub clone + `uv sync` +
+> generate ×2, all 8 checks incl. byte-identical reproducibility + ≤80% novelty gate + real ESM++/ESMC path
+> ("All checks passed. Submission is valid!"); fresh-clone output library `7e3641fa` / top `de8ed8a2`
+> (byte-identical to local). Also seed-robust: identical top-50 profile at seeds 42/43/44.
 > Only **feat-010 (one-shot Kaggle submit)** remains — user-gated (team name + `j_v_v_07` go-ahead; rotate the
 > `KGAT_` token).
 

@@ -319,14 +319,13 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       API, `userHasEntered=True` (feat-004)
 - [ ] Submitting from `j_v_v_07`, not from the machine's default token account
 - [ ] `./init.sh` green, including the two-run byte-identical check
-- [ ] `scripts/verify_submission.py` on the **shipped feat-032 generator** (`checkpoint/generator.pt` =
-      the Lys-conditioned Gram--ReST `best.pt`; `--top-temperature 0.8 --lys-hedge 0.4`): PENDING on the
-      feat-032 adoption commit — to be recorded after the fresh-clone run. **Local byte-reproducibility
-      CONFIRMED**: two full `generate` runs from this checkpoint are md5-identical (library `7e3641fa`,
-      top `de8ed8a2`). feat-032 changes only the generator *weights* (+docs); the code, contract and
-      byte-repro path are unchanged from feat-031, which PASSED the official validator on `2f7bb3c`
-      (fresh clone + `uv sync` + generate ×2, all 8 checks incl. byte-identical repro + ≤80% novelty +
-      real ESM++/ESMC path; output `9a3278c9`/`61becbab`). Re-run once more immediately before submitting.
+- [x] `scripts/verify_submission.py` **PASSED on the shipped feat-032 generator** (`checkpoint/generator.pt`
+      = the Lys-conditioned Gram--ReST `best.pt`; `--top-temperature 0.8 --lys-hedge 0.4`): fresh GitHub
+      clone of commit `efa6784` + `uv sync` + generate ×2 — *"All checks passed. Submission is valid!"*,
+      all 8 checks incl. byte-identical reproducibility and the ≤80% novelty gate, real ESM++/ESMC path.
+      Fresh-clone output reproduces byte-for-byte: library `7e3641fa`, top `de8ed8a2` (identical to local).
+      The top-50 profile is also seed-robust (identical at seeds 42/43/44). (feat-031 previously PASSED on
+      `2f7bb3c`; feat-032 changes only the generator weights.) Re-run once more immediately before submitting.
 - [x] Every section above filled in, with no placeholder text left
 - [x] Repository public, MIT licensed, `uv.lock` and `.python-version` committed
 - [x] Weights committed or fetchable, and the inference path documented (`checkpoint/`, `oracle/apex/`)
