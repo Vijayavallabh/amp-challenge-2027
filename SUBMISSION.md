@@ -288,16 +288,16 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       API, `userHasEntered=True` (feat-004)
 - [ ] Submitting from `j_v_v_07`, not from the machine's default token account
 - [ ] `./init.sh` green, including the two-run byte-identical check
-- [x] `scripts/verify_submission.py` PASSED on the **feat-028 mixed-temperature default** (commit
-      `6c6ff24`, 2026-09-29): fresh clone + `uv sync` + generate ×2 — *"All checks passed. Submission is
-      valid!"*, ranking `apex-balanced-success - 1.5*hemolysis + 0.2*amphipathicity`, pool line
-      `top-temperature 1 for the top list; temperature 1.6 for the library body`, all 8 checks incl.
-      byte-identical reproducibility; fresh-clone output byte-identical to the shipped mixed default
-      (library `5270743d`, top `25be6843`). **feat-008 also PASSED against the pushed public URL**
-      (`https://github.com/Vijayavallabh/amp-challenge-2027.git`, commit `75a85a7`, 2026-09-29): fresh
-      GitHub clone reproduces the mixed default byte-for-byte, all 8 checks incl. reproducibility. So the
-      organizers' clone-and-run reproduces exactly this submission. Re-run once more immediately before
-      submitting.
+- [x] `scripts/verify_submission.py` PASSED on the **shipped feat-029 top-temperature-0.8 default**:
+      fresh GitHub clone + `uv sync` + generate ×2 — *"All checks passed. Submission is valid!"*, ranking
+      `apex-balanced-success - 1.5*hemolysis + 0.2*amphipathicity`, pool line `top-temperature 0.8 for the
+      top list; temperature 1.6 for the library body`, all 8 checks incl. byte-identical reproducibility
+      and the ≤80% novelty gate. Verified on the local adopting commit `e34a069` AND on the current pushed
+      **HEAD `b6b6f10`** (`https://github.com/Vijayavallabh/amp-challenge-2027.git`, branch `main`); both
+      fresh-clone runs reproduce the shipped 0.8 output byte-for-byte (library `06a6658e`, top `483fecae`).
+      So the organizers' clone-and-run reproduces exactly this submission. (Superseded records: feat-028's
+      top-temperature-1.0 output library `5270743d`/top `25be6843` is no longer what ships.) Re-run once
+      more immediately before submitting.
 - [x] Every section above filled in, with no placeholder text left
 - [x] Repository public, MIT licensed, `uv.lock` and `.python-version` committed
 - [x] Weights committed or fetchable, and the inference path documented (`checkpoint/`, `oracle/apex/`)
