@@ -1244,7 +1244,13 @@ MIC+physchem reward; 100/100 wet-lab active) as the theoretically-sound generato
 pursued — but its top failure mode is exactly reward-hacking a frozen proxy (Goodhart), reinforcing the feat-032
 lesson. Competitive picture: ~15+ serious entries (top-20 contested); the modal competitor is APEX-first +
 HemoPI2 gate → our composition ranking is differentiated where APEX fails, and Optimal Selectivity is the
-least-contested board.
+least-contested board. **Decisive token-free test of the report's #1 idea** (`scratchpad/learned_vs_composition.py`):
+a LEARNED model (LogReg/RF/GBM on 12 composition+physchem features, fit on 1164 DBAASP peptides) wins
+in-distribution (DBAASP 5-fold Spearman 0.33–0.35 vs composition's 0.14) but **COLLAPSES out-of-distribution on
+the 46 novel peptides (−0.11 / −0.03 / −0.05), while the hand-crafted `lys − 0.5·arom` transfers strongly
+(+0.448)** — the anti-Goodhart thesis made quantitative: a learned ranker cannot beat the composition formula on
+novel peptides (our regime), so feat-033's hand-crafted ranker is confirmed the right call and no learned/TabPFN
+ranker is adopted.
 
 **Two flags escalated to the participant (rule/eligibility, cannot be resolved autonomously).** (1) The
 organizers' own materials disagree on the wet-lab draw — the site's How-It-Works section and the design PDF say
