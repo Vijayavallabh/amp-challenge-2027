@@ -207,6 +207,23 @@ class TestAmphipathicity:
         assert O.amphipathicity_bonus(["GIGKFLHSAKKFGKAFVGEIMNS"])[0] == pytest.approx(
             float(np.clip((mu - 0.25) / 0.25, 0.0, 1.0)))
 
+    def test_arg_excess_penalises_arg_over_lys_above_floor(self):
+        # feat-031 wet-lab Gram- hedge: max(0, R/(R+K) - 0.4). All-Lys and no-cationic score 0 (nothing
+        # to correct); all-Arg scores 1.0-0.4=0.6; a balanced RRKK (R/(R+K)=0.5) scores 0.1. Monotonic
+        # in Arg-fraction. This is the deterministic composition term subtracted from the APEX activity.
+        ae = O.arg_excess(["KKKKK", "GGGG", "RRKK", "RRRRR", "RRRK"])
+        assert ae[0] == 0.0 and ae[1] == 0.0
+        assert ae[2] == pytest.approx(0.1)
+        assert ae[3] == pytest.approx(0.6)
+        assert ae[4] == pytest.approx(0.35)
+        # floor is configurable and defaults to ARG_EXCESS_FLOOR
+        assert O.arg_excess(["RRRRR"], floor=0.0)[0] == pytest.approx(1.0)
+        assert O.ARG_EXCESS_FLOOR == 0.4
+        # deterministic and never negative
+        seqs = ["KWKLFKKIGAVLKVL", "RRRWWRR", "GIGKFLHSAKKFGKAFVGEIMNS"]
+        assert np.array_equal(O.arg_excess(seqs), O.arg_excess(seqs))
+        assert all(x >= 0.0 for x in O.arg_excess(seqs))
+
     def test_batched_moment_matches_physchem_scalar(self):
         # single source of truth: oracle's vectorised muH must equal physchem's scalar muH exactly,
         # so the shared Eisenberg scale / formula cannot silently diverge (feat-025 review #7).

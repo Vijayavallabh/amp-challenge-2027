@@ -176,6 +176,7 @@ class ApexRanker:
         hemolysis_penalty: float = 0.0,
         refine_k: int = 20000,
         amphipathicity_bonus: float = 0.0,
+        lys_hedge: float = 0.0,
     ) -> None:
         from .oracle import ApexScorer  # lazy: keeps model.py importable without the oracle
 
@@ -210,6 +211,13 @@ class ApexRanker:
         # (``inf * 0.0``).
         amp = float(amphipathicity_bonus)
         self._amphi = amp if (amp == amp and amp not in (float("inf"), float("-inf")) and amp >= 0.0) else 0.0
+        # Optional wet-lab Gram-negative hedge (feat-031): subtract lys_hedge * arg_excess (how
+        # Arg-over-Lys-biased a peptide is above R/(R+K)=0.4) from the activity, de-biasing the top-50
+        # away from the Arg-dominance that APEX over-rates on Gram-negative activity (validated against
+        # the 46 wet-lab MICs; the bias is shared across all 8 submodels, so the held-out guard is blind
+        # to it). Near-free on APEX (Gram- SR is flat across R/(R+K) 0.2-0.8). Deterministic. 0.0 = off.
+        lh = float(lys_hedge)
+        self._lyshedge = lh if (lh == lh and lh not in (float("inf"), float("-inf")) and lh >= 0.0) else 0.0
         base = {"category": "apex-success", "balanced": "apex-balanced-success"}.get(
             objective, "apex-broad-potency"
         )
@@ -219,12 +227,15 @@ class ApexRanker:
         )
         if self._amphi > 0:  # provenance: an enabled bonus must be visible in the printed ranker name
             self.name += f" + {self._amphi:g}*amphipathicity"
+        if self._lyshedge > 0:  # provenance: an enabled hedge must be visible in the printed ranker name
+            self.name += f" - {self._lyshedge:g}*arg_excess"
 
     def score(self, sequences: list[str]) -> list[float]:
         import numpy as np
 
         from .oracle import (
-            amphipathicity_bonus, balanced_success_score, broad_potency_score, category_success_score,
+            amphipathicity_bonus, arg_excess, balanced_success_score, broad_potency_score,
+            category_success_score,
         )
 
         mic = self._oracle.predict_mic(sequences)
@@ -237,6 +248,8 @@ class ApexRanker:
         activity = np.asarray(activity, dtype=float)
         if self._amphi > 0:  # closed-form amphipathic-moment nudge (deterministic; off by default)
             activity = activity + self._amphi * amphipathicity_bonus(sequences)
+        if self._lyshedge > 0:  # wet-lab Gram- de-bias: penalise Arg-over-Lys excess (deterministic)
+            activity = activity - self._lyshedge * arg_excess(sequences)
         if self._hemo is None or self._lam <= 0:
             return activity.tolist()
         # Two-stage: score selectivity only on the ``refine_k`` most-active candidates (the PLM

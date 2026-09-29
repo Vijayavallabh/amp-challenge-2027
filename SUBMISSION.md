@@ -49,8 +49,8 @@ SOTA protein language model (**ESM Cambrian 600M**, held-out AUROC 0.905), with 
 **diversity screen**, plus a closed-form **amphipathicity** reward on the Eisenberg hydrophobic moment.
 The top-100 candidate pool is sampled at a cooler **mixed temperature** (feat-028) so its best peptides
 sit on the generator's high-activity modes, while the 50k library body stays hot for diversity. The
-assayed **top-50** covers, at ≤16 µM: **Broad 0.70, Gram- 0.66, Gram+ 0.76, MDR 0.67**, at **0%
-predicted-hemolytic** (every top-50 P < 0.08) and strong amphipathicity (µH median 0.56) — a strong,
+assayed **top-50** covers, at ≤16 µM: **Broad 0.71, Gram- 0.68, Gram+ 0.76, MDR 0.67**, at **0%
+predicted-hemolytic** (every top-50 P < 0.08) and strong amphipathicity (µH median 0.51) — a strong,
 balanced five-category
 profile (the Gram+/MDR-targeted generator plus hard-SR selection roughly **doubled** the two hard
 categories from where a broad-activity-only pipeline left them, at no selectivity cost, and the Gram−
@@ -69,6 +69,22 @@ body (which guarantees the top-100 ⊆ library rule). This lifts the assayed top
 Broad 0.63→0.70** (cross-validated across all 8 APEX submodels and at seeds 42/43/44, GP/MDR and 0%-hemolytic held) while the
 library keeps **diversity 0.84 / novelty 1.0 unchanged** — a measured best-of-both, not the "no cost"
 claim an earlier single-hot-pool version asserted.
+
+A final ranking term corrects a **bias in the APEX oracle itself**. Scoring our 46 wet-lab MICs (the only
+APEX-independent ground truth) through APEX shows it has **no predictive signal for real activity on novel
+peptides** (APEX-predicted vs real Gram- Success Rate Spearman −0.13; Broad −0.29) and is **systematically
+biased toward Arginine over Lysine** on Gram-negatives (its prediction error vs Arg-fraction R/(R+K) is
++0.41, p=0.003), whereas the *real* Gram- Success Rate favours **Lysine-richness** (−0.40, p=0.004,
+bootstrap- and leave-one-out-robust). Because 15 of the 20 real strains are Gram-negative and this bias is
+shared across all 8 APEX submodels (so held-out-submodel cross-validation is blind to it), we subtract a
+small **Arg-excess penalty** `--lys-hedge 0.4 · max(0, R/(R+K) − 0.4)` from the ranking (`oracle.arg_excess`).
+It penalises *excess* Arg rather than rewarding pure Lys — pushing the top-50 toward the balanced Lys/Arg
+**blends** the peptide literature finds most active-and-selective on Gram-negatives (Hackney 2026; Zou 2007;
+Wang 2025), never toward poly-Lys. Because APEX's Gram- score is flat across R/(R+K) 0.2–0.8 and such blend
+peptides are abundant, this is a **tie-breaker at ~zero cost**: it de-biases the top-50 from 82% to 70%
+Arg-dominant (median R/(R+K) 0.67→0.60) while APEX Broad/Gram- actually *rise*, Gram+/MDR and the 0%-hemolytic
+selectivity hold, novelty and amphipathicity are preserved, and the improvement replicates across seeds
+42/43/44 — a robustness gain from data no oracle-only pipeline would find. See `docs/RESEARCH.md` (feat-031).
 
 The result (all figures are **computational predictions, not measurements** — we make no wet-lab
 efficacy claim): a 50,000-peptide library that is **diverse** (≈81% of a random 500-sample mutually
@@ -169,8 +185,16 @@ pre-filtered to the competition constraints (20 standard residues, length 8–50
 This is a required deliverable and it is what the competition measures — 25 peptides are drawn at
 random from the top 50 and assayed.
 
-- **Scoring function:** `score = balanced_success_score + 0.2·amphipathicity_bonus − 1.5·P(hemolytic)`,
-  applied to a large **8× (400k)** oversampled candidate pool.
+- **Scoring function:** `score = balanced_success_score + 0.2·amphipathicity_bonus − 0.4·arg_excess −
+  1.5·P(hemolytic)`, applied to a large **8× (400k)** oversampled candidate pool.
+  - *arg_excess* (feat-031) — `max(0, R/(R+K) − 0.4)`, a deterministic **wet-lab-grounded Gram- de-bias**.
+    APEX has no predictive signal for real activity on our 46 wet-lab peptides (Gram- ρ −0.13) and is
+    significantly biased toward Arg over Lys on Gram-negatives (prediction-error vs R/(R+K) ρ +0.41,
+    p=0.003), while *real* Gram- success favours Lys-richness (ρ −0.40, p=0.004) — a bias shared across all
+    8 submodels, so the held-out-submodel guard is blind to it. This tie-breaker penalises Arg *excess* only
+    (pushing to Lys/Arg blends, never poly-Lys); since APEX Gram- is flat across R/(R+K) 0.2–0.8, it
+    de-biases the top-50 (82%→70% Arg-dominant) at ~zero APEX cost — Broad/Gram- rise, Gram+/MDR/selectivity
+    hold, seed-robust (42/43/44). See the abstract and `docs/RESEARCH.md` (feat-031).
   - *balanced_success_score* — from **APEX-pathogen** (`oracle/apex`, run as an isolated `uv`
     subprocess), which predicts MIC (µM) against 11 clinical pathogens. We score the **hard
     Gram-positive and MDR Success Rate** (the fraction of those strains cleared at ≤16 µM — exactly
@@ -288,16 +312,14 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       API, `userHasEntered=True` (feat-004)
 - [ ] Submitting from `j_v_v_07`, not from the machine's default token account
 - [ ] `./init.sh` green, including the two-run byte-identical check
-- [x] `scripts/verify_submission.py` PASSED on the **shipped feat-029 top-temperature-0.8 default**:
-      fresh GitHub clone + `uv sync` + generate ×2 — *"All checks passed. Submission is valid!"*, ranking
-      `apex-balanced-success - 1.5*hemolysis + 0.2*amphipathicity`, pool line `top-temperature 0.8 for the
-      top list; temperature 1.6 for the library body`, all 8 checks incl. byte-identical reproducibility
-      and the ≤80% novelty gate. Verified on the local adopting commit `e34a069` AND on the current pushed
-      **HEAD `b6b6f10`** (`https://github.com/Vijayavallabh/amp-challenge-2027.git`, branch `main`); both
-      fresh-clone runs reproduce the shipped 0.8 output byte-for-byte (library `06a6658e`, top `483fecae`).
-      So the organizers' clone-and-run reproduces exactly this submission. (Superseded records: feat-028's
-      top-temperature-1.0 output library `5270743d`/top `25be6843` is no longer what ships.) Re-run once
-      more immediately before submitting.
+- [ ] `scripts/verify_submission.py` on the **shipped feat-031 default** (`--top-temperature 0.8 --lys-hedge
+      0.4`): PENDING on the feat-031 adoption commit — to be recorded here after the fresh-clone run
+      (ranking `apex-balanced-success - 1.5*hemolysis + 0.2*amphipathicity - 0.4*arg_excess`; local run
+      hashes library `9a3278c9`, top `61becbab`). The prior feat-029 default (`--top-temperature 0.8`, no
+      hedge) PASSED all 8 checks on commits `e34a069` and `b6b6f10` (fresh GitHub clone + `uv sync` +
+      generate ×2 byte-identical, ≤80% novelty gate, real ESM++/ESMC path; output library `06a6658e`, top
+      `483fecae`); feat-031 changes only the top-100 ranking (a deterministic composition term), so the
+      contract and byte-reproducibility path are unchanged. Re-run once more immediately before submitting.
 - [x] Every section above filled in, with no placeholder text left
 - [x] Repository public, MIT licensed, `uv.lock` and `.python-version` committed
 - [x] Weights committed or fetchable, and the inference path documented (`checkpoint/`, `oracle/apex/`)

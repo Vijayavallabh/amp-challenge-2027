@@ -2,21 +2,25 @@
 
 ## Current State
 
-> **SHIPPED SUBMISSION — feat-029 (HEAD `b6b6f10`), this is the current truth; the narrative below is historical (feat-021→028).**
-> `uv run generate` defaults to **`--top-temperature 0.8`** (feat-029 mixed-temperature: top-100 candidate pool
-> sampled cool at 0.8 for activity, 50k library body hot at 1.6 for Phase-2 diversity). Top-50: **Broad 0.70,
-> Gram- 0.66, Gram+ 0.76, MDR 0.67, 0% predicted-hemolytic, µH 0.56**; Phase-2 diversity 0.84 / novelty 1.0.
-> feat-029 was cross-validated (Gram- 8/8 & Broad 7/8 held-out APEX submodels; seed-robust 42/43/44) and lifted
-> Gram- 0.640→0.663 / Broad 0.680→0.696 over feat-028's top-temperature 1.0. **Official validator PASSED** (all
-> 8 checks, fresh GitHub clone, generate ×2 byte-identical, ≤80% novelty gate) on commit `e34a069` AND on HEAD
-> `b6b6f10`; fresh-clone output library `06a6658e` / top `483fecae`. **feat-030** (Lys/Arg Gram- lever) —
-> wet-lab-verified signal (Lys-richness helps Gram-, rho −0.44) but REJECTED as a selection bonus: the
-> APEX-Arg-dominant pool won't shift without breaking do-no-harm/selectivity (see docs/RESEARCH.md feat-030;
-> insight saved to memory). Only **feat-010 (one-shot Kaggle submit)** remains — user-gated (team name +
-> `j_v_v_07` go-ahead; rotate the `KGAT_` token). Sampling + selection axes are exhausted; a 29-agent audit
-> judged feat-029 near-optimal.
+> **SHIPPED SUBMISSION — feat-031 (this is the current truth; the narrative below is historical, feat-021→029).**
+> `uv run generate` defaults to **`--top-temperature 0.8` + `--lys-hedge 0.4`** (feat-029 mixed-temperature +
+> feat-031 wet-lab Gram- de-bias). Top-50 (seed 42): **Broad 0.71, Gram- 0.68, Gram+ 0.76, MDR 0.67, 0%
+> predicted-hemolytic, µH 0.51**; Phase-2 diversity 0.837 / novelty 1.0 / uniqueness 1.0 (seqme, = feat-029).
+> **feat-031 (wet-lab Arg-excess hedge):** the decisive non-circular test — scoring the 46 wet-lab peptides
+> through APEX — showed APEX has ~0 correlation with REAL success (Gram- rho −0.13, Broad −0.29) and is
+> significantly Arg-biased on Gram- (residual vs R/(R+K) +0.41, p=0.003; bootstrap+LOO robust), while reality
+> favours Lys-richness (−0.40, p=0.004) — and 75% of the real panel is Gram-. feat-030's Lys-BONUS failed
+> (circular APEX metric + wrong form); feat-031's Arg-EXCESS penalty `max(0,R/(R+K)−0.4)` tie-breaks toward the
+> abundant APEX-equal BLEND peptides, so it de-biases at ~zero cost. Result: a strict Pareto improvement (APEX
+> Broad/GN ↑, GP/MDR held, GP submodel-min ↑), 0%-hemolytic + novelty + amphipathicity preserved, composition
+> de-biased 0.82→0.70 (median R/(R+K) 0.667→0.60), **seed-robust (≥ baseline on all 4 cats at seeds 42/43/44)**,
+> Phase-2 unchanged, 140 tests pass. PubMed-verified literature corroborates (Hackney 2026 Lys>Arg; Zou 2007;
+> Wang 2025) with the "mild tie-breaker, penalize excess not pure-Lys, don't hurt Gram+" refinements adopted.
+> **Official validator: PENDING on the feat-031 adoption commit (feat-029 baseline PASSED, hashes 06a6658e /
+> 483fecae; h0.4 local hashes library `9a3278c9` / top `61becbab`).** Only **feat-010 (one-shot Kaggle submit)**
+> remains — user-gated (team name + `j_v_v_07` go-ahead; rotate the `KGAT_` token).
 
-**Last Updated:** 2026-09-29 (session 4 — through feat-030: top-temperature 0.8 shipped + validated; Lys/Arg Gram- lever rejected)
+**Last Updated:** 2026-09-29 (session 5 — feat-031: wet-lab Arg-excess Gram- hedge ADOPTED as `--lys-hedge 0.4`, seed-robust Pareto improvement + Phase-2 preserved; validator pending)
 **Active Feature:** feat-010 SUBMIT (user-gated) — feat-015…feat-020 + **feat-021** (explicit hard
 Gram- term, top-50 Gram- 0.54→0.58 at zero Gram+/MDR cost) DONE and **official-validator PASS on the
 pushed commit 15c3b5e**. **feat-022** (submodel-cross-validated directed-evolution GA) and **feat-023**

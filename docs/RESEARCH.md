@@ -827,3 +827,67 @@ oracle-selected pool without collateral damage. The lever would need generation-
 higher-risk change), not selection re-ranking. **feat-029 (top-temperature 0.8, validated) stands unchanged.**
 The methodological lesson — "all 8 submodels agreeing is necessary but not sufficient; a bias shared by the whole
 oracle needs an independent check" — is the durable takeaway.
+
+## feat-031 — Wet-lab Gram- de-bias, done right: Arg-EXCESS penalty (ADOPTED, revises feat-030)
+
+feat-030 rejected the wet-lab Lys signal as un-implementable. feat-031 revisits it with (1) the decisive
+non-circular validation feat-030 lacked, (2) a better functional form, and (3) primary-literature corroboration —
+and **adopts it as the shipped default (`--lys-hedge 0.4`)** as a strict Pareto improvement on APEX plus a
+robustness gain on the 75%-Gram- real panel.
+
+**(1) The decisive test feat-030 never ran — is APEX right about Arg?** Scored all 46 wet-lab peptides through
+APEX (`experiments/bulk_permodel.py`, GPU) and correlated APEX's *prediction* against the *real* MICs:
+- APEX has **no predictive signal on novel peptides**: APEX-Gram- SR vs REAL Gram- SR Spearman **−0.13 (p=0.38)**;
+  APEX-Broad vs REAL-Broad **−0.29 (p=0.047, significantly negative)**; APEX-Gram+ +0.13 (p=0.39).
+- APEX is **significantly Arg-biased on Gram-**: residual (APEX_GN − REAL_GN) vs R/(R+K) Spearman **+0.41
+  (p=0.003)** — the more Arg-rich, the more APEX *over-rates* Gram-. APEX even has the sign wrong (its own
+  APEX-GN vs R/(R+K) is +0.18; reality is −0.40, p=0.004). Bootstrap (5000×) P(sign correct)=0.996/0.998,
+  CIs exclude 0; leave-one-out keeps real-GN-vs-R/(R+K) in [−0.47,−0.34] (no single peptide drives it).
+So feat-030's rejection was **circular**: it judged a *correction for APEX's Arg-bias* by *APEX's own biased score*.
+The shipped feat-029 top-50 sits at **82% Arg-dominant (median R/(R+K) 0.667)** — concentrated in APEX's blind spot.
+
+**(2) Why the penalty works where feat-030's bonus failed.** feat-030 added a Lys *bonus* (reward high-Lys); the
+Arg-dominant pool has too few high-APEX Lys-*rich* peptides, so a do-no-harm-safe bonus couldn't move the median
+(stayed 0.667). feat-031 subtracts an Arg-*excess* penalty `lys_hedge · max(0, R/(R+K) − 0.4)` (`oracle.arg_excess`,
+mirroring the amphipathicity term; deterministic). Because APEX Gram- SR is **flat across R/(R+K) 0.2–0.8** and
+blend peptides (R/(R+K)≈0.5) are abundant with *equal* APEX score, the penalty tie-breaks the extreme-Arg tail
+toward those blends — shifting composition at ~zero APEX cost. It targets Arg *excess*, never rewards pure Lys.
+
+**(3) Literature corroboration (4-agent scan, 5 citations PubMed-verified; verdict "ship milder").** Matched-peptide
+studies support the direction in exactly the scored slices: Hackney 2026 (W6K8 Lys > W6R8 Arg — more bactericidal
+*and* less hemolytic); Zou 2007 (Arg's edge "much more pronounced vs *S. aureus* than *E. coli*", shrinks at
+physiological salt → a mild Lys tie-break is low-cost in the Gram-/physiological regime we score); Wang 2025 (Arg
+helps Gram+, hurts Gram-, raises hemolysis). Refinements adopted: penalize Arg *excess* not pure Lys (best real
+chemotype is a Lys/Arg *blend*, van der Walt 2025); keep it *tie-breaker magnitude* (R/(R+K) is second-order, the
+signal is one n=46 family); *do not hurt Gram+* (Mishra 2016: Arg helps MRSA).
+
+**Real-pipeline sweep (seed 42, all shipped defaults; APEX per-submodel via `experiments/bulk_permodel.py`, ESMC
+selectivity + novelty as shipped).**
+
+| `--lys-hedge` | Broad | Gram- | Gram+ (submodel-min) | MDR | med R/(R+K) | Arg-dom | med P(hemo) | novelty max |
+|---|---|---|---|---|---|---|---|---|
+| 0.0 (feat-029) | 0.696 | 0.663 | 0.755 (0.47) | 0.673 | 0.667 | 0.82 | 0.0031 | 0.769 |
+| **0.4 (feat-031)** | **0.707** | **0.680** | 0.755 (0.48) | 0.673 | 0.600 | 0.70 | 0.0030 | 0.769 |
+| 0.6 (too strong) | 0.700 | 0.671 | 0.750 | 0.667 | 0.600 | 0.62 | 0.0034 | — |
+
+**h0.4 is a strict Pareto improvement:** APEX Broad +0.011 and Gram- +0.017 *rise*, Gram+/MDR hold *exactly*
+(0.755/0.673 — it does not flip the Arg-heavy hard-hitters, i.e. genuine tie-breaker behaviour, protecting the
+Gram+ standing the literature warned about), the Gram+ **submodel-min improves 0.47→0.48** (more robust, not
+mean-gaming), and composition de-biases toward blends (Arg-dominance 0.82→0.70, median R/(R+K) 0.667→0.60). h0.6
+begins flipping Gram+/MDR (too strong), so 0.4 is the knee. **Anti-Goodhart all pass:** 0%-ESMC-predicted-hemolytic
+held (median P 0.0030, max 0.073); novelty held/improved (max 0.769 < 0.80, median 0.691→0.667); amphipathicity
+held (muH median 0.514, 0% non-amphipathic); ESMFold2 re-fold of matched Lys-rich vs Arg-rich candidates shows
+Lys-rich fold *as well or better* (pLDDT 0.730 vs 0.673, helix 1.00). Structure-as-independent-predictor was also
+tested (pLDDT vs REAL Gram- rho +0.245, p=0.094) — a weak trend, **not adopted** (too noisy/degraded folder;
+avoids a Goodhart-prone structural term). 140 tests pass. Predictions only — no wet-lab claim; the value is
+reducing a *documented, quantified* oracle bias at zero measurable APEX cost, an edge from data no other team has.
+
+**Seed-robustness (42/43/44), full pipeline.** The de-bias replicates at every seed and never costs a
+category: h0.4 vs h0.0 APEX Δ = seed42 (Broad +0.011, GN +0.017, GP/MDR +0.000), seed43 (all +0.000 —
+free), seed44 (Broad +0.007, GN +0.009, GP +0.005, MDR +0.000); composition consistently de-biased
+(median R/(R+K) → 0.60, Arg-dominance 0.82→0.70 / 0.82→0.64 / 0.84→0.66). So h0.4 is ≥ h0.0 on all four
+categories at all three seeds (improves at 42/44, neutral at 43, never worse) — the tie-breaker signature.
+**Phase-2 non-regression (seqme, ESM2-650M):** h0.4 library = h0.0 to 5 dp — Uniqueness 1.0, Diversity
+0.83673 (vs 0.83673), Novelty 1.0, 3-gram-Jaccard 0.00211, charge 4.82, muH 0.371 (only 100/50,000 =
+0.2% of the library changes). **Adopted as the shipped default `--lys-hedge 0.4`** (feat-029's top-temp 0.8
+and the ESMC gate otherwise unchanged). Official-validator byte-repro recorded on the adoption commit.

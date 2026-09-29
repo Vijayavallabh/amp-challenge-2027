@@ -460,3 +460,32 @@ def amphipathicity_bonus(
     ESMC penalty, not here. Deterministic, so byte-reproducibility holds."""
     mu = hydrophobic_moment(sequences)
     return np.clip((mu - floor) / max(saturation - floor, 1e-9), 0.0, 1.0)
+
+
+#: Arg-excess floor for the wet-lab Gram-negative hedge (feat-031). Below this Arg-fraction the hedge
+#: is inert; above it, ranking is penalised in proportion to the Arg-over-Lys excess. 0.4 keeps the
+#: hedged top-50 in the R/(R+K) ~0.4-0.5 band, which the wet-lab data and the ESMC selectivity model
+#: both prefer while APEX's Gram-negative Success Rate is flat (so the hedge costs ~nothing on APEX).
+ARG_EXCESS_FLOOR = 0.4
+
+
+def arg_excess(sequences: list[str], floor: float = ARG_EXCESS_FLOOR) -> np.ndarray:
+    """``max(0, R/(R+K) - floor)`` per sequence -- how Arg-over-Lys-biased a peptide is above ``floor``.
+
+    APEX systematically OVER-rates Arg-rich peptides on Gram-negative activity (validated against the 46
+    wet-lab MICs: residual APEX_GN - REAL_GN vs R/(R+K) Spearman +0.41, p=0.003), while the real Gram-
+    Success Rate FAVOURS Lys-richness (rho -0.40, p=0.004) -- and 75% of the competition panel is
+    Gram-negative. The anti-Goodhart held-out-submodel guard is blind to this because the bias is shared
+    across all 8 APEX submodels (same training data). Subtracting ``lys_hedge * arg_excess`` from the
+    ranking score de-biases the top-50 toward the wet-lab-favourable composition. It is near-free on
+    APEX: Gram-negative Success Rate is flat across R/(R+K) 0.2-0.8, and Lys-rich strong actives are
+    abundant, so the hedge shifts composition at ~zero APEX activity cost (see docs/RESEARCH.md feat-031).
+    Peptides with no Arg and no Lys score 0 (no cationic imbalance to correct). Deterministic --
+    composition is a pure function of sequence, so byte-reproducibility holds."""
+    out = np.zeros(len(sequences), dtype=float)
+    for i, s in enumerate(sequences):
+        r = s.count("R")
+        rk = r + s.count("K")
+        if rk > 0:
+            out[i] = max(0.0, r / rk - floor)
+    return out

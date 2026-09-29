@@ -108,6 +108,7 @@ def build_ranker(model: PeptideGenerator, args: argparse.Namespace):
                 hemolysis_penalty=args.hemolysis_penalty if hemo is not None else 0.0,
                 refine_k=args.refine_k,
                 amphipathicity_bonus=args.amphipathicity_bonus,
+                lys_hedge=args.lys_hedge,
             )
             print(f"Ranking: {ranker.name}")
             return ranker
@@ -464,12 +465,26 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                              "every scored category (within APEX's 0.62-AUROC noise) and 0% predicted-"
                              "hemolytic held; 0.0 recovers the pre-feat-025 (feat-021) selection. Applies "
                              "to --select score. See docs/RESEARCH.md (feat-025) (default: %(default)s)")
+    parser.add_argument("--lys-hedge", type=float, default=0.4,
+                        help="scale of a wet-lab-grounded Gram-negative de-bias subtracted from the APEX "
+                             "activity score: lys_hedge * max(0, R/(R+K) - 0.4), penalising Arg-over-Lys "
+                             "excess. APEX over-rates Arg-rich peptides on Gram-negative activity "
+                             "(validated on the 46 wet-lab MICs: residual vs R/(R+K) Spearman +0.41, "
+                             "p=0.003) while the REAL Gram- Success Rate favours Lys-richness (-0.40, "
+                             "p=0.004); the bias is shared across all 8 APEX submodels so the held-out "
+                             "guard is blind to it, and 75% of the competition panel is Gram-negative. "
+                             "Near-free on APEX (Gram- SR is flat across R/(R+K) 0.2-0.8; Lys-rich strong "
+                             "actives are abundant), and the ESMC safety-window is best in the resulting "
+                             "0.4-0.5 band. Applies to --select score. See docs/RESEARCH.md (feat-031); "
+                             "0.0 recovers the feat-029 selection (default: %(default)s)")
 
     args = parser.parse_args(argv)
     if args.length is not None:
         args.min_length = args.max_length = args.length
     if not (0.0 <= args.amphipathicity_bonus < float("inf")):
         parser.error("--amphipathicity-bonus must be a finite value >= 0")
+    if not (0.0 <= args.lys_hedge < float("inf")):
+        parser.error("--lys-hedge must be a finite value >= 0")
     if not (0.0 < args.top_temperature < float("inf")):
         parser.error("--top-temperature must be a finite value > 0")
     if not (0.0 < args.temperature < float("inf")):
@@ -522,6 +537,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.amphipathicity_bonus > 0:
             print("  NOTE: --amphipathicity-bonus applies to --select score only; the maximin "
                   "selector ranks by per-category rates and ignores it (no bonus applied)")
+        if args.lys_hedge > 0:
+            print("  NOTE: --lys-hedge applies to --select score only; the maximin selector ranks "
+                  "by per-category rates and ignores it (no hedge applied)")
         top = select_maximin(rank_pool, ranker, args.top_k, reference,
                              diversity_max_identity=args.diversity_max_identity)
     else:
