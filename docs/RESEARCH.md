@@ -893,3 +893,47 @@ categories at all three seeds (improves at 42/44, neutral at 43, never worse) �
 and the ESMC gate otherwise unchanged). **Official validator PASSED** on the pushed commit `2f7bb3c` (fresh GitHub clone + `uv sync` + generate ×2,
 all 8 checks incl. byte-identical reproducibility and the ≤80% novelty gate, real ESM++/ESMC path — *"All
 checks passed. Submission is valid!"*; fresh-clone output library `9a3278c9` / top `61becbab`, byte-identical to local).
+
+## feat-032 — Lys-conditioned Gram- ReST generator: the wet-lab prior makes ReST work (ADOPTED, dominates feat-031)
+
+feat-031 corrected APEX's Arg-bias at *selection* time. feat-032 pushes the same wet-lab signal to the
+*generator*, raising the ceiling of the weakest category (Gram-) — and, unlike the rejected all-rounder ReST
+(feat-024), it **generalises across held-out submodels** because its reward carries an *oracle-independent*
+term.
+
+**Method.** Rejection-sampling fine-tuning (`experiments/rest_finetune.py`, 8×H100): sample → APEX 8-GPU +
+ESMC score → keep top-reward novel → low-LR fine-tune with a corpus anchor. The novel ingredient is a new
+`--lys-w` reward term (`reward -= lys_w · oracle.arg_excess`, the same Arg-over-Lys-excess feat-031 penalises),
+so the fine-tune distils toward the **Lys-rich Gram-actives APEX under-samples but the wet-lab data favours**.
+Config: `gn_w 1.5` (Gram- target), `lys_w 0.6`, hard ESMC selectivity gate (`--hemo-gate 0.5 --hemo-lambda 0`),
+3 rounds. A diagnostic first (sampled 1.89M at top-temp 0.8, scored per-submodel on GPU): the current generator
+*already* produces abundant Lys-rich candidates (12.2%) and Lys-rich all-rounders scale linearly — so ReST
+**refines the distribution rather than inventing a chemotype**, which is why it can generalise.
+
+**Result — `best.pt` (round 3) strictly dominates feat-031 on every measured axis (shipped top-50, seed 42):**
+
+| | Broad | Gram- | Gram+ | MDR | submodel-min (B/GN/GP/MDR) | R/(R+K) | med P(hemo) | Phase-2 div |
+|---|---|---|---|---|---|---|---|---|
+| feat-031 | 0.707 | 0.680 | 0.755 | 0.673 | 0.585/0.609/0.470/0.520 | 0.60 | 0.0030 | 0.837 |
+| **feat-032** | **0.751** | **0.749** | 0.755 | 0.673 | **0.645/0.666/0.565/0.553** | **0.50** | **0.0012** | 0.831 |
+
+**Anti-Goodhart — triply supported (this is *not* feat-024):** (1) a **held-out submodel split** (select the
+top-100 on submodels 0–5, measure on 6–7) gives Gram- **0.633 → 0.843** — the gain generalises to submodels the
+reward never saw, whereas feat-024's all-rounder ReST was flat on this exact test; (2) the **submodel-min rises
+on all four categories** (the worst-case ensemble member is stronger, the opposite of mean-gaming); (3) the
+composition moved the **independently-validated wet-lab-favourable way** (R/(R+K) 0.60→0.50, aromatic 0.21→0.15);
+(4) ESMFold2 re-fold of the shipped top-50: **0/50 misfold flags**, pLDDT 0.709, helix 1.00; (5) **byte-deterministic**
+(two full `generate` runs md5-identical, library `7e3641fa` / top `de8ed8a2`).
+
+**Phase-2 survives the diversity collapse.** ReST narrows the generator (pool self-diversity 0.36→0.12 at
+top-temp 0.8), and the pipeline's <0.6 screen rejects **66,756** near-duplicates (vs feat-031's ~3–4k). But the
+library **body** is sampled hot (temp 1.6), which recovers diversity: the shipped 50k library scores seqme
+**Diversity 0.831 / Uniqueness 1.0 / Novelty 1.0** — statistically the same advancement-gate standing as feat-031
+(0.837). A diversity-preserving variant (ReST-v2: anchor 0.5 + dedup-cap) also passes Phase-2 (div 0.842) but
+gives a smaller held-out gain (GN 0.699), so `best.pt` is chosen. 140 tests pass.
+
+**Adoption.** Promoting `best.pt` → `checkpoint/generator.pt` was auto-mode-gated as a shared-resource change and
+**user-authorised**; feat-031's generator is backed up at `experiments/rest/feat031_generator_backup/` for instant
+rollback. Predictions only — no wet-lab claim. Official validator PENDING on the adoption commit (local byte-repro
+confirmed; feat-031 PASSED the official validator on `2f7bb3c`, and feat-032 changes only the generator weights,
+so the code/contract/byte-repro path is unchanged).

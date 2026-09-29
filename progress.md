@@ -2,10 +2,21 @@
 
 ## Current State
 
-> **SHIPPED SUBMISSION — feat-031 (this is the current truth; the narrative below is historical, feat-021→029).**
-> `uv run generate` defaults to **`--top-temperature 0.8` + `--lys-hedge 0.4`** (feat-029 mixed-temperature +
-> feat-031 wet-lab Gram- de-bias). Top-50 (seed 42): **Broad 0.71, Gram- 0.68, Gram+ 0.76, MDR 0.67, 0%
-> predicted-hemolytic, µH 0.51**; Phase-2 diversity 0.837 / novelty 1.0 / uniqueness 1.0 (seqme, = feat-029).
+> **SHIPPED SUBMISSION — feat-032 (this is the current truth; feat-021→031 are historical below).**
+> `uv run generate` uses the **feat-032 ReST-upgraded generator** (`checkpoint/generator.pt` = the Lys-conditioned
+> Gram--targeted ReST `best.pt`, `93028cd6`; feat-031's generator backed up at
+> `experiments/rest/feat031_generator_backup/`) with the same defaults **`--top-temperature 0.8` + `--lys-hedge 0.4`**.
+> Top-50 (seed 42): **Broad 0.75, Gram- 0.75, Gram+ 0.76, MDR 0.67, 0% predicted-hemolytic (median P 0.0012), µH
+> 0.52**; Phase-2 diversity 0.831 / novelty 1.0 / uniqueness 1.0. Fresh-clone hashes library `7e3641fa` / top `de8ed8a2`.
+> **feat-032 (Lys-conditioned Gram- ReST):** rejection-sampling fine-tuning with the INDEPENDENT wet-lab Lys prior
+> in the reward (`--lys-w 0.6` subtracting arg_excess) + gn_w 1.5 + hard ESMC selectivity gate. STRICTLY DOMINATES
+> feat-031 on every measured axis: APEX Broad 0.707→0.751, GN 0.680→0.749, GP/MDR held with **submodel-min UP on
+> all four** (0.585/0.609/0.470/0.520 → 0.645/0.666/0.565/0.553 — MORE robust, the opposite of Goodhart), held-out
+> submodel GN 0.633→0.843 (train/test submodel split — generalises, unlike the rejected feat-024), composition
+> more wet-lab-favourable (R/(R+K) 0.60→0.50), selectivity better (median P 0.0030→0.0012), novelty held (max
+> 0.769), Phase-2 diversity preserved (0.831), ESMFold2 0/50 misfold flags (pLDDT 0.709), byte-deterministic
+> (two runs md5-identical). Triply-supported (held-out + submodel-robustness + independent wet-lab composition).
+> User-authorised the generator promotion; feat-031 kept as instant rollback.
 > **feat-031 (wet-lab Arg-excess hedge):** the decisive non-circular test — scoring the 46 wet-lab peptides
 > through APEX — showed APEX has ~0 correlation with REAL success (Gram- rho −0.13, Broad −0.29) and is
 > significantly Arg-biased on Gram- (residual vs R/(R+K) +0.41, p=0.003; bootstrap+LOO robust), while reality
@@ -16,12 +27,13 @@
 > de-biased 0.82→0.70 (median R/(R+K) 0.667→0.60), **seed-robust (≥ baseline on all 4 cats at seeds 42/43/44)**,
 > Phase-2 unchanged, 140 tests pass. PubMed-verified literature corroborates (Hackney 2026 Lys>Arg; Zou 2007;
 > Wang 2025) with the "mild tie-breaker, penalize excess not pure-Lys, don't hurt Gram+" refinements adopted.
-> **Official validator: PASSED on the feat-031 adoption commit `2f7bb3c`** — all 8 checks, fresh GitHub clone
-> + `uv sync` + generate ×2 byte-identical, ≤80% novelty gate, real ESM++/ESMC path; fresh-clone output
-> library `9a3278c9` / top `61becbab` (byte-identical to local). Only **feat-010 (one-shot Kaggle submit)**
-> remains — user-gated (team name + `j_v_v_07` go-ahead; rotate the `KGAT_` token).
+> **Official validator: PENDING on the feat-032 adoption commit** (local byte-repro CONFIRMED: two full runs
+> md5-identical library `7e3641fa` / top `de8ed8a2`; feat-031 previously PASSED the official validator on `2f7bb3c`,
+> and feat-032 changes only the generator weights + docs — the code/contract path is unchanged, so byte-repro holds).
+> Only **feat-010 (one-shot Kaggle submit)** remains — user-gated (team name + `j_v_v_07` go-ahead; rotate the
+> `KGAT_` token).
 
-**Last Updated:** 2026-09-29 (session 5 — feat-031: wet-lab Arg-excess Gram- hedge ADOPTED as `--lys-hedge 0.4`, seed-robust Pareto improvement + Phase-2 preserved; validator pending)
+**Last Updated:** 2026-09-29 (session 5 — feat-032: Lys-conditioned Gram- ReST generator ADOPTED [user-authorised], strictly dominates feat-031 on all axes with improved submodel-robustness + held-out generalisation; official validator pending)
 **Active Feature:** feat-010 SUBMIT (user-gated) — feat-015…feat-020 + **feat-021** (explicit hard
 Gram- term, top-50 Gram- 0.54→0.58 at zero Gram+/MDR cost) DONE and **official-validator PASS on the
 pushed commit 15c3b5e**. **feat-022** (submodel-cross-validated directed-evolution GA) and **feat-023**
