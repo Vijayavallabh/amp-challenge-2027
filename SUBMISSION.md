@@ -90,9 +90,9 @@ The result (all figures are **computational predictions, not measurements** — 
 efficacy claim): a 50,000-peptide library that is **diverse** (≈81% of a random 500-sample mutually
 <0.6 identity), **novel** (median Levenshtein identity to any known AMP ≈0.50, 3% above 0.80), and
 AMP-like (84% net-cationic, mean length 18); and a **top-100 that is 100% predicted-active** (median
-best-strain MIC ≈2.4 µM), broad-spectrum (top-50 mean ≈5.3 of 11 strains inhibited at ≤16 µM,
-Gram-negative Success Rate ≈56%, Gram-positive ≈34%, MDR ≈38%), comparatively **non-hemolytic** (mean
-predicted P(hemolytic) ≈0.07, vs ≈0.75 for unpenalised actives), and **novel** (top-50 median
+best-strain MIC ≈2.4 µM), broad-spectrum (top-50 Success Rate at ≤16 µM **Broad 0.71, Gram- 0.68,
+Gram+ 0.76, MDR 0.67**), **0% predicted-hemolytic** (median predicted P(hemolytic) ≈0.001, every top-50
+< 0.08, vs ≈0.75 for unpenalised actives), and **novel** (top-50 median
 nearest-known-AMP identity ≈0.69, top-100 max 0.79, within the 0.80 rule).
 
 ## Model
@@ -205,7 +205,9 @@ random from the top 50 and assayed.
     *any* weighting; ranking by the **hard** Gram+/MDR rate instead surfaces the peptides that truly
     clear those strains. Combined with the Gram+/MDR-targeted ReST generator (above), this brings the
     assayed top-50 to **Gram+ 0.74 / MDR 0.67** (from 0.37 / 0.42 under a broad-activity-only pipeline)
-    while holding Broad 0.63 / Gram- 0.57. We validated APEX against the 46 wet-lab-measured peptides in
+    while holding Broad 0.63 / Gram- 0.57 — *this ranking term's contribution in isolation*; the feat-028/029
+    mixed-temperature pool and the feat-031 Arg-excess hedge then lift the shipped top-50 to the headline
+    **Broad 0.71 / Gram- 0.68 / Gram+ 0.76 / MDR 0.67** (see the abstract). We validated APEX against the 46 wet-lab-measured peptides in
     `data/experimental/mic.csv`: a moderate, wet-lab-aligned signal (AUROC 0.76 known-AMP vs random;
     0.62 per-(peptide,strain) on novel peptides), so we rank by it but do not chase its extreme tail.
     Details in `docs/RESEARCH.md`.
@@ -249,7 +251,7 @@ random from the top 50 and assayed.
   reference set are rejected and replaced by the next-ranked candidate. In the shipped run the
   novelty screen rejected **1** candidate — the Gram+/MDR-targeted ReST generator explores new
   sequence space, so its designs sit comfortably below the 0.80 threshold (top-50 median identity to
-  any known AMP **0.62**, max **0.73**, none an exact match — *more* novel than the earlier
+  any known AMP **0.69**, top-100 max **0.79**, none an exact match — *more* novel than the earlier
   physicochemical/ESMC selections, evidence the harder optimisation is discovering new motifs rather
   than memorising known AMPs).
 - **Diversity or redundancy control within the top 100:** a within-list cap

@@ -97,7 +97,7 @@ physchem AMP-like and cationic (charge 4.7, pI 11.6, Gravy −0.54, hydrophobic-
 1.94 vs a real-AMP floor 0.074 / random ceiling 5.42** — i.e. "novel AND AMP-like", 3× closer to real
 AMPs than to random. Strong on the diversity/novelty/physchem axes the advancement screen scores.
 
-`uv run generate` now produces a scientifically meaningful, reproducible submission: the trained
+`uv run generate` (feat-021 snapshot — **superseded by the Current State block at the top of this file**; kept for history) produced a scientifically meaningful, reproducible submission: the trained
 AR-Transformer samples a novel, cationic/amphipathic 50k library, and the top-100 is ranked by
 a **hard Gram+/MDR Success-Rate APEX score** (from an 8×/400k oversampled pool) **minus a λ=1.5
 ESMC-600M selectivity penalty**, with a within-list diversity cap, on a generator **ReST-fine-tuned

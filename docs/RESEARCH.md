@@ -894,7 +894,13 @@ and the ESMC gate otherwise unchanged). **Official validator PASSED** on the pus
 all 8 checks incl. byte-identical reproducibility and the ≤80% novelty gate, real ESM++/ESMC path — *"All
 checks passed. Submission is valid!"*; fresh-clone output library `9a3278c9` / top `61becbab`, byte-identical to local).
 
-## feat-032 — Lys-conditioned Gram- ReST generator: the wet-lab prior makes ReST work (ADOPTED, dominates feat-031)
+## feat-032 — Lys-conditioned Gram- ReST generator: EXPLORED then REVERTED (apparent "domination" was ensemble-Goodhart — see the REVERTED subsection at the end)
+
+> ⚠️ **This section records the feat-032 exploration as it stood at adoption; it was subsequently REVERTED.**
+> The "strict domination" below is measured in APEX currency and was shown to be an **ensemble-Goodhart illusion**
+> (a matched APEX-only control ReST reproduced the same held-out gain *without* the wet-lab prior), and it regressed
+> near-exact novelty ~2.6×. Read the **"feat-032 REVERTED"** subsection at the end for the disproof and the lesson;
+> the shipped generator is **feat-031**.
 
 feat-031 corrected APEX's Arg-bias at *selection* time. feat-032 pushes the same wet-lab signal to the
 *generator*, raising the ceiling of the weakest category (Gram-) — and, unlike the rejected all-rounder ReST
@@ -910,7 +916,7 @@ Config: `gn_w 1.5` (Gram- target), `lys_w 0.6`, hard ESMC selectivity gate (`--h
 *already* produces abundant Lys-rich candidates (12.2%) and Lys-rich all-rounders scale linearly — so ReST
 **refines the distribution rather than inventing a chemotype**, which is why it can generalise.
 
-**Result — `best.pt` (round 3) strictly dominates feat-031 on every measured axis (shipped top-50, seed 42):**
+**Apparent result (later disproven — see the REVERTED subsection) — `best.pt` (round 3) *appeared to* strictly dominate feat-031 on the APEX axis (shipped top-50, seed 42):**
 
 | | Broad | Gram- | Gram+ | MDR | submodel-min (B/GN/GP/MDR) | R/(R+K) | med P(hemo) | Phase-2 div |
 |---|---|---|---|---|---|---|---|---|
@@ -932,7 +938,7 @@ library **body** is sampled hot (temp 1.6), which recovers diversity: the shippe
 (0.837). A diversity-preserving variant (ReST-v2: anchor 0.5 + dedup-cap) also passes Phase-2 (div 0.842) but
 gives a smaller held-out gain (GN 0.699), so `best.pt` is chosen. 140 tests pass.
 
-**Adoption.** Promoting `best.pt` → `checkpoint/generator.pt` was auto-mode-gated as a shared-resource change and
+**Adoption (subsequently REVERTED — see below).** Promoting `best.pt` → `checkpoint/generator.pt` was auto-mode-gated as a shared-resource change and
 **user-authorised**; feat-031's generator is backed up at `experiments/rest/feat031_generator_backup/` for instant
 rollback. Predictions only — no wet-lab claim. **Official validator PASSED** on the pushed commit `efa6784`
 (fresh GitHub clone + `uv sync` + generate ×2, all 8 checks incl. byte-identical reproducibility + ≤80% novelty +
