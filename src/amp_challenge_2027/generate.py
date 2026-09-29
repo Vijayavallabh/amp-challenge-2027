@@ -377,14 +377,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                              "the library diverse and novel -- the Phase-2 advancement axes -- since the "
                              "activity-tuned generator otherwise concentrates on a few modes "
                              "(default: %(default)s)")
-    parser.add_argument("--top-temperature", type=float, default=1.0,
-                        help="sampling temperature for the TOP-100 CANDIDATE pool (feat-028 mixed-temperature "
-                             "sampling). Lower than --temperature: the ranked pool is drawn cooler so its "
-                             "best candidates sit on the generator's high-activity modes (measured: top-50 "
-                             "Gram- 0.57->0.64, Broad 0.63->0.68 vs a single hot pool, cross-validated on "
-                             "held-out APEX submodels, GP/MDR and 0%%-hemolytic held), while the library body "
-                             "stays at --temperature so Phase-2 diversity is unchanged (0.84). Set equal to "
-                             "--temperature to disable and use one pool (default: %(default)s)")
+    parser.add_argument("--top-temperature", type=float, default=0.8,
+                        help="sampling temperature for the TOP-100 CANDIDATE pool (feat-028/029 mixed-temperature "
+                             "sampling). Lower than --temperature: the ranked pool is drawn cooler so its best "
+                             "candidates sit on the generator's high-activity modes. feat-029 swept 0.6-1.0 and "
+                             "found 0.8 a clean interior optimum (top-50 Gram- 0.57->0.66, Broad 0.63->0.70 vs a "
+                             "single hot pool; +0.02 Gram-/+0.02 Broad over top-temperature 1.0, cross-validated "
+                             "on held-out APEX submodels at seeds 42/43/44; more amphipathic, novelty/selectivity "
+                             "and GP/MDR held), while the library body stays at --temperature so Phase-2 diversity "
+                             "is unchanged (0.84). Set equal to --temperature to disable and use one pool "
+                             "(default: %(default)s)")
     parser.add_argument("--top-p", type=float, default=1.0,
                         help="nucleus sampling cutoff for the trained generator (default: %(default)s)")
     parser.add_argument("--baseline", action="store_true",

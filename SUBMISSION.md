@@ -49,13 +49,13 @@ SOTA protein language model (**ESM Cambrian 600M**, held-out AUROC 0.905), with 
 **diversity screen**, plus a closed-form **amphipathicity** reward on the Eisenberg hydrophobic moment.
 The top-100 candidate pool is sampled at a cooler **mixed temperature** (feat-028) so its best peptides
 sit on the generator's high-activity modes, while the 50k library body stays hot for diversity. The
-assayed **top-50** covers, at ≤16 µM: **Broad 0.68, Gram- 0.64, Gram+ 0.75, MDR 0.67**, at **0%
-predicted-hemolytic** (every top-50 P < 0.08) and strong amphipathicity (µH median 0.54) — a strong,
+assayed **top-50** covers, at ≤16 µM: **Broad 0.70, Gram- 0.66, Gram+ 0.76, MDR 0.67**, at **0%
+predicted-hemolytic** (every top-50 P < 0.08) and strong amphipathicity (µH median 0.56) — a strong,
 balanced five-category
 profile (the Gram+/MDR-targeted generator plus hard-SR selection roughly **doubled** the two hard
 categories from where a broad-activity-only pipeline left them, at no selectivity cost, and the Gram−
 term recovered the weakest category from 0.54 to ~0.57 at zero Gram+/MDR cost), and the designs are
-markedly novel (top-50 median identity to any known AMP 0.62, max 0.73). APEX is the de la Fuente lab's own MIC predictor
+markedly novel (top-50 median nearest-known-AMP identity 0.69, top-100 max 0.79, vs the full 39,448-AMP reference). APEX is the de la Fuente lab's own MIC predictor
 (the lab that runs the competition's assays), used as a moderate, wet-lab-aligned signal, not ground
 truth.
 
@@ -63,10 +63,10 @@ Activity fine-tuning would normally narrow the library, which the phase-1 screen
 sample the **50k library body at an elevated temperature (1.6)** — hot sampling keeps it diverse and
 novel (the Phase-2 advancement axes). But a hot pool also weakens the top-50: the generator's most-
 active designs sit on its high-probability modes, which hot sampling under-samples. So the **top-100
-candidate pool is drawn cooler (`--top-temperature 1.0`, feat-028 mixed-temperature sampling)** and
+candidate pool is drawn cooler (`--top-temperature 0.8`, feat-028/029 mixed-temperature sampling)** and
 ranked separately; only the ~100 selected peptides are cool, and they are prepended to the hot library
-body (which guarantees the top-100 ⊆ library rule). This lifts the assayed top-50 **Gram- 0.57→0.64 and
-Broad 0.63→0.68** (cross-validated across all 8 APEX submodels, GP/MDR and 0%-hemolytic held) while the
+body (which guarantees the top-100 ⊆ library rule). This lifts the assayed top-50 **Gram- 0.57→0.66 and
+Broad 0.63→0.70** (cross-validated across all 8 APEX submodels and at seeds 42/43/44, GP/MDR and 0%-hemolytic held) while the
 library keeps **diversity 0.84 / novelty 1.0 unchanged** — a measured best-of-both, not the "no cost"
 claim an earlier single-hot-pool version asserted.
 
@@ -77,7 +77,7 @@ AMP-like (84% net-cationic, mean length 18); and a **top-100 that is 100% predic
 best-strain MIC ≈2.4 µM), broad-spectrum (top-50 mean ≈5.3 of 11 strains inhibited at ≤16 µM,
 Gram-negative Success Rate ≈56%, Gram-positive ≈34%, MDR ≈38%), comparatively **non-hemolytic** (mean
 predicted P(hemolytic) ≈0.07, vs ≈0.75 for unpenalised actives), and **novel** (top-50 median
-identity to any known AMP ≈0.59, all ≤0.75, within the 0.80 rule).
+nearest-known-AMP identity ≈0.69, top-100 max 0.79, within the 0.80 rule).
 
 ## Model
 
@@ -144,10 +144,10 @@ pre-filtered to the competition constraints (20 standard residues, length 8–50
   torch RNG seeded off the run seed (default 42), topping up in rounds until 50,000 unique/valid/novel
   sequences are collected. **Mixed-temperature (feat-028):** the 50k **library body** is sampled at
   **temperature 1.6** (hot → diverse/novel, the Phase-2 axes), while the separately-ranked **top-100
-  candidate pool** is sampled at **`--top-temperature 1.0`** (cool → its best peptides sit on the
+  candidate pool** is sampled at **`--top-temperature 0.8`** (cool → its best peptides sit on the
   generator's high-activity modes). The top list is prepended to the library body, so the library body
   is entirely temperature-1.6 apart from the ~100 selected peptides — Phase-2 diversity is unchanged
-  (0.84) while the top-50 gains Gram-/Broad (see the abstract and `docs/RESEARCH.md` feat-028). Set
+  (0.84) while the top-50 gains Gram-/Broad (see the abstract and `docs/RESEARCH.md` feat-028/029). Set
   `--top-temperature 1.6` to recover the earlier single-hot-pool run.
 - **Constraint handling:** alphabet, length 8–50, uniqueness, and exclusion of exact matches to
   `data/antibacterial.fasta` are enforced in `src/amp_challenge_2027/constraints.py` and applied

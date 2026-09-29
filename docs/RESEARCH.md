@@ -730,13 +730,73 @@ improve Phase-2 further. It does not pay: diversity rises only marginally (1.6->
 -> 72% of the way to random). The Phase-2 screen rewards libraries that are diverse AND realistic, so
 trading a large realism loss for +0.01 diversity is net-negative. Keep the library body at 1.6.
 
-**Top-temperature is also near-optimal at 1.0 (don't go lower).** Because mixed-temperature decouples the
-top pool, we can push --top-temperature below 1.0 with no Phase-2 cost. Measured (full pipeline): 0.9 and
-0.8 give only marginal top-50 gains (0.8: Gram- 0.640->0.663, Broad 0.680->0.696, GP/MDR ~flat, muH up),
-all within APEX's 0.62-AUROC noise -- but the source pool becomes heavily peaked: the within-list
-diversity screen rejects 1533 near-duplicates at top-temp 1.0, 2274 at 0.9, and 3918 at 0.8. The screened
-top-50 self-identity is flat (0.593), but the underlying motif base narrows sharply, so a cooler top pool
-concentrates the top-50 onto fewer motifs -- a correlated-failure risk when 25 are drawn at random and
-assayed (one motif failing in vitro would sink many). For a one-shot submission that rewards reliability,
-top-temperature 1.0 is the robust choice; the marginal <=0.02 gain from 0.8 is not worth the motif
-concentration. feat-028 ships top-temperature 1.0.
+**Top-temperature optimum is 0.8 (feat-029 -- revises the earlier "keep 1.0" call).** The prior conclusion
+here was that a cooler top pool "concentrates the top-50 onto fewer motifs -- a correlated-failure risk",
+so 1.0 was kept. That reasoning does not survive scrutiny: (i) the screened top-50 self-identity is FLAT
+across top-temperatures (0.465->0.476 from 1.0->0.8), (ii) the within-list diversity screen hard-caps any
+two selected peptides at <60% identity, and (iii) only the *selected* top-50 ship and the random-25 is
+drawn from those -- the peaking of the *rejected* pool body never reaches the submission. The pool does
+peak (the diversity screen rejects 2274 near-dups at 0.9, 3918 at 0.8, 8214 at 0.7, 17829 at 0.6), but
+that does not concentrate what ships. A rigorous frontier (0.6-1.0, `experiments/bulk_permodel.py`) then
+shows 0.8 is a clean *interior* optimum -- see the feat-029 section below. feat-029 ships top-temperature 0.8.
+
+## feat-029 — Top-temperature frontier: 0.8 is the genuine optimum (revises feat-028's top-temp 1.0)
+
+**Context / why re-opened.** feat-028 adopted mixed-temperature sampling with the ranked top-100 pool
+drawn at `--top-temperature 1.0`. A follow-up fine-tune (0.8/0.9) in the same session was *rejected*
+("keep 1.0") on the grounds that a cooler pool peaks the candidate distribution (the diversity screen
+rejected 3918 near-dups at 0.8 vs 1533 at 1.0), risking correlated failure under the random-25 Phase-3
+draw. That reasoning does not survive the data: **top-50 internal self-identity is essentially constant
+across top-temperatures (0.465→0.476 from 1.0→0.8)** — the maximin/diversity selection absorbs the pool
+peaking, so the final top-50 is no less diverse. The rejection was re-examined (devil's-advocate-then-revise).
+
+**Frontier (seed 42, all other params shipped; per-submodel via `experiments/bulk_permodel.py`).**
+
+(nov-med/nov-max = median / max top-50 nearest-known-AMP identity vs the full 39,448-AMP reference; muH via closed-form hydrophobic moment; per-submodel means via `experiments/bulk_permodel.py`.)
+
+| top-temp | Broad | GN | GP | MDR | muH | nov-med | nov-max | phemo-max | self-id |
+|---|---|---|---|---|---|---|---|---|---|
+| 1.0 (feat-028) | 0.680 | 0.640 | 0.750 | 0.667 | 0.537 | 0.667 | 0.800 | 0.079 | 0.465 |
+| 0.9 | 0.691 | 0.660 | 0.745 | 0.667 | 0.553 | 0.667 | 0.769 | 0.083 | 0.471 |
+| **0.8** | **0.696** | **0.663** | **0.755** | **0.673** | **0.558** | 0.691 | **0.769** | **0.073** | 0.476 |
+| 0.7 | 0.689 | 0.654 | 0.750 | 0.667 | 0.510 | 0.667 | 0.800 | 0.069 | 0.487 |
+| 0.6 | 0.684 | 0.651 | 0.740 | 0.667 | 0.524 | 0.696 | 0.800 | 0.057 | 0.485 |
+
+**Clean interior optimum at 0.8** — every headline axis (Broad/GN/GP/MDR) peaks at 0.8 and turns over
+below it; muH (closed-form, oracle-independent) also peaks at 0.8. Novelty holds and the worst case
+improves (identities vs the full 39,448-AMP reference): tt0.8's top-50 nearest-known-AMP max is 0.769
+(top-100 0.788) versus the shipped tt1.0's 0.800 — tt0.8 pulls the least-novel peptide *further* from the
+0.80 gate, with fewer high-identity peptides (2 vs 4 above 0.75); median nearest-known identity 0.69, well
+within the rule. Not a monotone "keep cooling" — a coherent peak (0.7 and 0.6 regress on Broad/GN/muH and
+push a peptide back to the 0.800 gate).
+
+**Anti-Goodhart (held-out submodels).** tt0.8 beats the tt1.0 baseline on **GN 8/8** independent APEX
+submodels (per-submodel GN mean 0.626→0.656, min 0.586→0.609) and **Broad 7/8** (mean 0.630→0.646).
+Every independent judge agrees the gain is real — it is not an artifact of the ensemble-mean ranking
+(contrast feat-027/feat-022, where held-out submodels went flat/collapsed).
+
+**Phase-2 is untouched by construction.** Only the ranked top-100 pool uses `--top-temperature`; the 50k
+library body is still sampled at `--temperature 1.6`. The library bodies for top-temps 0.6–1.0 are
+**byte-identical beyond the prepended top-100** (verified via md5 of `tail -n +201`), so Phase-2
+diversity/novelty/FBD are unchanged. Lowering the top-temperature is therefore pure Phase-3 upside.
+
+**Seed robustness.** The argmax-over-sweep was confirmed not to be seed-42 noise. tt0.8 vs tt1.0,
+per-submodel held-out means (`experiments/scratch seed_analyze.py`):
+
+| seed | GN tt0.8 | GN tt1.0 | GN win | Broad tt0.8 | Broad tt1.0 | Broad win | muH tt0.8 | muH tt1.0 |
+|---|---|---|---|---|---|---|---|---|
+| 42 (ships) | 0.656 | 0.626 | 8/8 | 0.646 | 0.630 | 7/8 | 0.558 | 0.537 |
+| 43 | 0.652 | 0.636 | 6/8 | 0.643 | 0.626 | 7/8 | 0.512 | 0.534 |
+| 44 | 0.651 | 0.644 | 5/8 | 0.641 | 0.636 | 6/8 | 0.545 | 0.536 |
+
+tt0.8 beats tt1.0 on Gram- AND Broad category means at all three seeds -> the effect is structural.
+Honest caveats: the margin and per-submodel agreement shrink at 43/44 (GN 8/8->6/8->5/8) and muH is not
+uniformly higher (seed 43 favours tt1.0), so the shipped seed-42 draw is a *favourable* one and the true
+expected gain is "consistent but modest", not "large". It is a free, downside-free, directionally-robust
+edge on the two weakest categories (Phase-2 untouched, novelty and selectivity improved), which is the
+right profile to take on a one-shot ranked entry.
+
+**Decision: adopt `--top-temperature 0.8`** as the shipped default (was 1.0). Net vs feat-028:
+Gram- 0.640→0.663, Broad 0.680→0.696, GP 0.750→0.755, MDR 0.667→0.673, muH 0.537→0.558, phemo-max
+0.079→0.073, novelty and top-50 diversity held, Phase-2 unchanged, byte-deterministic. Official
+validator re-run on the pushed URL (all 8 checks incl. the ≤80% novelty gate and reproducibility).
