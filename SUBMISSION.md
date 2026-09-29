@@ -320,8 +320,9 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       explored and REVERTED** — its APEX "domination" was Goodhart (a matched APEX-only ReST reached the
       same held-out Gram- 0.83 without the wet-lab prior, and APEX has ~0 real-activity correlation) and it
       regressed near-exact novelty ~2.6× (a Phase-2 advancement-axis risk); feat-031 keeps the genuine
-      wet-lab win via the safe selection route. See docs/RESEARCH.md (feat-032). A validator re-run on the
-      reverted commit + once more immediately before submitting.
+      wet-lab win via the safe selection route. See docs/RESEARCH.md (feat-032). The official
+      validator PASSED again on the revert commit `c33126c` (fresh clone + generate ×2, all 8 checks,
+      byte-identical `9a3278c9`/`61becbab`). Re-run once more immediately before submitting.
 - [x] Every section above filled in, with no placeholder text left
 - [x] Repository public, MIT licensed, `uv.lock` and `.python-version` committed
 - [x] Weights committed or fetchable, and the inference path documented (`checkpoint/`, `oracle/apex/`)

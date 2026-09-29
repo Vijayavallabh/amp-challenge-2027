@@ -32,8 +32,9 @@
 > Wang 2025) with the "mild tie-breaker, penalize excess not pure-Lys, don't hurt Gram+" refinements adopted.
 > **Official validator: PASSED on the shipped feat-031 commit `2f7bb3c`** — fresh GitHub clone + `uv sync` +
 > generate ×2, all 8 checks incl. byte-identical reproducibility + ≤80% novelty gate + real ESM++/ESMC path
-> ("All checks passed. Submission is valid!"); output library `9a3278c9` / top `61becbab`. (A re-run on the
-> feat-032-revert commit will re-confirm the restored checkpoint reproduces this exact output.)
+> ("All checks passed. Submission is valid!"); output library `9a3278c9` / top `61becbab`. Re-confirmed on the
+> feat-032-revert commit **`c33126c`**: fresh clone + generate ×2, all 8 checks PASSED, byte-identical output
+> `9a3278c9` / `61becbab` — the restored feat-031 checkpoint reproduces the exact validated submission.
 > Only **feat-010 (one-shot Kaggle submit)** remains — user-gated (team name + `j_v_v_07` go-ahead; rotate the
 > `KGAT_` token).
 
