@@ -327,8 +327,8 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       — *"All checks passed. Submission is valid!"*, all 8 checks incl. byte-identical reproducibility, the ≤80%
       novelty gate, and the real ESM++/ESMC selectivity path; fresh-clone output library `06e30960`, top
       `dc37c540` (byte-identical to local, and to the pre-fix `84e2b78` — the fix is byte-neutral on the shipped
-      parallel path). Head is now `4108f3b` (docs-only atop `1c091e5`). **Re-run once more on the final pushed
-      commit immediately before submitting.** History: the earlier **feat-031 APEX-ranked
+      parallel path). Subsequent commits are docs-only atop the validated `1c091e5`. **Re-run once more on the
+      final pushed commit immediately before submitting.** History: the earlier **feat-031 APEX-ranked
       default PASSED** the official validator on commit `f4eed63` (fresh-clone output `9a3278c9`/`61becbab`);
       recover it with `--composition-weight 0`. **feat-032 (a Lys-conditioned Gram--ReST generator) was
       explored and REVERTED** (its APEX "domination" was ensemble-Goodhart; it regressed near-exact

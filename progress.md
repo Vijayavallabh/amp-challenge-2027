@@ -14,15 +14,16 @@
 > R/(R+K) 0.60→**0.33** (Lys>Arg 14%→94%), aromatic 0.20→0.10, **0% predicted-hemolytic (ESMC max 0.038, better
 > than feat-031's 0.073)**, novelty 0/50 >0.80 (top-50 median 0.69, top-100 max 0.80), diversity clean. Library
 > **byte-identical to feat-031's save the top-100**, so Phase-2 (diversity 91% NN<0.6 / novelty median 0.60, 1.3%
-> >0.80 / uniqueness 1.0) is unchanged. **155 tests pass** (feat-033 hardening added `tests/test_composition.py`,
-> 15 cases, for the previously-untested default-on path); compliance PASS; **byte-reproducible** (two default runs →
+> >0.80 / uniqueness 1.0) is unchanged. **156 tests pass** (feat-033/034 hardening added `tests/test_composition.py`
+> + an APEX thread-pinning guard, for previously-untested paths); compliance PASS; **byte-reproducible** (two default runs →
 > top `dc37c540` / lib `06e30960`). APEX-*predicted* profile Broad 0.64/GN 0.85/GP 0.26/MDR 0.33 — the GP/MDR drop
 > is APEX mis-scoring the Lysine chemotype; on every real-data test composition selection ties-or-beats APEX
 > selection on all 4 categories. **Adopted with the participant's explicit go-ahead** (a strategic call on the
-> one-shot graded submission). Official validator **PASSED on the pushed commit `84e2b78`** (fresh clone + `uv
-> sync` + generate ×2, all 8 checks, fresh-clone output byte-identical `06e30960`/`dc37c540`); re-run once more
-> on the final commit before submitting. `--composition-weight 0` recovers feat-031. Only the user-gated Kaggle
-> submit remains.
+> one-shot graded submission). Official validator **PASSED on the byte-repro-hardened commit `1c091e5`** (feat-034;
+> originally on feat-033 `84e2b78`, byte-identical — the byte-fix is byte-neutral): fresh clone + `uv sync` +
+> generate ×2, all 8 checks, fresh-clone output byte-identical `06e30960`/`dc37c540`; re-run once more on the final
+> commit before submitting. `--composition-weight 0` recovers feat-031. Only the user-gated Kaggle submit remains.
+> **See the feat-034 note below for the adversarial-audit hardening + byte-repro fix (2026-09-29).**
 >
 > **Adversarial code-review hardening (2026-09-29, docs/RESEARCH.md "feat-033 adversarial code review").** A
 > delegated review's load-bearing question — is the shipped λ=1.5 hemolysis penalty still the pure-composition

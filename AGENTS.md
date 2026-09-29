@@ -31,7 +31,12 @@ Break any of these and the submission is rejected, not merely scored badly.
    `generate/library.fasta` (exactly 50,000 sequences) and `generate/top.fasta` (exactly 100,
    all of them present in the library). Every flag keeps a default.
 2. **Output is byte-identical across runs.** The validator generates twice and compares bytes.
-   Seed every RNG from `--seed` (default 42).
+   Seed every RNG from `--seed` (default 42). APEX runs in a subprocess whose env is built by
+   `ApexScorer._apex_env()` — it pins `OMP/MKL/OPENBLAS/NUMEXPR_NUM_THREADS=1` because multi-threaded
+   MKL/oneDNN reductions are not bit-reproducible. **Both** the pooled (`_run_pool`) and sequential
+   (`_run_apex`) scoring paths must use it: the grader's core count / free memory selects the path, and
+   an unpinned path fails the byte check. Never build that env inline (a hand-synced copy once drifted
+   and only the pooled path was thread-pinned — a latent disqualification; see feat-034).
 3. **uv is the only environment tool.** `uv add` / `uv remove`, never `pip install`, conda,
    poetry, or hand-edited `[project.dependencies]`. `uv.lock` and `.python-version` stay committed.
 4. **Sequence constraints are absolute** — 20 standard residues (`ACDEFGHIKLMNPQRSTVWY`), length
