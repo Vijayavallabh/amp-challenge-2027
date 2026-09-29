@@ -109,6 +109,8 @@ def build_ranker(model: PeptideGenerator, args: argparse.Namespace):
                 refine_k=args.refine_k,
                 amphipathicity_bonus=args.amphipathicity_bonus,
                 lys_hedge=args.lys_hedge,
+                composition_weight=args.composition_weight,
+                aromatic_weight=args.aromatic_weight,
             )
             print(f"Ranking: {ranker.name}")
             return ranker
@@ -477,6 +479,21 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                              "actives are abundant), and the ESMC safety-window is best in the resulting "
                              "0.4-0.5 band. Applies to --select score. See docs/RESEARCH.md (feat-031); "
                              "0.0 recovers the feat-029 selection (default: %(default)s)")
+    parser.add_argument("--composition-weight", type=float, default=1.0,
+                        help="feat-033 wet-lab COMPOSITION ranking (SHIPPED DEFAULT). When > 0, the top-100 is ranked NOT by "
+                             "the APEX activity score (which anti-ranks real activity within the band it "
+                             "selects -- validated on the 46 wet-lab MICs, docs/RESEARCH.md feat-033) but by "
+                             "composition_weight * (lys_fraction - --aromatic-weight * aromatic_fraction) minus "
+                             "the ESMC hemolysis penalty, restricted to the APEX-active band (top --refine-k by "
+                             "APEX; APEX kept only as the coarse active-band GATE it is good at). Lys-richness / "
+                             "low aromatic content is the strongest real-activity predictor on the 46 (top-15 "
+                             "real broad SR 0.46 vs 0.31 baseline, Gram- 0.54 vs 0.34) and lands in the Lys/Arg "
+                             "blend zone the literature endorses. Supersedes --amphipathicity-bonus and "
+                             "--lys-hedge (no-ops when > 0). Applies to --select score. 0.0 = off, the "
+                             "APEX-ranked feat-031 path (default: %(default)s)")
+    parser.add_argument("--aromatic-weight", type=float, default=0.5,
+                        help="weight on the aromatic-fraction penalty inside --composition-weight ranking "
+                             "(default: %(default)s). Only used when --composition-weight > 0.")
 
     args = parser.parse_args(argv)
     if args.length is not None:
@@ -485,6 +502,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--amphipathicity-bonus must be a finite value >= 0")
     if not (0.0 <= args.lys_hedge < float("inf")):
         parser.error("--lys-hedge must be a finite value >= 0")
+    if not (0.0 <= args.composition_weight < float("inf")):
+        parser.error("--composition-weight must be a finite value >= 0")
+    if not (0.0 <= args.aromatic_weight < float("inf")):
+        parser.error("--aromatic-weight must be a finite value >= 0")
     if not (0.0 < args.top_temperature < float("inf")):
         parser.error("--top-temperature must be a finite value > 0")
     if not (0.0 < args.temperature < float("inf")):
@@ -540,6 +561,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.lys_hedge > 0:
             print("  NOTE: --lys-hedge applies to --select score only; the maximin selector ranks "
                   "by per-category rates and ignores it (no hedge applied)")
+        if args.composition_weight > 0:
+            print("  NOTE: --composition-weight applies to --select score only; the maximin selector "
+                  "ranks by per-category rates and ignores it (no composition ranking applied)")
         top = select_maximin(rank_pool, ranker, args.top_k, reference,
                              diversity_max_identity=args.diversity_max_identity)
     else:

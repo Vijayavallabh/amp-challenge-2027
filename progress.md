@@ -2,11 +2,31 @@
 
 ## Current State
 
-> **SHIPPED SUBMISSION — feat-031 (this is the current truth; feat-021→030 are historical below).**
-> `uv run generate` defaults to **`--top-temperature 0.8` + `--lys-hedge 0.4`** on the feat-020/021 generator
-> (`checkpoint/generator.pt` = `da70fb42`). Top-50 (seed 42): **Broad 0.71, Gram- 0.68, Gram+ 0.76, MDR 0.67, 0%
-> predicted-hemolytic, µH 0.51**; Phase-2 diversity 0.837 / novelty 1.0 / uniqueness 1.0. Official validator
-> PASSED on `2f7bb3c`, `c33126c`, and current HEAD `f4eed63` (fresh clone + generate ×2, all 8 checks; library `9a3278c9` / top `61becbab`, byte-identical).
+> **SHIPPED SUBMISSION — feat-033 (wet-lab-calibrated COMPOSITION ranking; current truth; feat-021→032 historical below).**
+> `uv run generate` defaults to **`--composition-weight 1.0 --aromatic-weight 0.5`** on the feat-020/021 generator
+> (`checkpoint/generator.pt` = `da70fb42`, unchanged). It ranks the top-100 by
+> `lys_fraction − 0.5·aromatic_fraction − 1.5·P(hemolytic)` **within an APEX-active-band gate**, NOT by APEX
+> potency. Rationale (docs/RESEARCH.md feat-033): built the missing test — scored every ranking signal against
+> **real** activity on our 46 wet-lab MICs **and** 946 independent DBAASP peptides (harvested this session).
+> APEX ranks real activity across the full range (Spearman +0.33) but **flattens inside the high-activity band our
+> top-100 lives in** (+0.06), while composition (Lysine-richness) predicts it there (+0.27) — a range-restriction
+> failure. So APEX is kept only as the active-band gate; composition ranks within it. feat-033a top-50 (seed 42):
+> R/(R+K) 0.60→**0.33** (Lys>Arg 14%→94%), aromatic 0.20→0.10, **0% predicted-hemolytic (ESMC max 0.038, better
+> than feat-031's 0.073)**, novelty 0/50 >0.80 (top-50 median 0.69, top-100 max 0.80), diversity clean. Library
+> **byte-identical to feat-031's save the top-100**, so Phase-2 (diversity 91% NN<0.6 / novelty median 0.60, 1.3%
+> >0.80 / uniqueness 1.0) is unchanged. 140 tests pass; compliance PASS; **byte-reproducible** (two default runs →
+> top `dc37c540` / lib `06e30960`). APEX-*predicted* profile Broad 0.64/GN 0.85/GP 0.26/MDR 0.33 — the GP/MDR drop
+> is APEX mis-scoring the Lysine chemotype; on every real-data test composition selection ties-or-beats APEX
+> selection on all 4 categories. **Adopted with the participant's explicit go-ahead** (a strategic call on the
+> one-shot graded submission). The official validator must be **re-run on the pushed commit before submitting**;
+> `--composition-weight 0` recovers feat-031. Only the user-gated Kaggle submit remains.
+>
+> **feat-031 (now the FALLBACK, `--composition-weight 0`) — the previous shipped default.**
+> `--top-temperature 0.8` + `--lys-hedge 0.4` on the same generator. Top-50 (seed 42): **Broad 0.71, Gram- 0.68,
+> Gram+ 0.76, MDR 0.67, 0% predicted-hemolytic, µH 0.51** (APEX-predicted); Phase-2 diversity 0.837 / novelty 1.0 /
+> uniqueness 1.0. Official validator PASSED on `2f7bb3c`, `c33126c`, and `f4eed63` (fresh clone + generate ×2, all 8
+> checks; library `9a3278c9` / top `61becbab`, byte-identical). Superseded because APEX-*ordering* is flat-to-harmful
+> inside the selection band (feat-033); feat-031's `--lys-hedge` only nudged an APEX-dominated ranking.
 > **feat-032 (Lys-conditioned Gram- ReST generator) — EXPLORED then REVERTED.** A ReST fine-tune (wet-lab Lys
 > prior in the reward, gn_w 1.5) produced a generator that *appeared* to strictly dominate feat-031 (APEX Broad
 > 0.751, GN 0.749; held-out submodel GN 0.633→0.843) and passed the official validator + seed-robustness. A

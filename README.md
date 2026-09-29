@@ -7,25 +7,26 @@ Competition Track challenge on discovering new antibiotics against drug-resistan
 `uv run generate` produces the two files the organizers validate: a 50,000-sequence library and a
 ranked top-100 list, reproducibly from a fixed seed.
 
-> **Status: activity-fine-tuned generator + category-aligned APEX/selectivity ranking.**
-> `uv run generate` samples from an autoregressive Transformer (`checkpoint/generator.pt`) that has
-> been **fine-tuned toward predicted activity and selectivity by rejection sampling (ReST)** on the
-> H100s — so its samples are mostly predicted-active, not the ~6% of the pre-trained base — then
-> ranks the top-100 (from an 8×/400k oversampled pool) by a **hard Gram+/MDR Success-Rate APEX
-> score** minus an **ESMC-600M selectivity** penalty (latest-SOTA protein LM, held-out AUROC 0.905),
-> with a within-list diversity screen. A **final ReST round fine-tunes the generator toward the hard
-> Gram+/MDR categories** (distilling only from ESMC-non-hemolytic peptides), and the balanced ranking
-> objective adds a modest **hard Gram−** term (`gn_weight=0.75`) so the weakest category is lifted too.
-> The **top-100 candidate pool is drawn cooler (`--top-temperature 0.8`, feat-028/029 mixed-temperature)**
-> and a small **Arg-excess Gram− hedge (`--lys-hedge 0.4`, feat-031)** corrects a documented Arg-over-Lysine
-> bias in the APEX oracle using our 46 wet-lab MICs. The assayed top-50 covers
-> **Broad 0.71, Gram- 0.68, Gram+ 0.76, MDR 0.67** at **0% predicted-hemolytic** — a strong balanced
-> five-category profile; designs are novel (top-50 median identity 0.67) and ESMFold2-confirmed helices, with
-> the Gram+/MDR activity agreed by 85–88% of APEX's 8 ensemble members (Gram− 96%). The library is sampled hot
-> (temperature 1.6) so it stays diverse and novel for the phase-1 screen at no top-50 activity cost.
-> All figures are computational predictions, not measurements. `--rank likelihood` or `--baseline`
-> fall back if the oracle/checkpoint are unavailable. See [docs/RESEARCH.md](docs/RESEARCH.md) and
-> [feature_list.json](feature_list.json).
+> **Status: activity-fine-tuned generator + wet-lab-calibrated composition ranking (feat-033).**
+> `uv run generate` samples from an autoregressive Transformer (`checkpoint/generator.pt`) **fine-tuned
+> toward predicted activity/selectivity by rejection sampling (ReST)** on the H100s (so its samples are
+> mostly predicted-active, not the ~6% of the pre-trained base), then ranks the top-100 (from an 8×/400k
+> oversampled pool) **not by APEX-predicted potency but by a wet-lab-calibrated composition score** —
+> `lys_fraction − 0.5·aromatic_fraction` within an **APEX-active-band gate**, minus an **ESMC-600M
+> selectivity** penalty (latest-SOTA protein LM, held-out AUROC 0.905), with a within-list diversity screen.
+> We validated every ranking signal against *real* activity — our 46 wet-lab MICs **and** 946 independent
+> DBAASP peptides — and found that inside the high-activity band the top-100 is drawn from, **APEX loses its
+> ranking power** (Spearman +0.06) while **Lysine-richness predicts real activity** (+0.27); so APEX is kept
+> only as the active-band gate and composition does the ranking (`--composition-weight 0` recovers the earlier
+> feat-031 APEX ranking). The top-100 pool is drawn cooler (`--top-temperature 0.8`) — which supplies *more*
+> Lysine-rich non-hemolytic candidates — while the library stays hot (temperature 1.6) for phase-1
+> diversity/novelty. The assayed top-50 is a Lys/Arg **blend** (R/(R+K) 0.33, Lys>Arg in 94% vs 14% under
+> APEX ranking), **0% predicted-hemolytic** (max P 0.04), and **novel** (top-50 median identity 0.69, top-100
+> max 0.80). On every real-data test the composition selection ties-or-beats APEX selection on all four
+> activity categories; its APEX-*predicted* profile looks lopsided (Broad 0.64 / Gram- 0.85 / Gram+ 0.26 /
+> MDR 0.33) only because APEX mis-scores the Lysine chemotype our wet-lab + DBAASP data reward. All figures
+> are computational predictions, not measurements. `--baseline` falls back if the oracle/checkpoint are
+> unavailable. See [docs/RESEARCH.md](docs/RESEARCH.md) and [feature_list.json](feature_list.json).
 
 ## Quick start
 

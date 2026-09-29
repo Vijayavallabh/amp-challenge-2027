@@ -41,23 +41,23 @@ eight independent sub-models, and an offline structural cross-check in which ESM
 SOTA folder — predicts all 100 as confident amphipathic helices, 0 misfold flags).
 
 The top-100 is where the competition is decided (25 of the top 50 are synthesised), so from a large
-**8× (400k)** oversampled pool we rank by a **hard-Success-Rate APEX score** aligned with the five
-scored categories — the fraction of Gram-positive and MDR strains cleared at ≤16 µM plus a broad
-soft-potency tie-break, plus a modest **hard Gram−** term (`gn_weight=0.75`) so the weakest category
-is lifted too — minus a **hemolysis penalty** from a selectivity model built on the latest
-SOTA protein language model (**ESM Cambrian 600M**, held-out AUROC 0.905), with a within-list
-**diversity screen**, plus a closed-form **amphipathicity** reward on the Eisenberg hydrophobic moment.
-The top-100 candidate pool is sampled at a cooler **mixed temperature** (feat-028) so its best peptides
-sit on the generator's high-activity modes, while the 50k library body stays hot for diversity. The
-assayed **top-50** covers, at ≤16 µM: **Broad 0.71, Gram- 0.68, Gram+ 0.76, MDR 0.67**, at **0%
-predicted-hemolytic** (every top-50 P < 0.08) and strong amphipathicity (µH median 0.51) — a strong,
-balanced five-category
-profile (the Gram+/MDR-targeted generator plus hard-SR selection roughly **doubled** the two hard
-categories from where a broad-activity-only pipeline left them, at no selectivity cost, and the Gram−
-term recovered the weakest category from 0.54 to ~0.57 at zero Gram+/MDR cost), and the designs are
-markedly novel (top-50 median nearest-known-AMP identity 0.67, top-100 max 0.79, vs the full 39,448-AMP reference). APEX is the de la Fuente lab's own MIC predictor
-(the lab that runs the competition's assays), used as a moderate, wet-lab-aligned signal, not ground
-truth.
+**8× (400k)** oversampled pool we select it by a **wet-lab-calibrated composition ranking** — the
+submission's central methodological contribution (feat-033). We could only find that this beats
+oracle-based ranking by building the missing test: scoring every candidate signal against *real*
+activity. On our 46 wet-lab MICs (the only APEX-independent ground truth) **and** on 946 independent
+DBAASP peptides we harvested for this purpose, the same picture holds — a **range-restriction failure
+of the oracle**. Across the full activity range APEX ranks real activity well (Spearman ρ +0.33), but
+**within the high-activity band our top-100 is drawn from, APEX loses its ranking power** (ρ falls to
++0.06 in the APEX-top-15%), while simple **composition — Lysine-richness and low aromatic content —
+predicts real activity there** (ρ +0.27), on both datasets independently. So we keep APEX only as the
+coarse **active-band gate** it *is* reliable at (top-20k by predicted Success Rate) and, within that
+band, rank by `lys_fraction − 0.5·aromatic_fraction` minus the selectivity penalty below. Ranking the
+46 by this composition score gives a **real** Broad Success Rate of **0.46** (Gram− 0.54) versus 0.31
+for a random draw and ≤0.30 for *any* APEX score; the DBAASP within-band data confirm it lifts real
+Broad, Gram-negative **and** Gram-positive rates together (e.g. real Gram+ 0.60→0.71 as Lysine weight
+rises). The candidate pool is drawn at a cooler top-temperature (0.8) while the 50k library body stays hot (1.6)
+for diversity (detailed next); a within-list **diversity screen** and the < 0.80 novelty rule complete
+selection.
 
 Activity fine-tuning would normally narrow the library, which the phase-1 screen penalises, so we
 sample the **50k library body at an elevated temperature (1.6)** — hot sampling keeps it diverse and
@@ -65,42 +65,53 @@ novel (the Phase-2 advancement axes). But a hot pool also weakens the top-50: th
 active designs sit on its high-probability modes, which hot sampling under-samples. So the **top-100
 candidate pool is drawn cooler (`--top-temperature 0.8`, feat-028/029 mixed-temperature sampling)** and
 ranked separately; only the ~100 selected peptides are cool, and they are prepended to the hot library
-body (which guarantees the top-100 ⊆ library rule). This lifts the assayed top-50 **Gram- 0.57→0.66 and
-Broad 0.63→0.70** (cross-validated across all 8 APEX submodels and at seeds 42/43/44, GP/MDR and 0%-hemolytic held) while the
-library keeps **diversity 0.84 / novelty 1.0 unchanged** — a measured best-of-both, not the "no cost"
-claim an earlier single-hot-pool version asserted.
+body (which guarantees the top-100 ⊆ library rule). We verified the cooler top-pool is the right choice
+for the **composition** ranker too: it supplies **more** Lysine-rich, low-aromatic, non-hemolytic
+candidates than a hot pool (≈3,700 vs ≈2,000 per 80k sampled), because the activity-fine-tuned
+generator's high-likelihood modes are themselves Lysine-rich — so the composition ranking has ample
+supply to select from, and the library body meanwhile keeps its **diversity/novelty unchanged** (only
+the ~100 selected peptides are cool).
 
-A final ranking term corrects a **bias in the APEX oracle itself**. Scoring our 46 wet-lab MICs (the only
-APEX-independent ground truth) through APEX shows it has **no predictive signal for real activity on novel
-peptides** (APEX-predicted vs real Gram- Success Rate Spearman −0.13; Broad −0.29) and is **systematically
-biased toward Arginine over Lysine** on Gram-negatives (its prediction error vs Arg-fraction R/(R+K) is
-+0.41, p=0.003), whereas the *real* Gram- Success Rate favours **Lysine-richness** (−0.40, p=0.004,
-bootstrap- and leave-one-out-robust). Because 15 of the 20 real strains are Gram-negative and this bias is
-shared across all 8 APEX submodels (so held-out-submodel cross-validation is blind to it), we subtract a
-small **Arg-excess penalty** `--lys-hedge 0.4 · max(0, R/(R+K) − 0.4)` from the ranking (`oracle.arg_excess`).
-It penalises *excess* Arg rather than rewarding pure Lys — pushing the top-50 toward the balanced Lys/Arg
-**blends** the peptide literature finds most active-and-selective on Gram-negatives (Hackney 2026; Zou 2007;
-Wang 2025), never toward poly-Lys. Because APEX's Gram- score is flat across R/(R+K) 0.2–0.8 and such blend
-peptides are abundant, this is a **tie-breaker at ~zero cost**: it de-biases the top-50 from 82% to 70%
-Arg-dominant (median R/(R+K) 0.67→0.60) while APEX Broad/Gram- actually *rise*, Gram+/MDR and the 0%-hemolytic
-selectivity hold, novelty and amphipathicity are preserved, and the improvement replicates across seeds
-42/43/44 — a robustness gain from data no oracle-only pipeline would find. See `docs/RESEARCH.md` (feat-031).
+The composition push is deliberately **paired with a selectivity penalty**, without which it would fail:
+a composition-only ranking drifts hemolytic (a pure-composition top-50 hits ESMC-predicted P(hemolytic)
+**0.89**), because the most Lysine-rich cationic peptides can be membrane-lytic. So within the active band
+we subtract **1.5·P(hemolytic)** from an **ESM Cambrian 600M** selectivity model (held-out AUROC 0.905;
+details below), which holds the shipped top-50 at **0% predicted-hemolytic** (median P 0.001, max **0.038**
+— *better* selectivity than APEX-potency ranking's 0.073). The resulting top-50 sits in the Lysine/Arginine
+**blend** the peptide literature finds most active-and-selective on Gram-negatives (Hackney 2026; Zou 2007;
+van der Walt 2025): median R/(R+K) **0.33** (Lysine exceeds Arginine in **94%** of the top-50, versus 14%
+under APEX ranking), aromatic fraction 0.10, net charge +7, length 18.
+
+For transparency we also report the top-50's **APEX-predicted** Success Rates at ≤16 µM — **Broad 0.64,
+Gram- 0.85, Gram+ 0.26, MDR 0.33** — but read them through the finding above. The very high Gram-negative
+and the low Gram-positive/MDR *both* reflect APEX's chemotype bias, not expected real activity: APEX rewards
+the Arginine/aromatic peptides it was trained to favour and under-scores the Lysine-rich chemotype. On
+**every** real-activity test we have — the 46 wet-lab MICs and the DBAASP within-band analysis — the
+composition selection **ties or beats** APEX-potency selection on all four activity categories *including
+Gram-positive and MDR* (46: real Gram+ 0.30 vs 0.22; DBAASP within-band: real Gram+ rises 0.60→0.71 as
+Lysine weight rises). We therefore expect this selection to raise real assayed activity across the board
+relative to oracle ranking — most confidently on the Gram-negative-dominated **Broad** category and the
+**Selectivity** window — while giving up APEX's (mis-calibrated) Gram+/MDR *predictions*, which the real
+data show do not track real activity inside our selection band. This is an explicit, data-grounded,
+one-shot-appropriate bet: an informational edge from wet-lab + external data that a pure oracle pipeline
+cannot find. See `docs/RESEARCH.md` (feat-033).
 
 The result (all figures are **computational predictions, not measurements** — we make no wet-lab
-efficacy claim): a 50,000-peptide library that is **diverse** (≈81% of a random 500-sample mutually
-<0.6 identity), **novel** (median Levenshtein identity to any known AMP ≈0.60, 1.6% above 0.80), and
-AMP-like (84% net-cationic, mean length 18); and a **top-100 that is 100% predicted-active** (median
-best-strain MIC ≈2.4 µM), broad-spectrum (top-50 Success Rate at ≤16 µM **Broad 0.71, Gram- 0.68,
-Gram+ 0.76, MDR 0.67**), **0% predicted-hemolytic** (median predicted P(hemolytic) ≈0.001, every top-50
-< 0.08, vs ≈0.75 for unpenalised actives), and **novel** (top-50 median
-nearest-known-AMP identity ≈0.67, top-100 max 0.79, within the 0.80 rule).
+efficacy claim): a 50,000-peptide library that is **diverse** (91% of a random 500-sample have
+nearest-neighbour Levenshtein identity < 0.6), **novel** (median identity to any known AMP ≈0.60, 90th
+percentile 0.69, 1.3% above 0.80), and AMP-like (88% net-cationic, mean length 19); and a **top-100**
+drawn from the APEX-active band and ranked by wet-lab-calibrated composition — all predicted active on
+multiple strains, **0% predicted-hemolytic** (median P(hemolytic) 0.001, every top-50 < 0.04), and
+**novel** (top-50 median nearest-known-AMP identity 0.69, top-100 max 0.80, none an exact match, all
+within the 0.80 rule).
 
 ## Model
 
 - **Approach:** generative autoregressive language model over the 20-amino-acid alphabet (a
   generative method, as required), **fine-tuned toward predicted activity/selectivity by
-  rejection-sampling fine-tuning (ReST)**. Candidates are then ranked by an external activity oracle
-  (APEX) with a hemolysis-selectivity penalty and a diversity screen — see *Selection and ranking*
+  rejection-sampling fine-tuning (ReST)**. Candidates are then ranked by a **wet-lab-calibrated
+  composition score within an APEX-active-band gate** (feat-033), with a hemolysis-selectivity penalty
+  and a diversity screen — see *Selection and ranking*
   below and `docs/RESEARCH.md`.
 - **Architecture and size:** decoder-only Transformer (`src/amp_challenge_2027/nn.py`) — 6 layers,
   d_model 384, 6 heads, ~10.68M parameters, trained from scratch on the AMP corpus.
@@ -173,44 +184,46 @@ pre-filtered to the competition constraints (20 standard residues, length 8–50
   1.2). Rejections are duplicates, the rare invalid sequence, and any exact match to the reference
   set. The library is 50,000 unique valid sequences; a fresh run reproduces it byte-for-byte.
 - **Library characterization (for the phase-1 diversity/novelty/physicochemical screen):**
-  **diverse** (≈81% of a random 500-peptide sample are mutually below 0.6 Levenshtein identity),
-  **novel** (median max-identity to any known AMP ≈0.60, 90th percentile ≈0.69, only ≈1.6% above 0.80
-  — and the library rule only forbids *exact* matches), and physicochemically **AMP-like** — 84%
-  net-cationic, length 8–50 (mean ≈18), moderate hydrophobicity. Activity fine-tuning did not
+  **diverse** (91% of a random 500-peptide sample have nearest-neighbour Levenshtein identity below
+  0.6), **novel** (median max-identity to any known AMP ≈0.60, 90th percentile ≈0.69, only ≈1.3% above
+  0.80 — and the library rule only forbids *exact* matches), and physicochemically **AMP-like** — 88%
+  net-cationic, length 8–50 (mean ≈19), moderate hydrophobicity. Activity fine-tuning did not
   collapse the library: hot sampling (temperature 1.6) keeps it distributionally realistic and
-  non-redundant, comparable to the un-fine-tuned base generator.
+  non-redundant, comparable to the un-fine-tuned base generator. The library is essentially unchanged
+  by the feat-033 composition ranking, which reorders only the ~100 top-list peptides prepended to it.
 
 ## Selection and ranking of the top 100
 
 This is a required deliverable and it is what the competition measures — 25 peptides are drawn at
 random from the top 50 and assayed.
 
-- **Scoring function:** `score = balanced_success_score + 0.2·amphipathicity_bonus − 0.4·arg_excess −
-  1.5·P(hemolytic)`, applied to a large **8× (400k)** oversampled candidate pool.
-  - *arg_excess* (feat-031) — `max(0, R/(R+K) − 0.4)`, a deterministic **wet-lab-grounded Gram- de-bias**.
-    APEX has no predictive signal for real activity on our 46 wet-lab peptides (Gram- ρ −0.13) and is
-    significantly biased toward Arg over Lys on Gram-negatives (prediction-error vs R/(R+K) ρ +0.41,
-    p=0.003), while *real* Gram- success favours Lys-richness (ρ −0.40, p=0.004) — a bias shared across all
-    8 submodels, so the held-out-submodel guard is blind to it. This tie-breaker penalises Arg *excess* only
-    (pushing to Lys/Arg blends, never poly-Lys); since APEX Gram- is flat across R/(R+K) 0.2–0.8, it
-    de-biases the top-50 (82%→70% Arg-dominant) at ~zero APEX cost — Broad/Gram- rise, Gram+/MDR/selectivity
-    hold, seed-robust (42/43/44). See the abstract and `docs/RESEARCH.md` (feat-031).
-  - *balanced_success_score* — from **APEX-pathogen** (`oracle/apex`, run as an isolated `uv`
-    subprocess), which predicts MIC (µM) against 11 clinical pathogens. We score the **hard
-    Gram-positive and MDR Success Rate** (the fraction of those strains cleared at ≤16 µM — exactly
-    the competition metric) plus a broad soft-Success-Rate tie-break:
-    `SR_hard(Gram+) + SR_hard(MDR) + 0.5·mean soft-success`. This directly targets the two categories
-    cationic AMPs are weakest on. An earlier *soft*-averaged score (`category_success_score`) was
-    dominated by the many easy Gram-negative strains and plateaued at ~0.37 Gram+ Success Rate for
-    *any* weighting; ranking by the **hard** Gram+/MDR rate instead surfaces the peptides that truly
-    clear those strains. Combined with the Gram+/MDR-targeted ReST generator (above), this brings the
-    assayed top-50 to **Gram+ 0.74 / MDR 0.67** (from 0.37 / 0.42 under a broad-activity-only pipeline)
-    while holding Broad 0.63 / Gram- 0.57 — *this ranking term's contribution in isolation*; the feat-028/029
-    mixed-temperature pool and the feat-031 Arg-excess hedge then lift the shipped top-50 to the headline
-    **Broad 0.71 / Gram- 0.68 / Gram+ 0.76 / MDR 0.67** (see the abstract). We validated APEX against the 46 wet-lab-measured peptides in
-    `data/experimental/mic.csv`: a moderate, wet-lab-aligned signal (AUROC 0.76 known-AMP vs random;
-    0.62 per-(peptide,strain) on novel peptides), so we rank by it but do not chase its extreme tail.
-    Details in `docs/RESEARCH.md`.
+- **Scoring function (feat-033):** within an **APEX-active-band gate**, `score = composition_score −
+  1.5·P(hemolytic)`, where `composition_score = lys_fraction − 0.5·aromatic_fraction`, applied to a
+  large **8× (400k)** oversampled candidate pool. The top-100 is ranked by **wet-lab-calibrated
+  composition**, not by APEX-predicted potency — a deliberate inversion we justify by testing every
+  candidate signal against *real* activity.
+  - *APEX-active-band gate* — from **APEX-pathogen** (`oracle/apex`, isolated `uv` subprocess), which
+    predicts MIC (µM) against the 11 clinical pathogens. We take the **top-20,000** candidates by APEX
+    balanced Success-Rate score as the "active band" and rank *within* it by composition. Why
+    gate-not-rank: on our 46 wet-lab MICs **and** on 946 independent DBAASP peptides, APEX ranks real
+    activity well across the *full* range (Spearman ρ **+0.33**; full-range top-decile-by-APEX real Broad
+    0.77) but **flattens inside the high-activity band** the top-100 is drawn from (ρ **+0.06** in the
+    APEX-top-15%) — a textbook range-restriction failure. So APEX is excellent at *reaching* the active
+    band (per-(peptide,strain) AUROC 0.62–0.67) and unreliable for *ordering within* it. See
+    `docs/RESEARCH.md` (feat-033).
+  - *composition_score* (`oracle.composition_score`) — `lys_fraction − 0.5·aromatic_fraction`, a
+    deterministic, pool-independent ranker. *Within* the APEX band, **Lysine-richness predicts real
+    activity** (Spearman +0.27 on the DBAASP top-15%, +0.42 on the 46) while APEX does not, and aromatic
+    content anti-predicts it on the 46 while tracking hemolysis. Ranking the 46 by this score gives a
+    **real** Broad Success Rate of **0.46** (Gram- 0.54) versus 0.31 for a random draw and ≤0.30 for
+    *any* APEX score — and it beats APEX on all four activity categories; the DBAASP within-band data
+    replicate the direction (Lysine lifts real Broad, Gram-negative **and** Gram-positive together). The
+    top-50 lands in the Lys/Arg **blend** (median R/(R+K) 0.33), never poly-Lysine — the pure-Lysine
+    extreme is both hemolytic and screened out by the gate + selectivity penalty. This **supersedes** the
+    earlier feat-031 Arg-excess *hedge* (`--lys-hedge`), which only nudged an APEX-dominated ranking: the
+    data show APEX *ordering* is worthless-to-harmful inside the band, so composition is made the primary
+    key rather than a small subtraction. Set `--composition-weight 0` to recover the feat-031 APEX
+    ranking (and `--aromatic-weight` tunes the aromatic term).
   - *P(hemolytic)* — from a **selectivity model built on the latest SOTA protein language model,
     ESM Cambrian 600M** (ESM++ `Synthyra/ESMplusplus_large`, MIT, on GPU-if-available), with a small
     trained MLP head over its mean-pooled embeddings (`checkpoint/selectivity_esmc.pt`, trained on
@@ -219,26 +232,20 @@ random from the top 50 and assayed.
     0.905 — the ceiling is the ~1000-peptide labelled dataset, not model size), so 600M is kept. The
     PLM is applied **two-stage**: rank the whole pool by activity, then score selectivity only on the
     top `refine_k=20000` (the rest assumed hemolytic) — exact for the top-100 and keeps the run fast.
-    Gram+-active cationic peptides are overwhelmingly hemolytic (median P 0.98 vs 0.03), so the
-    **λ=1.5** penalty (calibrated for the balanced score's larger scale) is decisive: it holds the
-    top-50 at **0% ESMC-predicted-hemolytic** (median P 0.001) while preserving the Gram+/MDR gains —
-    the Optimal Selectivity standout is protected, not traded away. The physicochemical model
-    (`checkpoint/hemolysis.pt`) is retained as a graceful fallback if the PLM weights cannot be fetched.
-  - *amphipathicity_bonus* — a **closed-form, deterministic** mechanistic prior: a smooth `[0,1]` reward
-    that rises with each peptide's **Eisenberg hydrophobic moment µH** (a floor-ramp `clip((µH−0.25)/0.25,
-    0, 1)`, saturating at µH 0.50), scaled by **0.2**. Amphipathicity — the segregation of hydrophobic
-    and cationic faces on the helix — is the classic biophysical determinant of membrane disruption, so
-    this prefers the *mechanistically-plausible* designs among the APEX-active ones and de-prioritises
-    sequence-only artefacts the oracle happens to score well (an ESMFold2 structure check found the
-    un-nudged top-50 sat at the weak edge of amphipathicity, with ~26% barely-amphipathic picks). Because
-    µH is a closed-form function of the sequence (no structure prediction), it enters the ranking without
-    breaking byte-reproducibility. It lifts the top-50 µH median **0.31 → 0.40** (barely-amphipathic picks
-    26% → 12%) at ≤0.014 cost to every scored category (Gram+ −0.005, MDR unchanged — all within APEX's
-    0.62-AUROC noise) and **0% predicted-hemolytic held**; a coefficient sweep confirmed the hemolysis
-    gate holds across the range and 0.2 is the knee before the strongest category (Gram+) erodes. It is a
-    hedge against the oracle's transfer error, not a category trade — the "cost" is oracle-internal while
-    the µH gain is oracle-independent. Independently supported by 2026 literature on the amphipathic
-    "Janus α-helix" (doi:10.1016/j.colsurfb.2026.116171). Details in `docs/RESEARCH.md` (feat-025).
+    The most Lysine-rich cationic peptides can be membrane-lytic, so the **λ=1.5** penalty is not a
+    garnish but **essential to the composition ranking**: a composition-only ranking drifts hemolytic (a
+    pure-composition top-50 reaches ESMC P(hemolytic) **0.89**), while pairing composition with the penalty
+    holds the shipped top-50 at **0% ESMC-predicted-hemolytic** (median P 0.001, max **0.038**) — the
+    Optimal Selectivity standout, and *better* here than under APEX-potency ranking (max 0.073). The
+    physicochemical model (`checkpoint/hemolysis.pt`) is retained as a graceful fallback if the PLM
+    weights cannot be fetched.
+  - *Legacy terms (superseded by composition).* Two earlier ranking terms — a closed-form **amphipathicity**
+    reward on the Eisenberg hydrophobic moment (feat-025, `--amphipathicity-bonus`) and the **Arg-excess
+    hedge** (feat-031, `--lys-hedge`) — are **no-ops under the shipped composition ranking**, which subsumes
+    both: it prefers Lysine over Arginine directly, and low-aromatic Lysine-rich peptides are precisely the
+    amphipathic, non-hemolytic class those terms were reaching for. They remain available as flags and take
+    effect only when `--composition-weight 0` recovers the feat-031 APEX-ranked path; see `docs/RESEARCH.md`
+    (feat-025, feat-031).
 - **Ranking procedure:** score every library sequence, sort by descending score (sequence as a
   deterministic tiebreak), then walk down the list applying the novelty and diversity screens
   below until 100 are selected. Fully deterministic — APEX runs in eval mode on CPU, sharded over
@@ -249,17 +256,15 @@ random from the top 50 and assayed.
   `library.fasta` are md5-identical.
 - **Novelty screen:** candidates above 0.80 Levenshtein ratio against any sequence in the
   reference set are rejected and replaced by the next-ranked candidate. In the shipped run the
-  novelty screen rejected **21** higher-ranked candidates — the Gram+/MDR-targeted ReST generator explores new
-  sequence space, so its designs sit comfortably below the 0.80 threshold (top-50 median identity to
-  any known AMP **0.67**, top-100 max **0.79**, none an exact match — *more* novel than the earlier
-  physicochemical/ESMC selections, evidence the harder optimisation is discovering new motifs rather
-  than memorising known AMPs).
+  novelty screen rejected **641** higher-ranked candidates — the composition ranking still sits
+  comfortably below the 0.80 threshold (top-50 median identity to any known AMP **0.69**, top-100 max
+  **0.80**, none an exact match), so no near-duplicate of a known AMP reaches the assayed set.
 - **Diversity or redundancy control within the top 100:** a within-list cap
   (`--diversity-max-identity 0.6`) skips any candidate exceeding 0.60 Levenshtein identity to an
-  already-selected peptide, keeping the more-active member of a near-duplicate pair. **3,119 near-
-  duplicates were rejected** in the shipped run — the cooler top-temperature sampling (feat-028/029)
-  concentrates the ranked top into a few high-activity motif families, so the 0.6 cap does more work to
-  keep the top-100 diverse. This matters because the activity ranking
+  already-selected peptide, keeping the more-active member of a near-duplicate pair. **2,067 near-
+  duplicates were rejected** in the shipped run — the composition ranking concentrates the ranked top
+  into a few Lysine-rich motif families, so the 0.6 cap does real work to
+  keep the top-100 diverse. This matters because the ranking
   concentrates the top of the list into a few cationic motif families, and the random top-50 draw
   would otherwise waste assays on near-duplicates; diversity also hedges against the moderate oracle
   being wrong about a motif. (Hot sampling keeps the *library* diverse; this cap keeps the *top-100*
@@ -273,12 +278,12 @@ Required disclosure. State plainly what was applied, including "none".
   reordered. The entire library and top-100 come from the automated, seeded pipeline.
 - **Computational filters beyond the competition constraints:** a **hemolysis/selectivity penalty**
   (ESMC-600M model `checkpoint/selectivity_esmc.pt`, HemoPI-2; physicochemical `checkpoint/hemolysis.pt`
-  as fallback) applied in ranking; a **closed-form amphipathicity term** (a smooth reward on the Eisenberg
-  hydrophobic moment, coefficient 0.2, added to the activity score — see *Selection and ranking*); and a
-  **within-list diversity cap** (0.60 Levenshtein identity). The amphipathicity term is a soft additive
-  reward, **not** a hard window — no candidate is excluded by it, and no charge/pI, aggregation, or
-  solubility filters are applied; those other properties emerge from the generator and are only *measured*
-  for disclosure.
+  as fallback) applied in ranking; a **wet-lab-calibrated composition ranking** (feat-033 — the top-100 is
+  ranked by Lysine-richness minus aromatic content within the APEX-active band, `oracle.composition_score`);
+  and a **within-list diversity cap** (0.60 Levenshtein identity). The composition term is a *ranking* key,
+  **not** a hard window — beyond the APEX-active-band gate no candidate is excluded by it, and no charge/pI,
+  aggregation, or solubility filters are applied; those other properties emerge from the generator and are
+  only *measured* for disclosure.
 - **External predictors or databases used at selection time:** **APEX-pathogen** (MIC predictor,
   MIT-licensed, vendored under `oracle/apex`) for activity; an **ESM Cambrian 600M** selectivity model
   (ESM++ `Synthyra/ESMplusplus_large`, MIT weights fetched from HuggingFace; HemoPI-2-trained head) for
@@ -315,18 +320,16 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       API, `userHasEntered=True` (feat-004)
 - [ ] Submitting from `j_v_v_07`, not from the machine's default token account
 - [ ] `./init.sh` green, including the two-run byte-identical check
-- [x] `scripts/verify_submission.py` **PASSED on the shipped feat-031 default** (`--top-temperature 0.8
-      --lys-hedge 0.4`): fresh GitHub clone of commit `2f7bb3c` + `uv sync` + generate ×2 —
-      *"All checks passed. Submission is valid!"*, all 8 checks incl. byte-identical reproducibility and
-      the ≤80% novelty gate, real ESM++/ESMC selectivity path; fresh-clone output library `9a3278c9`, top
-      `61becbab` (byte-identical to local). **feat-032 (a Lys-conditioned Gram--ReST generator) was
-      explored and REVERTED** — its APEX "domination" was Goodhart (a matched APEX-only ReST reached the
-      same held-out Gram- 0.83 without the wet-lab prior, and APEX has ~0 real-activity correlation) and it
-      regressed near-exact novelty ~2.6× (a Phase-2 advancement-axis risk); feat-031 keeps the genuine
-      wet-lab win via the safe selection route. See docs/RESEARCH.md (feat-032). The official
-      validator PASSED again on the revert commit `c33126c` and on the current HEAD `f4eed63` (docs-only
-      atop the revert; fresh clone + `uv sync` + generate ×2, all 8 checks, fresh-clone output byte-identical
-      `9a3278c9`/`61becbab`). Re-run once more immediately before submitting.
+- [ ] `scripts/verify_submission.py` on the **feat-033 composition-ranking default** — **re-run on the
+      pushed commit before submitting** (it clones the public repo, `uv sync`, generate ×2, all 8 checks
+      incl. byte-identical reproducibility, the ≤80% novelty gate, and the real ESM++/ESMC selectivity
+      path). Locally, feat-033 regenerates **byte-identically** (two default runs → top `dc37c540…`,
+      library `06e30960…`) and the compliance check passes. History: the earlier **feat-031 APEX-ranked
+      default PASSED** the official validator on commit `f4eed63` (fresh-clone output `9a3278c9`/`61becbab`);
+      recover it with `--composition-weight 0`. **feat-032 (a Lys-conditioned Gram--ReST generator) was
+      explored and REVERTED** (its APEX "domination" was ensemble-Goodhart; it regressed near-exact
+      novelty). See docs/RESEARCH.md (feat-031, feat-032, **feat-033**). Re-run the validator once more
+      immediately before submitting.
 - [x] Every section above filled in, with no placeholder text left
 - [x] Repository public, MIT licensed, `uv.lock` and `.python-version` committed
 - [x] Weights committed or fetchable, and the inference path documented (`checkpoint/`, `oracle/apex/`)

@@ -489,3 +489,40 @@ def arg_excess(sequences: list[str], floor: float = ARG_EXCESS_FLOOR) -> np.ndar
         if rk > 0:
             out[i] = max(0.0, r / rk - floor)
     return out
+
+
+#: Aromatic residues (Phe/Trp/Tyr). On the 46 wet-lab MICs their fraction ANTI-correlates with real
+#: broad/Gram- Success Rate (Spearman -0.31 / -0.32), so the composition ranker penalises them.
+_AROMATIC = "FWY"
+
+
+def lys_fraction(sequences: list[str]) -> np.ndarray:
+    """Lys count / length per sequence -- the single strongest REAL-activity predictor on the 46 wet-lab
+    MICs (Spearman vs real broad Success Rate +0.42, Gram- +0.46; both survive partial controls for net
+    charge, length and APEX score). Crucially APEX orders the OPPOSITE way *within* the APEX-active band it
+    selects (docs/RESEARCH.md feat-033: ranking by any APEX score gives real SR at or below random), so
+    composition -- not APEX potency -- is what actually orders real activity there. Deterministic."""
+    return np.array([s.count("K") / len(s) if s else 0.0 for s in sequences], dtype=float)
+
+
+def aromatic_fraction(sequences: list[str]) -> np.ndarray:
+    """(Phe+Trp+Tyr) count / length per sequence. Higher aromatic content ANTI-predicts real broad/Gram-
+    Success Rate on the 46 wet-lab MICs (Spearman -0.31 / -0.32) and tracks hemolysis, so the composition
+    ranker penalises it. Deterministic (pure sequence function), so byte-reproducibility holds."""
+    return np.array([sum(c in _AROMATIC for c in s) / len(s) if s else 0.0 for s in sequences], dtype=float)
+
+
+def composition_score(sequences: list[str], aromatic_weight: float = 0.5) -> np.ndarray:
+    """Wet-lab-calibrated composition ranking signal: ``lys_fraction - aromatic_weight * aromatic_fraction``.
+
+    The APEX oracle ANTI-ranks real activity *within* the APEX-active band it selects (on the 46 wet-lab
+    MICs, ranking peptides by any APEX score gives real Success Rate at or below the random baseline,
+    Spearman -0.28..-0.31), while simple composition -- Lys-richness, low aromatic content -- strongly
+    predicts it (top-15-by-this on the 46: real broad SR 0.46 vs 0.31 baseline, Gram- 0.54 vs 0.34; beats
+    APEX on all four categories, and is more robust than a fitted stack, which overfits n=46). This is the
+    key the composition ranking mode sorts by, WITHIN an APEX-active-band gate and MINUS the ESMC
+    selectivity penalty -- the Lys push must be paired with the hemolysis penalty or it drifts hemolytic
+    (a pure-composition top-50 hit ESMC P(hemolytic) 0.89). In practice the gate + selectivity keep it in
+    the Lys/Arg BLEND zone (R/(R+K) ~ 0.4), which the literature endorses (Arg still helps Gram+). See
+    docs/RESEARCH.md (feat-033). Deterministic."""
+    return lys_fraction(sequences) - float(aromatic_weight) * aromatic_fraction(sequences)

@@ -177,6 +177,8 @@ class ApexRanker:
         refine_k: int = 20000,
         amphipathicity_bonus: float = 0.0,
         lys_hedge: float = 0.0,
+        composition_weight: float = 0.0,
+        aromatic_weight: float = 0.5,
     ) -> None:
         from .oracle import ApexScorer  # lazy: keeps model.py importable without the oracle
 
@@ -218,17 +220,32 @@ class ApexRanker:
         # to it). Near-free on APEX (Gram- SR is flat across R/(R+K) 0.2-0.8). Deterministic. 0.0 = off.
         lh = float(lys_hedge)
         self._lyshedge = lh if (lh == lh and lh not in (float("inf"), float("-inf")) and lh >= 0.0) else 0.0
+        # Optional wet-lab COMPOSITION ranking mode (feat-033): when > 0, the top-100 is ranked not by the
+        # APEX activity score at all (which ANTI-ranks real activity within the band it selects -- see
+        # docs/RESEARCH.md), but by ``composition_weight * (lys_fraction - aromatic_weight*aromatic_fraction)``
+        # MINUS the ESMC selectivity penalty, restricted to the APEX-active band (top ``refine_k`` by APEX --
+        # APEX kept only as a coarse active-band GATE, its documented strength). This is the single
+        # highest-leverage, wet-lab-grounded lever; it supersedes the amphipathicity bonus and lys-hedge
+        # (both no-ops in this mode). 0.0 = off (the APEX-ranked feat-031 path). Non-finite/negative -> off.
+        cw = float(composition_weight)
+        self._compw = cw if (cw == cw and cw not in (float("inf"), float("-inf")) and cw >= 0.0) else 0.0
+        self._aromw = float(aromatic_weight)
         base = {"category": "apex-success", "balanced": "apex-balanced-success"}.get(
             objective, "apex-broad-potency"
         )
-        self.name = (
-            f"{base} - {self._lam:g}*hemolysis"
-            if self._hemo is not None and self._lam > 0 else base
-        )
-        if self._amphi > 0:  # provenance: an enabled bonus must be visible in the printed ranker name
-            self.name += f" + {self._amphi:g}*amphipathicity"
-        if self._lyshedge > 0:  # provenance: an enabled hedge must be visible in the printed ranker name
-            self.name += f" - {self._lyshedge:g}*arg_excess"
+        if self._compw > 0:  # composition mode: APEX is only the active-band gate, not the sort key
+            self.name = f"wetlab-composition(lysfrac - {self._aromw:g}*aromatic) gated by {base}-active-band"
+            if self._hemo is not None and self._lam > 0:
+                self.name += f" - {self._lam:g}*hemolysis"
+        else:
+            self.name = (
+                f"{base} - {self._lam:g}*hemolysis"
+                if self._hemo is not None and self._lam > 0 else base
+            )
+            if self._amphi > 0:  # provenance: an enabled bonus must be visible in the printed ranker name
+                self.name += f" + {self._amphi:g}*amphipathicity"
+            if self._lyshedge > 0:  # provenance: an enabled hedge must be visible in the printed ranker name
+                self.name += f" - {self._lyshedge:g}*arg_excess"
 
     def score(self, sequences: list[str]) -> list[float]:
         import numpy as np
@@ -246,6 +263,8 @@ class ApexRanker:
         else:  # "balanced" -- hard Gram+/MDR/Gram- Success Rate + broad soft tie-break (shipped default)
             activity = balanced_success_score(mic, self._gpw, self._mdrw, self._broadw, self._gnw)
         activity = np.asarray(activity, dtype=float)
+        if self._compw > 0:  # wet-lab composition mode: rank by composition, APEX only as active-band gate
+            return self._composition_rank(sequences, activity)
         if self._amphi > 0:  # closed-form amphipathic-moment nudge (deterministic; off by default)
             activity = activity + self._amphi * amphipathicity_bonus(sequences)
         if self._lyshedge > 0:  # wet-lab Gram- de-bias: penalise Arg-over-Lys excess (deterministic)
@@ -263,6 +282,38 @@ class ApexRanker:
             self._hemo.predict_proba([sequences[int(i)] for i in order]), dtype=float
         )
         return (activity - self._lam * phemo).tolist()  # activity is already a float ndarray
+
+    def _composition_rank(self, sequences: list[str], activity) -> list[float]:
+        """Rank by wet-lab composition within the APEX-active band (feat-033), minus selectivity.
+
+        ``activity`` is the APEX balanced Success-Rate score, used ONLY to define the active-band gate
+        (top ``refine_k`` candidates). Within that band, candidates are ordered by
+        ``composition_weight * (lys_fraction - aromatic_weight*aromatic_fraction) - lambda*P(hemolytic)``;
+        candidates outside the band get -1e9 so they are never selected. This inverts the usual ranking
+        (APEX anti-ranks real activity within its own band; composition predicts it -- docs/RESEARCH.md).
+        The ESMC selectivity model is run only on the band (the expensive PLM), matching the two-stage
+        scheme in :meth:`score`. Deterministic: a stable argsort of the fixed APEX activity fixes the band,
+        and composition/selectivity are deterministic, so the twice-run byte comparison holds.
+        """
+        import numpy as np
+
+        from .oracle import composition_score
+
+        n = len(sequences)
+        comp = self._compw * composition_score(sequences, self._aromw)
+        k = min(n, self._refine_k) if self._refine_k > 0 else n
+        band = np.argsort(-activity, kind="stable")[:k]  # APEX active-band gate (its documented strength)
+        final = comp.astype(float)
+        if self._hemo is not None and self._lam > 0:
+            phemo = np.ones(n, dtype=float)
+            phemo[band] = np.asarray(
+                self._hemo.predict_proba([sequences[int(i)] for i in band]), dtype=float
+            )
+            final = final - self._lam * phemo
+        mask = np.zeros(n, dtype=bool)
+        mask[band] = True
+        final[~mask] = -1e9  # hard gate: APEX-inactive candidates are never selected into the top-100
+        return final.tolist()
 
     def maximin_data(self, sequences: list[str]):
         """Return ``(category_rates (n, 4), phemo (n,))`` for the maximin top-list selector.

@@ -984,3 +984,79 @@ are mandatory before trusting an oracle-optimised gain: **(a) a matched control 
 term** (here, lys_w=0 showed the gain was not from the wet-lab prior), and **(b) at least one truly independent
 axis** (wet-lab composition; near-exact novelty). The one lever that survived both this session is the wet-lab
 composition prior applied at *selection* time (feat-031) — cheap, reversible, and independently grounded.
+
+## feat-033 — Wet-lab-calibrated COMPOSITION ranking: rank within the APEX band, not by APEX (SHIPPED, supersedes feat-031)
+
+**The question feat-031 left open.** feat-031 corrected *one* APEX bias (Arg-over-Lys on Gram−) with a small
+`arg_excess` hedge, but still **ranked by APEX**. This session asked the sharper question: inside the
+high-activity band our top-100 is actually drawn from, does APEX rank real activity at all — and if not, what
+does? The test that answers it is the one no oracle-only pipeline runs: score every candidate ranking signal
+against **real** activity.
+
+**Diagnostic on the 46 wet-lab MICs (matched regime — generated peptides, the exact competition strains).**
+Scoring the 46 through APEX and correlating each per-peptide signal against the real category Success Rates
+(leave-peptide-out; `scratchpad/diag_oracle.py`, `diag2.py`, `sweep_ranker.py`):
+- **APEX ANTI-ranks within the band.** Ranking the 46 by *any* APEX score (balanced / category / SR / min-MIC)
+  gives a top-15 **real** broad Success Rate of 0.19–0.30 — at or *below* the 0.31 random-draw baseline. Every
+  APEX per-peptide signal correlates *negatively* with real SR (Spearman −0.28..−0.31).
+- **Composition predicts it.** frac_K +0.42 (broad) / +0.46 (Gram−); aromatic −0.31 / −0.32; argfrac −0.43 /
+  −0.44 — all surviving partial controls for net charge, length and APEX score. Top-15 by `lys_fraction −
+  0.5·aromatic` → real broad **0.46** (Gram− 0.54) vs 0.31 baseline; beats APEX on all four categories at
+  top-15 and top-25. A *fitted* stack overfits n=46 (leave-peptide-out 0.41 < the fixed composition 0.47), so
+  the ranker is kept **simple and fixed**, not learned.
+
+**The apparent contradiction, and its resolution on 946 independent DBAASP peptides.** The strong n=46 effects
+had to be checked against something bigger and independent, so a subagent reverse-engineered DBAASP's live API
+(the SPA backend `https://dbaasp.org/peptides?targetSpecies.value=<sp>&limit&offset` + `/peptides/{id}`; the
+documented `/api/v1/...` is dead — HTTP 200, empty body) and harvested **1,164 unmodified linear L-peptides /
+6,254 strain-resolved ESKAPE MIC rows** (`scratchpad/dbaasp_mic.csv`), then ran APEX on all of them
+(`dbaasp_*.py`). This **resolved** the tension — it is textbook **range restriction**, not a contradiction:
+- Across the **full** DBAASP range, **APEX ranks real activity well** (Spearman **+0.33**; top-decile-by-APEX
+  real broad 0.77, the best single ranker). So APEX is *not* generally broken — the n=46 "anti-rank" is because
+  the 46 are all APEX-selected actives.
+- Banded by continuous APEX potency, **within the APEX-high band APEX flattens**: full +0.33 → top-30% +0.11 →
+  **top-15% +0.06**, while composition *rises* to **+0.265**. Our top-100 = the extreme APEX tail = this
+  within-band regime, so composition wins *for us* — confirmed independently (n=142–284), matching the 46.
+- The strong n=46 side-effects were partly inflated: DBAASP full-range says argfrac ≈ neutral (+0.05, not −0.43)
+  and aromatic ≈ neutral, and **length** is the biggest full-range signal (+0.26). But *within* the APEX band,
+  more Lysine weight monotonically raises real broad **and Gram-positive** (0.60→0.71) — so the Lysine push
+  helps all categories in our regime, and the APEX-Gram+ *prediction* dropping is APEX mis-scoring the
+  chemotype, not a real loss.
+
+**Calibration (what to ship, and what not to).** `scratchpad/dbaasp_within.py`, `dbaasp_hybrid.py`,
+`bigpool_hybrid.py`:
+- **fracK is the direction-consistent signal** — the one lever the matched 46 (+0.42) and independent DBAASP
+  within-band (+0.27) agree on in *direction*. **length is not** (46: shorter better; DBAASP: longer better —
+  a direct conflict), so length is left out. The aromatic penalty (0.5) is kept mild: neutral on DBAASP, helpful
+  on the 46, and it improves selectivity.
+- **A hybrid (rank-blend APEX + composition) is pointless.** With a hard `phemo<0.1` gate it barely moves
+  APEX-Gram+ (0.25→0.28) and only *dilutes* the validated composition gain — because chasing APEX-Gram+ = chasing
+  the Arg/hydrophobic (hemolytic) chemotype the real data reject. So APEX is used **only as the active-band gate**
+  (top-20k by balanced Success Rate) and composition does the within-band ranking.
+- **The Lysine push MUST be paired with the hemolysis penalty.** A composition-only top-50 hits ESMC
+  P(hemolytic) **0.89**; `score = composition_score − 1.5·phemo` (within the gate) lands the shipped top-50 at
+  **0% predicted-hemolytic** (median 0.001, max 0.038 — *better* than feat-031's 0.073).
+
+**Shipped ranker** (`oracle.composition_score` + `model.ApexRanker._composition_rank`,
+`generate.py --composition-weight 1.0 --aromatic-weight 0.5`, the new default; `--composition-weight 0` recovers
+feat-031). Rank the top-100 by `lys_fraction − 0.5·aromatic_fraction − 1.5·P(hemolytic)` within the APEX-active
+band. **This changes only the top-100 — the 50k library is byte-identical, so the Phase-2 advancement gate is
+untouched.** feat-033a top-50: R/(R+K) 0.60→**0.33** (Lys>Arg in 14%→**94%**), aromatic 0.20→**0.10**; ESMC
+P(hemolytic) max **0.038**; novelty 0/50 above 0.80 (top-50 median 0.69, top-100 max 0.80), near-exact clean
+(0 above 0.90); within-list diversity clean; all 140 tests pass; compliance PASS; **byte-reproducible** (two
+default runs → top `dc37c540…`, library `06e30960…`).
+
+**Honest reporting of the APEX numbers.** The top-50's APEX-predicted Success Rates are **Broad 0.64 / Gram-
+0.85 / Gram+ 0.26 / MDR 0.33**. The very high Gram− and low Gram+/MDR *both* reflect APEX's chemotype bias, not
+expected real activity; on **every** real-activity test (the 46 and the DBAASP within-band analysis) the
+composition selection ties-or-beats APEX-potency selection on all four categories, including Gram+ and MDR. The
+expected real gain is largest on the Gram-negative-dominated Broad category and the Selectivity window; we give
+up APEX's (mis-calibrated) Gram+/MDR *predictions*, which the real data show do not track real activity inside
+our band.
+
+**Why this is the opposite of Goodhart.** feat-022/024/027/032 all failed because they optimised *against* the
+oracle and the "gain" was oracle-internal. feat-033 does the reverse: it uses **real wet-lab + independent
+external data** to *correct* the oracle's within-band ranking error, and the correction is validated on data the
+oracle never touched. It is an explicit, reversible, one-shot-appropriate bet backed by two independent datasets
+— an informational edge a pure oracle pipeline cannot find. Adopted as the shipped default with the participant's
+explicit go-ahead; the actual Kaggle submission remains user-gated.
