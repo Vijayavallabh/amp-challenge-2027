@@ -1192,3 +1192,67 @@ bytes as the parallel path on any grader.
 Net: the strategic thesis (composition ranking within an APEX gate, minus a selectivity penalty) is intact and
 now validated per-category; the one concrete defect was a reproducibility hole, fixed byte-neutrally before the
 one-shot submit.
+
+## feat-035 — 24-hour deep validation: feat-033 confirmed near-optimal on the validatable boards, no artifact change (2026-09-30)
+
+A full-day, GPU-backed, diverse-exploration pass (goal: maximize real winning odds, not incremental tuning).
+Method: ground-truth-anchored (46 wet-lab MICs = AMP-Diffusion's own assayed set, i.e. NOVEL generated peptides;
+1164 DBAASP MICs + ~570 DBAASP HC50 = NATURAL AMPs) + a 5-agent literature deep-research + offline GPU
+experiments. All work offline in scratchpad; the validated artifact (`dc37c540`) was never touched. Outcome:
+**no safe, robustly-supported, shippable improvement over feat-033 was found**; the session's value is rigorous
+independent multi-angle validation for a one-shot entry, plus two user-actionable rule/eligibility flags.
+
+**Optimal Selectivity validated on REAL HC50/MIC (never done before, and NOT circular — real labels, not APEX).**
+On 109 DBAASP peptides carrying both real HC50 and real MIC, the shipped composition chemotype (top-20 by `comp`)
+has median real safety window **92.7 vs 58.5 baseline** at equal potency (median MIC 1.6 µM), and real HC50 157
+vs 122. Cationicity ranks the real safety window (+0.34), hydrophobicity destroys it (−0.39); `comp` itself is
+weakly positive (+0.08) but its chemotype (Lys-rich, low-aromatic, low-hydrophobic) lands squarely in the safe
+region. Raw `charge`/`cationic` rank SW marginally higher (108/94) but do NOT help real Gram−/Broad potency and
+net-charge HURTS real Gram+ (−0.31) — a bad trade of a validated potency strength for a noisy selectivity nudge.
+`scratchpad/sel_groundtruth.py`. This is our most winnable board and the modal APEX-first competitor ignores it.
+
+**The APEX active-band GATE: rigorously tested keep-vs-drop → KEEP.** A per-category ground-truth decomposition
+(`scratchpad/gt_percat.py`) reconfirmed composition predicts real Gram−/Broad (Spearman +0.48/+0.45 on the 46)
+but NOT real Gram+ (+0.12, ns) — no feature does; literature agrees Gram+ is the harder class. Then: does the
+APEX gate add real-activity signal beyond composition, or just exclude realistic high-comp peptides that are
+really active? (`scratchpad/gate_value.py`, `bootstrap_gate.py`.) On the 46 (novel/OOD) the gate LOOKS harmful
+(high-comp APEX-inactive realALL 0.513 > APEX-active 0.273) but the bootstrap gap is +0.275, **95% CI
+[−0.02,+0.52] — includes 0, NOT robust** (n=46, cells of 6/17). On DBAASP the gate looks helpful (0.787 vs 0.577,
+tight) but is **circular**: APEX-pathogen (Wan/de la Fuente, *Nat Microbiol* 2025 — the competition's OWN wet-lab
+lab) is trained on public AMP DBs incl. DBAASP, so DBAASP is in-distribution/partially memorized for it, while
+the 46 diffusion peptides are OOD (exactly our regime, where APEX ~0/anti-correlates with reality). Neither set
+*robustly* supports dropping the gate; discarding it on a non-robust n=46 signal would be the feat-032 trap. The
+hedged design (APEX gate + validated composition ranking) is correct under this irreducible uncertainty.
+Corollary: composition is validated on BOTH sets (it is trained on nothing), so it — not APEX — is the real
+ranking signal; every APEX-prediction-on-DBAASP number in this doc should be read as optimistic.
+
+**Headroom is bounded; no generator lever is worth the one-shot risk.** Real activity rises monotonically with
+composition (no saturation to comp 0.43/0.50) and the pool under-supplies it (feat-033 top-50 mean comp 0.24),
+but the intersection high-comp ∩ realistic(not poly-K) ∩ novel(≤80%) ∩ APEX-in-band is THIN (`supply_realistic.py`:
+~15 seqs at comp≥0.18, ~0 at ≥0.22 in a 114k pool) and removing the gate yields poly-K junk (100% low-complexity,
+39/50 fail the novelty screen; `select_sweep.py`). Oversampling is the only SAFE lever but is marginal AND
+low-shippability (thin tail + the shipped CPU-APEX path caps validator-safe pool size). ReST toward composition
+is limited (its high-comp output is gated out unless it also chases APEX = Goodhart). No change pursued.
+
+**Literature (5-agent deep-research, `scratchpad/research_notes/…`).** Independently corroborates the composition
+thesis: TabPFN "coarse composition suffices" recovers ~96% of full-predictor performance and its advantage GROWS
+with sequence distance (our novel-peptide regime); multiple sources find learned oracles overfit-in-distribution
+and barely beat trivial baselines OOD; APEX's own successor (ApexOracle) admits APEX "struggles to generalize to
+novel pathogens." Tools surfaced: **HemoPI2** (Rathore *Commun Biol* 2025; open; HC50 Pearson 0.739) as an
+independent selectivity cross-check; **ApexAmphion** (de la Fuente, bioRxiv 2025; ProGen2+LoRA+PPO on a
+MIC+physchem reward; 100/100 wet-lab active) as the theoretically-sound generator upgrade IF generation is ever
+pursued — but its top failure mode is exactly reward-hacking a frozen proxy (Goodhart), reinforcing the feat-032
+lesson. Competitive picture: ~15+ serious entries (top-20 contested); the modal competitor is APEX-first +
+HemoPI2 gate → our composition ranking is differentiated where APEX fails, and Optimal Selectivity is the
+least-contested board.
+
+**Two flags escalated to the participant (rule/eligibility, cannot be resolved autonomously).** (1) The
+organizers' own materials disagree on the wet-lab draw — the site's How-It-Works section and the design PDF say
+"25 from the **top 100**", the FAQ says "**top 50**". If it is top-100, list positions 51–100 are also assayed
+and our composition tapers there (top-50 comp 0.24 → top-100 0.19); confirm with the organizers, hedge by keeping
+the top-100 strong. (2) Registration reportedly requires an **institutional email** ("gmail not accepted") — the
+entry uses a gmail account. Both need the participant to check with the organizers before the one-shot submit.
+
+Recommendation: **ship feat-033 as-is.** It optimizes the three boards we can validate (Gram−, Broad,
+Selectivity), does not sacrifice them chasing the two we cannot (Gram+, MDR), and is differentiated from the
+APEX-first field. Full session detail: `scratchpad/SESSION_FINDINGS.md`.

@@ -2,6 +2,26 @@
 
 ## Current State
 
+> **feat-035 (2026-09-30) — 24-HOUR DEEP VALIDATION; feat-033 confirmed near-optimal; NO artifact change.**
+> A full-day GPU-backed pass (ground truth + a 5-agent literature deep-research + offline GPU experiments; the
+> shipped artifact `dc37c540` untouched) found **no safe, robustly-supported, shippable improvement** over feat-033
+> and instead re-validated it from new angles. **Optimal Selectivity validated on REAL HC50/MIC** (109 DBAASP
+> peptides with both, real labels not APEX → not circular: composition chemotype top-20 median real safety window
+> **92.7 vs 58.5 baseline** at equal potency — our best, least-contested board). **APEX-gate keep-vs-drop tested and
+> resolved to KEEP:** on the 46 (novel/OOD) the gate looks harmful but the bootstrap gap CI **[−0.02,+0.52] includes
+> 0** (not robust, n=46); on DBAASP it looks helpful but is **circular** (APEX = the de la Fuente competition lab,
+> trained on DBAASP-like data → DBAASP in-distribution). Dropping it would be the feat-032 trap. **No validated Gram+
+> ranking signal exists** (composition +0.12 ns; literature agrees Gram+ is harder) and MDR is unvalidatable — so
+> feat-033 correctly optimizes the validatable boards (Gram−/Broad/Selectivity) without sacrificing them. Headroom
+> is bounded (oversample = marginal + CPU-APEX-runtime-capped; ReST toward composition = Goodhart-limited by the
+> gate). Literature corroborates the composition thesis ("coarse composition suffices"; advantage grows with
+> sequence distance) and the modal competitor is APEX-first → we're differentiated on Selectivity. **TWO USER FLAGS
+> to confirm with the organizers before the one-shot submit:** (1) their OWN materials DISAGREE on the wet-lab draw
+> — site/design-PDF say "25 from **top-100**", FAQ says "**top-50**"; if top-100, list positions 51–100 are also
+> assayed (our composition tapers there). (2) registration reportedly requires an **institutional email** ("gmail
+> not accepted") — the entry uses a gmail account. Detail: `docs/RESEARCH.md` "feat-035" + `scratchpad/SESSION_FINDINGS.md`.
+> **Recommendation: ship feat-033 as-is.**
+>
 > **SHIPPED SUBMISSION — feat-033 (wet-lab-calibrated COMPOSITION ranking; current truth; feat-021→032 historical below).**
 > `uv run generate` defaults to **`--composition-weight 1.0 --aromatic-weight 0.5`** on the feat-020/021 generator
 > (`checkpoint/generator.pt` = `da70fb42`, unchanged). It ranks the top-100 by
