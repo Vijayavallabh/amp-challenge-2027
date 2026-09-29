@@ -722,3 +722,10 @@ genuine gain, consistent across all submodels (spread 0.08), not concentrated in
 This lifts our two weakest categories (Gram-negative, Broad-Spectrum) to be genuinely competitive without
 touching our GP/MDR/Selectivity standouts or the Phase-2 advancement gate. Adopted as the shipped default
 (`--top-temperature 1.0`); `--top-temperature 1.6` (== --temperature) recovers the single-pool feat-025 run.
+
+**Library temperature is also near-optimal (don't raise it).** Mixed-temperature decouples the library
+temperature from the top-50 quality, so we checked whether raising the library body's temperature would
+improve Phase-2 further. It does not pay: diversity rises only marginally (1.6->1.8->2.0: 0.839 -> 0.846
+-> 0.851) while FBD -- distributional AMP-realism -- degrades sharply (1.94 -> 3.95 at temp 2.0, i.e. 35%
+-> 72% of the way to random). The Phase-2 screen rewards libraries that are diverse AND realistic, so
+trading a large realism loss for +0.01 diversity is net-negative. Keep the library body at 1.6.
