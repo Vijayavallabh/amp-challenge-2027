@@ -31,8 +31,18 @@ appeared to lift Gram- 0.569→0.686 / Broad 0.633→0.709 at 0% hemolytic, but 
 proved it is mostly APEX overfitting (held-out GP collapses 0.75→0.37–0.61, MDR 0.667→0.39–0.57, Gram-
 only partially survives); exactly 1 genuine cross-validated all-rounder exists in 4M (K. pneumoniae is
 the binding ceiling), too few to shift the categories. The shipped feat-025 top-50 is self-consistent
-across submodel splits (robust) and stands — 10× compute confirms it rather than beating it. 139 tests
-pass; two `/code-review` passes addressed. **Re-validation of the new 0.2 default
+across submodel splits (robust) and stands — 10× compute confirms it rather than beating it. **feat-028
+— mixed-temperature sampling, a GENUINE cross-validated breakthrough, ADOPTED:** feat-027 showed
+*selection* is Goodhart-limited, so we optimised the *generator distribution*. A temperature sweep
+disproved the "hot sampling has no top-50 cost" claim — cooler sampling lifts the top-50 Gram-/Broad
+(the generator's high-activity modes), and it SURVIVES held-out submodel cross-validation (unlike
+feat-027). But a cool pool costs Phase-2 diversity. **Mixed-temperature** gets both: the ranked top-100
+pool is drawn cool (`--top-temperature 1.0`) while the 50k library body stays hot (`--temperature 1.6`).
+Measured on the full pipeline: **top-50 Gram- 0.569→0.640, Broad 0.633→0.680** (GP 0.750, MDR 0.667, 0%
+hemolytic, µH 0.40→0.54) with **library diversity 0.837≈0.839 / novelty 1.0 preserved**. All 8 APEX
+submodels confirm the mixed top-50's Gram- (mean 0.63 vs shipped 0.56, spread 0.08 — genuine, not
+Goodhart). Byte-determinism verified (GPU0==GPU1==rerun). Adopted as the default. 139 tests pass; two
+`/code-review` passes addressed. **Re-validation of the new 0.2 default
 COMPLETE**: byte-determinism verified across GPUs (runs on GPU0==GPU4==explicit-0.2, identical
 `library.fasta`/`top.fasta`), and the **official validator PASSED on commit `6f1d73f`** — fresh clone +
 `uv sync` + generate ×2, *"All checks passed. Submission is valid!"*, ranking line

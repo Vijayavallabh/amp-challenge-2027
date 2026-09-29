@@ -373,11 +373,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--checkpoint", type=str, default=DEFAULT_CHECKPOINT,
                         help="trained generator checkpoint (default: %(default)s)")
     parser.add_argument("--temperature", type=float, default=1.6,
-                        help="sampling temperature for the trained generator. The activity-tuned "
-                             "generator concentrates on the active manifold, so hot sampling "
-                             "(1.6) restores base-generator library diversity and novelty at no "
-                             "measured top-50 activity cost -- the top-100 is still selected by "
-                             "APEX (default: %(default)s)")
+                        help="sampling temperature for the 50k LIBRARY body. Hot sampling (1.6) keeps "
+                             "the library diverse and novel -- the Phase-2 advancement axes -- since the "
+                             "activity-tuned generator otherwise concentrates on a few modes "
+                             "(default: %(default)s)")
+    parser.add_argument("--top-temperature", type=float, default=1.0,
+                        help="sampling temperature for the TOP-100 CANDIDATE pool (feat-028 mixed-temperature "
+                             "sampling). Lower than --temperature: the ranked pool is drawn cooler so its "
+                             "best candidates sit on the generator's high-activity modes (measured: top-50 "
+                             "Gram- 0.57->0.64, Broad 0.63->0.68 vs a single hot pool, cross-validated on "
+                             "held-out APEX submodels, GP/MDR and 0%%-hemolytic held), while the library body "
+                             "stays at --temperature so Phase-2 diversity is unchanged (0.84). Set equal to "
+                             "--temperature to disable and use one pool (default: %(default)s)")
     parser.add_argument("--top-p", type=float, default=1.0,
                         help="nucleus sampling cutoff for the trained generator (default: %(default)s)")
     parser.add_argument("--baseline", action="store_true",
@@ -461,6 +468,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         args.min_length = args.max_length = args.length
     if not (0.0 <= args.amphipathicity_bonus < float("inf")):
         parser.error("--amphipathicity-bonus must be a finite value >= 0")
+    if not (0.0 < args.top_temperature < float("inf")):
+        parser.error("--top-temperature must be a finite value > 0")
+    if not (0.0 < args.temperature < float("inf")):
+        parser.error("--temperature must be a finite value > 0")
     return args
 
 
@@ -482,26 +493,44 @@ def main(argv: list[str] | None = None) -> int:
     # top list is guaranteed to be a subset of the library. Order is insertion order throughout,
     # so the result stays byte-reproducible.
     pool_size = max(args.n_sequences, round(args.oversample * args.n_sequences))
-    pool = build_library(model, pool_size, rng, reference_set)
-    if pool_size > args.n_sequences:
-        print(f"Pool: {len(pool)} candidates ({args.oversample:g}x) for top-list selection")
-
     ranker = build_ranker(model, args)
+    # feat-028 mixed-temperature sampling: draw the RANKED top-candidate pool at the cooler
+    # --top-temperature (its best peptides then sit on the generator's high-activity modes -> a
+    # stronger, cross-validated top-50), but build the 50k LIBRARY BODY at the hot --temperature so
+    # Phase-2 diversity/novelty are unchanged. The top list is prepended to the library body, so the
+    # top-100-subset rule still holds and only the ~100 selected peptides are cool. Both draws use the
+    # same rng in sequence, so the run stays byte-reproducible. Disabled (single pool) when the two
+    # temperatures are equal or the model has no temperature (the RandomBaseline fallback).
+    mixed = (args.top_temperature != args.temperature) and hasattr(model, "temperature")
+    if mixed:
+        model.temperature = args.top_temperature
+        rank_pool = build_library(model, pool_size, rng, reference_set)
+        model.temperature = args.temperature
+        library_body = build_library(model, args.n_sequences, rng, reference_set)
+        print(f"Pool: {len(rank_pool)} candidates ({args.oversample:g}x) @ top-temperature "
+              f"{args.top_temperature:g} for the top list; {len(library_body)} @ temperature "
+              f"{args.temperature:g} for the library body (mixed-temperature)")
+    else:
+        rank_pool = build_library(model, pool_size, rng, reference_set)
+        library_body = rank_pool
+        if pool_size > args.n_sequences:
+            print(f"Pool: {len(rank_pool)} candidates ({args.oversample:g}x) for top-list selection")
+
     if args.select == "maximin" and hasattr(ranker, "maximin_data"):
         if args.amphipathicity_bonus > 0:
             print("  NOTE: --amphipathicity-bonus applies to --select score only; the maximin "
                   "selector ranks by per-category rates and ignores it (no bonus applied)")
-        top = select_maximin(pool, ranker, args.top_k, reference,
+        top = select_maximin(rank_pool, ranker, args.top_k, reference,
                              diversity_max_identity=args.diversity_max_identity)
     else:
         if args.select == "maximin":
             print("  maximin needs the APEX ranker (needs per-category MIC); using score ranking")
-        top = select_top(pool, ranker, args.top_k, reference,
+        top = select_top(rank_pool, ranker, args.top_k, reference,
                          diversity_max_identity=args.diversity_max_identity)
 
-    # Library = the top list first (guarantees the subset rule), then the pool in order,
+    # Library = the top list first (guarantees the subset rule), then the library body in order,
     # de-duplicated and truncated to the required size.
-    library = list(dict.fromkeys(top + pool))[: args.n_sequences]
+    library = list(dict.fromkeys(top + library_body))[: args.n_sequences]
     library_path = args.out_dir / "library.fasta"
     write_fasta(library, library_path)
     print(f"Library: {len(library)} sequences -> {library_path}")

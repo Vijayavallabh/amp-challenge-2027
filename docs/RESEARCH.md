@@ -680,3 +680,45 @@ and the confirmed Phase-2 gate, the validated feat-025 default sits at the robus
 this generator+oracle stack. Further oracle-based optimisation is Goodhart-risky (bad for a one-shot
 submission) or negligible; the binding constraints (K. pneumoniae biology, APEX's 0.62 novel-peptide
 AUROC) are fundamental, not tuning gaps.
+
+## feat-028: mixed-temperature sampling -- a genuine, cross-validated breakthrough on the weak categories
+
+The large-pool study (feat-027) showed oracle-based *selection* is Goodhart-limited. So we turned to the
+*generator distribution* itself. The shipped generator samples at temperature 1.6 -- chosen for library
+diversity, with an (unverified) claim of "no top-50 activity cost". We tested that claim with a temperature
+sweep (0.8-1.6, ~500k pool each, gated top-50):
+
+| temp | Phase-2 Diversity | Phase-2 FBD | Phase-3 Gram- | Phase-3 Broad | GP / MDR | muH |
+|---|---|---|---|---|---|---|
+| 1.6 (shipped) | 0.839 | 1.94 | 0.569 | 0.633 | 0.745 / 0.667 | 0.40 |
+| 1.2 | 0.801 | 3.46 | 0.617 | 0.665 | 0.750 / 0.667 | 0.52 |
+| 1.0 | 0.769 | 4.22 | 0.640 | 0.680 | 0.750 / 0.667 | 0.54 |
+
+The "no cost" claim was **false**: a cooler pool lifts the top-50 Gram- and Broad substantially (the
+activity-tuned generator's high-probability modes are its most-active designs), GP/MDR hold, and it is
+*more* amphipathic. Crucially this is **not Goodhart** -- the held-out-submodel cross-validation
+(feat-027's guard) shows temp-1.0's held-out Gram- 0.66 vs temp-1.6's 0.57 and held-out GP/MDR **flat**
+(not the large-pool collapse), because lowering temperature changes what the generator *proposes*, not how
+hard we select. But a cool pool costs Phase-2: library diversity 0.839 -> 0.769 and FBD 1.94 -> 4.22 (the
+library becomes peaked), and Phase-2 is the advancement gate.
+
+**Mixed-temperature sampling gets both.** The pipeline builds the 50k library as `top-list + pool[:50k]`,
+so the library body is just the pool and the top-100 is prepended. We therefore draw **two** pools from the
+same checkpoint and rng: a cool `--top-temperature 1.0` pool that is *ranked* for the top-100 (its best
+peptides sit on the high-activity modes), and a hot `--temperature 1.6` body that forms the diverse 50k
+library. Only the ~100 selected peptides are cool; the 49.9k library body stays hot-diverse. Measured on
+the full pipeline (`uv run generate`, mixed default):
+
+| | Phase-2 Diversity | Phase-2 Novelty | Phase-3 Gram- | Phase-3 Broad | GP / MDR | hemolytic | muH |
+|---|---|---|---|---|---|---|---|
+| shipped temp-1.6 | 0.839 | 1.0 | 0.569 | 0.633 | 0.745 / 0.667 | 0/50 | 0.40 |
+| **mixed (1.0 top / 1.6 lib)** | **0.837** | **1.0** | **0.640** | **0.680** | **0.750 / 0.667** | **0/50** | **0.537** |
+
+Best of both: **library diversity preserved (0.837 vs 0.839), novelty 1.0**, while the top-50 gets the full
+temp-1.0 gain (**Gram- +0.071, Broad +0.047**), GP/MDR held, still 0% predicted-hemolytic, and *more*
+amphipathic. Per-submodel cross-validation of the *actual* mixed top-50 confirms it: every one of the 8
+APEX submodels sees its Gram- at 0.59-0.67 (mean 0.63) vs the shipped top-50's 0.54-0.61 (mean 0.56) -- a
+genuine gain, consistent across all submodels (spread 0.08), not concentrated in the ones that selected it.
+This lifts our two weakest categories (Gram-negative, Broad-Spectrum) to be genuinely competitive without
+touching our GP/MDR/Selectivity standouts or the Phase-2 advancement gate. Adopted as the shipped default
+(`--top-temperature 1.0`); `--top-temperature 1.6` (== --temperature) recovers the single-pool feat-025 run.
