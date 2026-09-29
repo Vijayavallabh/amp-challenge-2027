@@ -55,7 +55,7 @@ balanced five-category
 profile (the Gram+/MDR-targeted generator plus hard-SR selection roughly **doubled** the two hard
 categories from where a broad-activity-only pipeline left them, at no selectivity cost, and the Gram−
 term recovered the weakest category from 0.54 to ~0.57 at zero Gram+/MDR cost), and the designs are
-markedly novel (top-50 median nearest-known-AMP identity 0.69, top-100 max 0.79, vs the full 39,448-AMP reference). APEX is the de la Fuente lab's own MIC predictor
+markedly novel (top-50 median nearest-known-AMP identity 0.67, top-100 max 0.79, vs the full 39,448-AMP reference). APEX is the de la Fuente lab's own MIC predictor
 (the lab that runs the competition's assays), used as a moderate, wet-lab-aligned signal, not ground
 truth.
 
@@ -88,12 +88,12 @@ selectivity hold, novelty and amphipathicity are preserved, and the improvement 
 
 The result (all figures are **computational predictions, not measurements** — we make no wet-lab
 efficacy claim): a 50,000-peptide library that is **diverse** (≈81% of a random 500-sample mutually
-<0.6 identity), **novel** (median Levenshtein identity to any known AMP ≈0.50, 3% above 0.80), and
+<0.6 identity), **novel** (median Levenshtein identity to any known AMP ≈0.60, 1.6% above 0.80), and
 AMP-like (84% net-cationic, mean length 18); and a **top-100 that is 100% predicted-active** (median
 best-strain MIC ≈2.4 µM), broad-spectrum (top-50 Success Rate at ≤16 µM **Broad 0.71, Gram- 0.68,
 Gram+ 0.76, MDR 0.67**), **0% predicted-hemolytic** (median predicted P(hemolytic) ≈0.001, every top-50
 < 0.08, vs ≈0.75 for unpenalised actives), and **novel** (top-50 median
-nearest-known-AMP identity ≈0.69, top-100 max 0.79, within the 0.80 rule).
+nearest-known-AMP identity ≈0.67, top-100 max 0.79, within the 0.80 rule).
 
 ## Model
 
@@ -174,7 +174,7 @@ pre-filtered to the competition constraints (20 standard residues, length 8–50
   set. The library is 50,000 unique valid sequences; a fresh run reproduces it byte-for-byte.
 - **Library characterization (for the phase-1 diversity/novelty/physicochemical screen):**
   **diverse** (≈81% of a random 500-peptide sample are mutually below 0.6 Levenshtein identity),
-  **novel** (median max-identity to any known AMP ≈0.50, 90th percentile ≈0.72, only ≈3% above 0.80
+  **novel** (median max-identity to any known AMP ≈0.60, 90th percentile ≈0.69, only ≈1.6% above 0.80
   — and the library rule only forbids *exact* matches), and physicochemically **AMP-like** — 84%
   net-cationic, length 8–50 (mean ≈18), moderate hydrophobicity. Activity fine-tuning did not
   collapse the library: hot sampling (temperature 1.6) keeps it distributionally realistic and
@@ -251,7 +251,7 @@ random from the top 50 and assayed.
   reference set are rejected and replaced by the next-ranked candidate. In the shipped run the
   novelty screen rejected **21** higher-ranked candidates — the Gram+/MDR-targeted ReST generator explores new
   sequence space, so its designs sit comfortably below the 0.80 threshold (top-50 median identity to
-  any known AMP **0.69**, top-100 max **0.79**, none an exact match — *more* novel than the earlier
+  any known AMP **0.67**, top-100 max **0.79**, none an exact match — *more* novel than the earlier
   physicochemical/ESMC selections, evidence the harder optimisation is discovering new motifs rather
   than memorising known AMPs).
 - **Diversity or redundancy control within the top 100:** a within-list cap
