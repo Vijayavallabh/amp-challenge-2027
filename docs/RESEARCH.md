@@ -1485,6 +1485,27 @@ suite green (165 passed, 3 skipped). Recovery: `--max-cationic-fraction
   lever**: every DBAASP signal sign-flips OOD, reconfirming feat-035/036 (net_charge reverses sign, amphipathicity is
   an in-distribution mirage). There is no safe knob to raise real Gram+ beyond removing the extrapolations, which
   feat-037 does.
+- **ESMFold 3D structure & sequence patterning (feat-040-explored — NO-GO, adversarially verified).** Tested the
+  last unexplored candidate direction (3D structure, where sequence-µH failed OOD) plus a novel orthogonal angle
+  (order-dependent sequence patterning). Folded all 46 wet-lab peptides with **ESMFold** (`facebook/esmfold_v1`,
+  H100; `scratchpad/esmfold/`): they fold into **confident, mostly α-helical** structures (mean pLDDT 0.80,
+  helix_frac 0.87 — real structures, not coil), so the 3D features are meaningful. But **no 3D descriptor transfers
+  OOD**: helix content, 3D hydrophobic moment (CB–CA and helix-axis-projected), pLDDT, and Rg all have bootstrap 95%
+  CIs spanning 0 vs the 46 MICs (both gram− and all-strain boards, and across 4 censoring-aware activity targets),
+  and **none add signal in a partial correlation controlling for composition [fK,arom,len]**. Multivariate LOO:
+  composition ridge scores 0.437 / active-AUC 0.667; adding all 3D features **degrades** it (0.408 / 0.667). A
+  **3-agent adversarial workflow** (SASA/hydrophobic-patches, helix-macrodipole/axial-amphipathicity, and
+  nonlinear/interaction/subgroup models — 45 engineered descriptors) **unanimously CONFIRMED the NO-GO**: every
+  near-miss is the *composition* axis re-expressed through structure (exposed cationic/hydrophobic SASA ratios
+  correlate 0.91–0.96 with coordinate-free max-ASA and pure-sequence-count twins; controlling for composition
+  collapses every partial CI to span 0; family-wise permutation p=0.052 after correcting for 15 tests; the helix and
+  subgroup "best" features degrade the ridge or flip sign between subsets). Sequence **patterning** (κ Das-Pappu,
+  SCD, SHD, hydrophobic-run clustering) is likewise a NO-GO — all CIs span 0, partials span 0, LOO degrades
+  (0.437→0.379); its near-miss (hydrophobic clustering) points the *wrong* way (more clustering → less active) and
+  merely re-expresses the hydrophobicity axis feat-037 already penalizes. **Durable insight (strengthens feat-037):**
+  neither folded 3D structure nor sequence arrangement adds anything beyond composition on the honest OOD arbiter —
+  sequence-µH's OOD failure was not a resolution problem that structure could fix; composition (Lys↑, aromatic↓)
+  is the sole transferable signal. Artifact byte-unchanged (docs-only).
 
 **Validator status.** The official validator **PASSED** on a fresh clone of the pushed feat-037 commit
 (`scripts/verify_submission.py <repo-url>`, `da7ae56`; artifact byte-identical at HEAD): **"All checks passed.
