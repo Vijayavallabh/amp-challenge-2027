@@ -143,11 +143,12 @@ selectivity cross-check"; `scratchpad/codereview_finding1.md`, `hemopi2_finding.
 
 **Standing blockers (one-shot submission — get these exactly right):**
 
-- [ ] **One entry, no resubmission** — `scripts/verify_submission.py <repo-url>` was re-run on the current
-      final HEAD **`a7ed06f`** on 2026-09-30 and **PASSED all 8 checks** (fresh-clone byte-identical
-      `dc37c540`/`06e30960`), so the latest commit is submit-ready; **re-run it once more if any further
-      commit is made** before submitting. Submit only from **`j_v_v_07`** (never the machine-default token,
-      which belongs to a different account — a one-account-rule breach).
+- [ ] **One entry, no resubmission** — `scripts/verify_submission.py <repo-url>` was run on `a7ed06f` on
+      2026-09-30 and **PASSED all 8 checks** (fresh-clone byte-identical `dc37c540`/`06e30960`). The artifact
+      is generated from code + checkpoints, so **docs-only commits keep this result** (current HEAD is such a
+      commit, artifact unchanged); **re-run only if a later commit changes code / generator / checkpoints /
+      data / deps** before submitting. Submit only from **`j_v_v_07`** (never the machine-default token, which
+      belongs to a different account — a one-account-rule breach).
 - [ ] **Rotate the exposed `KGAT_` token** before submitting (it goes in `KAGGLE_API_TOKEN`, not
       `kaggle.json`).
 - [ ] Oracles are estimates, not measurements (APEX AUROC 0.62–0.76; ESMC selectivity 0.905; composition
@@ -161,8 +162,9 @@ apparent lever, incl. learned rankers, net-charge, HemoPI2 and amphipathicity, c
 flags are **set aside per the participant**. The **only remaining action is the user-gated Kaggle submit**:
 
 1. Rotate the `KGAT_` token.
-2. If any commit is made after `a7ed06f`, re-run `scripts/verify_submission.py <repo-url>` on that final HEAD
-   (currently green on `a7ed06f`: all 8 checks, byte-identical `dc37c540`/`06e30960`).
+2. The official validator is green on `a7ed06f` (all 8 checks, byte-identical `dc37c540`/`06e30960`); docs-only
+   commits keep that result. Re-run `scripts/verify_submission.py <repo-url>` only if a later commit changes
+   code / generator / checkpoints / data / deps.
 3. Submit from **`j_v_v_07`** with the participant's team name and explicit go-ahead.
 
 ## Startup
