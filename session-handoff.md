@@ -15,7 +15,8 @@
   confirming ship feat-033, artifact byte-unchanged (see the feat-036 block below). Full feat-001…feat-036
   record lives in `progress.md` + `feature_list.json`; historical feat-016…feat-032 notes there are
   point-in-time and correct as-of-their-date — do not rewrite them.
-- **Branch / commit:** `main` @ **`0adffbc`** (docs atop the validated artifact). Official validator
+- **Branch / commit:** `main` @ **`028d5b2`** (feat-036 code-review closeout + byte-neutral hardening,
+  atop the validated artifact). Official validator
   **PASSED on `1c091e5`** (feat-034; byte-identical to the feat-033 artifact `84e2b78`). Submission
   remains **user-gated** — team name + explicit go-ahead from **`j_v_v_07`** only, never the
   machine-default Kaggle token (a different account).
