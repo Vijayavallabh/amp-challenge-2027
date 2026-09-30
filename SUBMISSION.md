@@ -76,11 +76,26 @@ The composition push is deliberately **paired with a selectivity penalty**, with
 a composition-only ranking drifts hemolytic (a pure-composition top-50 hits ESMC-predicted P(hemolytic)
 **0.89**), because the most Lysine-rich cationic peptides can be membrane-lytic. So within the active band
 we subtract **1.5·P(hemolytic)** from an **ESM Cambrian 600M** selectivity model (held-out AUROC 0.905;
-details below), which holds the shipped top-50 at **0% predicted-hemolytic** (median P 0.001, max **0.038**
+details below), which holds the shipped top-50 at **0% predicted-hemolytic** (median P 0.001, max **0.052**
 — *better* selectivity than APEX-potency ranking's 0.073). The resulting top-50 sits in the Lysine/Arginine
 **blend** the peptide literature finds most active-and-selective on Gram-negatives (Hackney 2026; Zou 2007;
-van der Walt 2025): median R/(R+K) **0.33** (Lysine exceeds Arginine in **94%** of the top-50, versus 14%
+van der Walt 2025): median R/(R+K) **0.286** (Lysine exceeds Arginine in **88%** of the top-50, versus 14%
 under APEX ranking), aromatic fraction 0.10, net charge +7, length 18.
+
+As a **final selection step we cap this composition ranking to the wet-lab-validated cationic envelope**
+(feat-037, the new `uv run generate` default `--max-cationic-fraction 0.444`). The unconstrained ranker pushed
+~20 of the top-100 past the most cationic of our 46 wet-lab actives (cationic fraction (K+R)/len = 0.444),
+concentrated in the assayed head of the list — and on those 46 the beyond-envelope region is exactly where **real
+Gram-positive activity collapses**, so demoting the extrapolations below every in-envelope candidate lifts the
+capped top-50's expected **Gram+/MDR Success Rate by +0.029 / +0.026** (an honest kNN arbiter on the 46, 95%
+bootstrap CI excludes 0). This **supersedes feat-033 as the shipped default** while leaving its core (rank by
+Lysine-richness within the APEX band) unchanged and the 50k library body **byte-identical** — only the top-100
+selection changes, so the top-50 characterization above is the capped one (fcat median 0.400, max 0.438, was
+0.667). *Honest caveat, carried throughout:* this gain is a **kNN-model estimate on n=46**, and the removed
+peptides are extrapolations with **no direct wet-lab measurement** — a modest (~+0.02–0.03 SR), explicit,
+ground-truth-supported, one-shot-appropriate refinement that *removes a known extrapolation risk*, **not a measured
+wet-lab improvement** (`--max-cationic-fraction 1.0` recovers the pre-cap feat-033 selection). See
+`docs/RESEARCH.md` (feat-037).
 
 For transparency we also report the top-50's **APEX-predicted** Success Rates at ≤16 µM — **Broad 0.64,
 Gram- 0.85, Gram+ 0.26, MDR 0.33** — but read them through the finding above. The very high Gram-negative
@@ -101,7 +116,7 @@ efficacy claim): a 50,000-peptide library that is **diverse** (91% of a random 5
 nearest-neighbour Levenshtein identity < 0.6), **novel** (median identity to any known AMP ≈0.60, 90th
 percentile 0.69, 1.3% above 0.80), and AMP-like (88% net-cationic, mean length 19); and a **top-100**
 drawn from the APEX-active band and ranked by wet-lab-calibrated composition — all predicted active on
-multiple strains, **0% predicted-hemolytic** (median P(hemolytic) 0.001, every top-50 < 0.04), and
+multiple strains, **0% predicted-hemolytic** (median P(hemolytic) 0.001, every top-50 well below 0.5, max 0.052), and
 **novel** (top-50 median nearest-known-AMP identity 0.69, top-100 max 0.80, none an exact match, all
 within the 0.80 rule).
 
@@ -200,11 +215,12 @@ How-It-Works section and the design PDF say the top **100**, while the website F
 flagged in the checklist to confirm before submit; if it is the top 100, list positions 51–100 are also
 assayed and our composition ranking tapers there.*)
 
-- **Scoring function (feat-033):** within an **APEX-active-band gate**, `score = composition_score −
-  1.5·P(hemolytic)`, where `composition_score = lys_fraction − 0.5·aromatic_fraction`, applied to a
-  large **8× (400k)** oversampled candidate pool. The top-100 is ranked by **wet-lab-calibrated
-  composition**, not by APEX-predicted potency — a deliberate inversion we justify by testing every
-  candidate signal against *real* activity.
+- **Scoring function (feat-033, capped by feat-037):** within an **APEX-active-band gate**, `score =
+  composition_score − 1.5·P(hemolytic)`, where `composition_score = lys_fraction − 0.5·aromatic_fraction`,
+  applied to a large **8× (400k)** oversampled candidate pool, and then a **composition-envelope cap** (feat-037,
+  `--max-cationic-fraction 0.444`) demotes any candidate with cationic fraction `(K+R)/len > 0.444` below every
+  in-envelope one. The top-100 is ranked by **wet-lab-calibrated composition**, not by APEX-predicted potency — a
+  deliberate inversion we justify by testing every candidate signal against *real* activity.
   - *APEX-active-band gate* — from **APEX-pathogen** (`oracle/apex`, isolated `uv` subprocess), which
     predicts MIC (µM) against the 11 clinical pathogens. We take the **top-20,000** candidates by APEX
     balanced Success-Rate score as the "active band" and rank *within* it by composition. Why
@@ -221,12 +237,27 @@ assayed and our composition ranking tapers there.*)
     **real** Broad Success Rate of **0.46** (Gram- 0.54) versus 0.31 for a random draw and ≤0.30 for
     *any* APEX score — and it beats APEX on all four activity categories; the DBAASP within-band data
     replicate the direction (Lysine lifts real Broad, Gram-negative **and** Gram-positive together). The
-    top-50 lands in the Lys/Arg **blend** (median R/(R+K) 0.33), never poly-Lysine — the pure-Lysine
+    top-50 lands in the Lys/Arg **blend** (median R/(R+K) 0.286), never poly-Lysine — the pure-Lysine
     extreme is both hemolytic and screened out by the gate + selectivity penalty. This **supersedes** the
     earlier feat-031 Arg-excess *hedge* (`--lys-hedge`), which only nudged an APEX-dominated ranking: the
     data show APEX *ordering* is worthless-to-harmful inside the band, so composition is made the primary
     key rather than a small subtraction. Set `--composition-weight 0` to recover the feat-031 APEX
     ranking (and `--aromatic-weight` tunes the aromatic term).
+  - *Composition-envelope cap* (feat-037, `--max-cationic-fraction 0.444`, the shipped default) — a final
+    selection step that keeps the assayed top-100 **inside the wet-lab-validated cationic envelope**.
+    Maximising Lysine-richness runs off the end of the data it was calibrated on: the uncapped ranker pushed
+    **~20 of the top-100** past the most cationic of our 46 wet-lab actives (`fcat = (K+R)/len` up to 0.667),
+    concentrated at the head (13 of the top-50), and on the 46 that beyond-envelope region is where **real
+    Gram-positive activity collapses** (fcat>0.40 → Gram+ SR ~0.07 vs a peak ~0.36). The cap demotes any
+    candidate with `fcat > 0.444` (the wet-lab maximum) below every in-envelope candidate, so the top-50 now
+    has `fcat` median **0.400 / max 0.438**. Measured against real activity with an honest kNN arbiter on the
+    46 (LOO-validated), this lifts the capped top-50's expected **Gram+/MDR Success Rate by +0.029 / +0.026**
+    (95% bootstrap CI excludes 0); Gram−/Broad are directionally positive (CI includes 0). 0.444 is optimal —
+    a tighter 0.40 cap loses the Gram− gain and collapses diversity. This **changes only the top-100 ranking**
+    (the 50k library body is byte-identical); `--max-cationic-fraction 1.0` recovers the pre-cap feat-033
+    selection. *Honest caveat:* the gain is a **kNN-model estimate on n=46** and the removed peptides are
+    extrapolations with **no direct wet-lab measurement** — a modest (~+0.02–0.03 SR), ground-truth-supported,
+    one-shot-appropriate refinement, not a measured wet-lab improvement. See `docs/RESEARCH.md` (feat-037).
   - *P(hemolytic)* — from a **selectivity model built on the latest SOTA protein language model,
     ESM Cambrian 600M** (ESM++ `Synthyra/ESMplusplus_large`, MIT, on GPU-if-available), with a small
     trained MLP head over its mean-pooled embeddings (`checkpoint/selectivity_esmc.pt`, trained on
@@ -238,7 +269,7 @@ assayed and our composition ranking tapers there.*)
     The most Lysine-rich cationic peptides can be membrane-lytic, so the **λ=1.5** penalty is not a
     garnish but **essential to the composition ranking**: a composition-only ranking drifts hemolytic (a
     pure-composition top-50 reaches ESMC P(hemolytic) **0.89**), while pairing composition with the penalty
-    holds the shipped top-50 at **0% ESMC-predicted-hemolytic** (median P 0.001, max **0.038**) — the
+    holds the shipped top-50 at **0% ESMC-predicted-hemolytic** (median P 0.001, max **0.052**) — the
     Optimal Selectivity standout, and *better* here than under APEX-potency ranking (max 0.073). The
     physicochemical model (`checkpoint/hemolysis.pt`) is retained as a graceful fallback if the PLM
     weights cannot be fetched.
@@ -284,9 +315,12 @@ Required disclosure. State plainly what was applied, including "none".
 - **Computational filters beyond the competition constraints:** a **hemolysis/selectivity penalty**
   (ESMC-600M model `checkpoint/selectivity_esmc.pt`, HemoPI-2; physicochemical `checkpoint/hemolysis.pt`
   as fallback) applied in ranking; a **wet-lab-calibrated composition ranking** (feat-033 — the top-100 is
-  ranked by Lysine-richness minus aromatic content within the APEX-active band, `oracle.composition_score`);
-  and a **within-list diversity cap** (0.60 Levenshtein identity). The composition term is a *ranking* key,
-  **not** a hard window — beyond the APEX-active-band gate no candidate is excluded by it, and no charge/pI,
+  ranked by Lysine-richness minus aromatic content within the APEX-active band, `oracle.composition_score`),
+  with a **composition-envelope cap** (feat-037, `--max-cationic-fraction 0.444`) that demotes any candidate
+  whose cationic fraction (K+R)/len exceeds 0.444 — the maximum among our 46 wet-lab actives — below every
+  in-envelope candidate; and a **within-list diversity cap** (0.60 Levenshtein identity). The composition term
+  and the envelope cap are *ranking* keys, **not** hard windows — they reorder the top-100 (the 50k library body
+  is unaffected) and exclude no candidate from the library; beyond the APEX-active-band gate no charge/pI,
   aggregation, or solubility filters are applied; those other properties emerge from the generator and are
   only *measured* for disclosure.
 - **External predictors or databases used at selection time:** **APEX-pathogen** (MIC predictor,
@@ -298,7 +332,11 @@ Required disclosure. State plainly what was applied, including "none".
 ## Reproducibility
 
 - `uv sync` then `uv run generate` regenerates both files exactly (fixed seed 42; APEX runs in
-  eval mode on CPU; `torch.use_deterministic_algorithms`).
+  eval mode on CPU; `torch.use_deterministic_algorithms`). The shipped default is the **feat-037
+  composition-envelope-capped** selection — current hashes **top `21fd02b7aa928f32c1ac6f6aeb1faa2b`,
+  library `bba245dccc21be693a80c1b114748bb5`** (pre-cap feat-033 was `dc37c540`/`06e30960`, recoverable
+  with `--max-cationic-fraction 1.0`). Because the cap changed `top.fasta`, the official validator must be
+  **re-run on the final pushed commit before submitting — pending, not yet re-confirmed for feat-037.**
 - Python 3.11, pinned in `.python-version`; dependencies locked in `uv.lock`. The APEX oracle is an
   isolated `uv` project (`oracle/apex`, its own lock) invoked as a subprocess; it syncs on first
   call. Weights (`checkpoint/generator.pt`, `checkpoint/selectivity_esmc.pt`, `checkpoint/hemolysis.pt`,
@@ -325,7 +363,12 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       API, `userHasEntered=True` (feat-004)
 - [ ] Submitting from `j_v_v_07`, not from the machine's default token account
 - [ ] `./init.sh` green, including the two-run byte-identical check
-- [x] `scripts/verify_submission.py` **PASSED on the byte-repro-hardened commit `1c091e5`** (feat-033 default,
+- [ ] **feat-037 changed `top.fasta`, so the official validator MUST be re-run on the final pushed commit —
+      PENDING, not yet claimed passed.** The shipped artifact is now the **composition-envelope-capped** selection
+      (**top `21fd02b7aa928f32c1ac6f6aeb1faa2b`, library `bba245dccc21be693a80c1b114748bb5`**); the pre-cap feat-033
+      output (`dc37c540`/`06e30960`, recoverable via `--max-cationic-fraction 1.0`) is what the passes below
+      validated, and local two-run byte-repro on the capped default is being re-confirmed. History:
+      `scripts/verify_submission.py` **PASSED on the byte-repro-hardened commit `1c091e5`** (pre-cap feat-033 default,
       after the adversarial-audit fix to the sequential APEX path): fresh GitHub clone + `uv sync` + generate ×2
       — *"All checks passed. Submission is valid!"*, all 8 checks incl. byte-identical reproducibility, the ≤80%
       novelty gate, and the real ESM++/ESMC selectivity path; fresh-clone output library `06e30960`, top
@@ -333,8 +376,10 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       parallel path). Commits atop the validated `1c091e5` are docs plus one **byte-neutral** review-response
       commit (feat-036 — stdout/test-only changes on non-default paths; a 2× `generate` run reproduced
       `dc37c540`/`06e30960`); the local test suite is green — **158 tests**. The **official validator was
-      re-run on the latest commit `a7ed06f` (2026-09-30) → all 8 checks PASSED, fresh-clone byte-identical
-      `dc37c540`/`06e30960`**, so the latest commit is itself submit-ready. **feat-035 (2026-09-30): a
+      re-run on the pre-cap commit `a7ed06f` (2026-09-30) → all 8 checks PASSED, fresh-clone byte-identical
+      `dc37c540`/`06e30960`** — but that validated the **pre-cap feat-037** artifact; the feat-037 cap changed
+      `top.fasta` (new hashes `21fd02b7…`/`bba245dc…`), so the validator **must be re-run on the final feat-037
+      commit before this box can be checked.** **feat-035 (2026-09-30): a
       24-hour deep-validation pass with no artifact change confirmed feat-033 is near-optimal** — the
       composition chemotype's Optimal-Selectivity safety window was validated on real DBAASP HC50/MIC (92.7 vs
       58.5 baseline), the APEX active-band gate was tested keep-vs-drop and **kept** (the 46-peptide
@@ -364,13 +409,15 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       [@szymczakpau](https://github.com/szymczakpau) — satisfied by the repo being public
 - [x] Top 100 confirmed to be a subset of the submitted 50,000-sequence library (enforced in code)
 - [ ] Only one entry for this model; if a second model is planned, organizers contacted in advance
-- [ ] **Confirm the wet-lab draw size with the organizers before the one-shot submit** — their own
-      materials disagree: the website How-It-Works section and the design PDF say **25 are drawn at random
-      from the top 100**, while the website FAQ says **top 50**. If it is the top 100, list positions 51–100
-      are also assayed and our composition ranking tapers there. Resolve before submitting; see
-      `docs/COMPLIANCE.md`.
-- [ ] **Confirm the institutional-email registration requirement is satisfied** — the competition
-      materials reportedly require an institutional email ("gmail/hotmail/yahoo not accepted"); our Kaggle
-      account (`j_v_v_07` / `vallabh2006@gmail.com`) registered with a gmail address, though the listed
-      contact is institutional (`be23b041@smail.iitm.ac.in`). Confirm acceptance with the organizers before
-      submitting; see `docs/COMPLIANCE.md` § Account identity.
+> **Both flags below were SET ASIDE by the participant (2026-09-30) — kept as a due-diligence record, not
+> submit blockers. Do not re-raise them.**
+
+- ~~**Confirm the wet-lab draw size with the organizers before the one-shot submit**~~ — *set aside per the
+      participant.* Their own materials disagree: the website How-It-Works section and the design PDF say **25 are
+      drawn at random from the top 100**, while the website FAQ says **top 50**. If it is the top 100, list positions
+      51–100 are also assayed and our composition ranking tapers there; the design hedge (a uniformly strong top-100)
+      already covers both cases. See `docs/COMPLIANCE.md`.
+- ~~**Confirm the institutional-email registration requirement is satisfied**~~ — *set aside per the participant.*
+      The competition materials reportedly require an institutional email ("gmail/hotmail/yahoo not accepted"); our
+      Kaggle account (`j_v_v_07` / `vallabh2006@gmail.com`) registered with a gmail address, though the listed
+      contact is institutional (`be23b041@smail.iitm.ac.in`). See `docs/COMPLIANCE.md` § Account identity.

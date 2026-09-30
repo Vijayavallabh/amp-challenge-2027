@@ -133,6 +133,7 @@ def build_ranker(model: PeptideGenerator, args: argparse.Namespace):
                 lys_hedge=args.lys_hedge,
                 composition_weight=comp_w,
                 aromatic_weight=args.aromatic_weight,
+                max_cationic_fraction=args.max_cationic_fraction,
             )
             print(f"Ranking: {ranker.name}")
             if comp_w > 0:  # honest disclosure: composition mode supersedes these enabled-by-default flags
@@ -525,6 +526,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--aromatic-weight", type=float, default=0.5,
                         help="weight on the aromatic-fraction penalty inside --composition-weight ranking "
                              "(default: %(default)s). Only used when --composition-weight > 0.")
+    parser.add_argument("--max-cationic-fraction", type=float, default=0.444,
+                        help="demote composition-ranked candidates whose cationic fraction (K+R)/len "
+                             "exceeds this below every in-envelope band member, so the top list stays "
+                             "inside the wet-lab-validated cationic envelope (the max (K+R)/len among the "
+                             "46 wet-lab actives is 0.444) instead of extrapolating past it into the region "
+                             "where real Gram+/MDR activity collapses on the 46 (feat-037). Only used when "
+                             "--composition-weight > 0. Default: %(default)s (the shipped selection). Pass "
+                             "1.0 to disable the cap (recovers the pre-cap feat-033 selection).")
 
     args = parser.parse_args(argv)
     if args.length is not None:
@@ -537,6 +546,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--composition-weight must be a finite value >= 0")
     if not (0.0 <= args.aromatic_weight < float("inf")):
         parser.error("--aromatic-weight must be a finite value >= 0")
+    if args.max_cationic_fraction is not None and not (0.0 < args.max_cationic_fraction <= 1.0):
+        parser.error("--max-cationic-fraction must be in (0, 1] when set (pass 1.0 to disable the cap)")
     if not (0.0 < args.top_temperature < float("inf")):
         parser.error("--top-temperature must be a finite value > 0")
     if not (0.0 < args.temperature < float("inf")):

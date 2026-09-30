@@ -1365,3 +1365,86 @@ top-10 does not beat comp-only on real broad (0.455 vs 0.464). Amphipathicity is
 (like APEX, net_charge, HemoPI2) that does not transfer to novel peptides, so the low muH of our top-100 is **not a
 deficiency to fix** — adopting a muH preference would be the feat-032 Goodhart trap. ~9th independent angle; all
 converge on **ship feat-033**. No artifact change.
+
+## feat-037 — Composition-envelope cap: keep the assayed top-100 inside the wet-lab-validated cationic envelope (SHIPPED, supersedes feat-033 as the generate default) (2026-09-30)
+
+Every prior session since feat-033 closed on "ship feat-033 unchanged." feat-037 is the **first shipped-artifact
+change since feat-033** — but a small, disciplined one that leaves feat-033's core intact and only removes a
+now-identified extrapolation risk from the head of the list.
+
+**What changed, and what did not.** feat-033's core — rank the top-100 by `lys_fraction − 0.5·aromatic_fraction −
+1.5·P(hemolytic)` within the APEX active band — is **UNCHANGED and vindicated**. feat-037 adds one final selection
+step: a **composition-envelope cap** (`--max-cationic-fraction 0.444`, the new default) that demotes any candidate
+whose cationic fraction `fcat = (K+R)/len` exceeds **0.444** — the maximum among the 46 wet-lab actives — below
+*every* in-envelope candidate, so the assayed top-100 stays inside the validated envelope instead of extrapolating
+past it. It is a re-ranking only: the **50k library body (records 101+) is byte-identical** to feat-033; only the
+top-100 selection changes (63/100 top peptides differ, because dropping the ~20 over-envelope peptides cascades
+through the 0.6 within-list diversity filter). New shipped hashes: top **`21fd02b7aa928f32c1ac6f6aeb1faa2b`**,
+library **`bba245dccc21be693a80c1b114748bb5`** (pre-cap feat-033 was top `dc37c540…` / library `06e30960…`,
+recoverable with `--max-cationic-fraction 1.0`).
+
+**The finding: the composition ranker extrapolated past the data it was calibrated on.** feat-033 was validated
+where the 46 wet-lab actives live (fcat ≤ 0.444), but the unconstrained ranker pushed **20/100 of the top-100
+beyond that envelope**, concentrated at the HEAD of the list — **13 of the assayed top-50**, with positions 1–4
+the most extreme (position 1 = `KKKLKKKLLKKKKKLRLL`, fcat 0.667). The ranking enriched these extrapolations **~6×
+over the library** (16–20% of the top-100 vs 2.8% of the 50k), because "maximise Lysine-richness" runs off the end
+of the calibrated region. On the 46 wet-lab MICs that beyond-envelope region is exactly where **real Gram+ activity
+collapses** (fcat>0.40 → Gram+ SR ~0.07 vs a peak ~0.36). The library itself is healthy and broad; the Goodhart was
+in the *ranking*, so the fix is a *re-ranking*, not a library change.
+
+**Evidence (honest kNN arbiter, k=5, LOO-validated on the 46 wet-lab MICs: broad +0.48 / gn +0.43 / gp +0.29 /
+mdr +0.46).** Capped top-50 expected Success Rate vs feat-033 (paired bootstrap, B=5000):
+
+| Category | Δ Success Rate (capped − feat-033) | 95% CI | Robust? |
+|---|---:|---|---|
+| Gram+ | **+0.029** | [+0.003, +0.047] | **yes — excludes 0** |
+| MDR   | **+0.026** | [+0.001, +0.054] | **yes — excludes 0** |
+| Gram− | +0.023 | includes 0 (P>0 = 0.84) | directional |
+| Broad | +0.022 | includes 0 (P>0 = 0.91) | directional |
+
+The Gram+/MDR gains are robust for the top-50 at **k=5 and k=7**; every category is directionally positive at all k
+(3/5/7) and on both candidate pools, and **never negative**. top-100 and k=3 are positive but not CI-robust (the
+extrapolations concentrate in the top-50, so that is where removing them bites). **Mechanism:** the 20 removed
+peptides map on the 46 to **below-average** SR on every board, most on Gram+ (0.177 vs the 0.242 top-50 mean) — they
+were the weakest members, so dropping them lifts the mean.
+
+**Threshold: 0.444 is the right cap.** Tightening to **0.40** buys a little more Gram+ but **loses the Gram− gain**
+and collapses within-list diversity to 41/100 — over-fitting the envelope. 0.444 (the literal wet-lab max) is the
+principled, best-performing choice: it removes only genuine extrapolations and keeps everything the data support.
+
+**Capped top-50 characterization** (all computational predictions; no wet-lab efficacy claim): `lys_fraction`
+**0.278** (unchanged vs feat-033), R/(R+K) **0.286**, aromatic **0.103**, net charge **+7**, length **18**, `fcat`
+median **0.400 / max 0.438** (was 0.667), muH 0.331, Lys>Arg in **88%**, **0% predicted-hemolytic** (ESMC median P
+0.001, max **0.052** top-50 / 0.075 top-100 — all below the 0.5 threshold). The ESMC max rose 0.038→0.052: the
+in-envelope backfill is not quite as extreme-selective as the removed extreme-cationic peptides, but it is still 0%
+hemolytic at threshold, and the **real-HC50-validated Lys-rich low-aromatic chemotype is unchanged** (feat-035).
+The selectivity λ=1.5 gate is still applied (composition + selectivity gate intact).
+
+**Honest caveats — this is a refinement, not a measured improvement.** The gain is a **kNN-model estimate on n=46**
+(small). The removed peptides are **extrapolations with no direct wet-lab measurement** — the improvement rests on
+the disciplined inference that beyond-envelope peptides behave like the validated cationic *edge* (where real Gram+
+collapses), not magically better than it. The magnitude is **modest (~+0.02–0.03 SR)**; the top-100/k=3 case is not
+CI-robust; and within-list diversity is marginally lower (largest ≥0.6 cluster 24 vs 20). This is an explicit,
+ground-truth-supported, one-shot-appropriate refinement — it *removes* a known extrapolation risk rather than
+chasing an oracle — and it keeps the standing rule that **all figures are computational predictions and we make no
+wet-lab efficacy claim**. Tests: 3 new cap cases in `tests/test_composition.py` (demote-over-cationic /
+in-envelope-unchanged / `None` recovers the feat-033 order); full suite green. Recovery: `--max-cationic-fraction
+1.0` restores the pre-cap feat-033 selection (no peptide has `(K+R)/len > 1.0`, so the cap is a no-op);
+`--composition-weight 0` still recovers the feat-031 APEX path.
+
+**Also explored this session, not adopted (recorded for completeness).**
+- **D1 + ProGen2 in-envelope diversification pools.** A masked-infill generator (ESM-C 600M, D1 ~46k) and **ProGen2**
+  (from `anthropics/uplifting-biomolecular-modeling`, the one AMP-applicable kit; ~42k novel / in-envelope /
+  diverse-from-both, 32k net-new 21–28mers) produced large *complementary* pools. But these are **floor-play material
+  for a hedged library only** — under the competition's mean-over-random-draw scoring the expected score is set by the
+  composition signal, not by generator choice; using them would require a risky Tier-2 library change; and their
+  activity is **unproven** (no trusted oracle for novel peptides, per feat-035). **Not shipped.**
+- **D3 — Gram+ physchem lever search.** An MC-corrected 16-feature battery found **no transferable Gram+ physchem
+  lever**: every DBAASP signal sign-flips OOD, reconfirming feat-035/036 (net_charge reverses sign, amphipathicity is
+  an in-distribution mirage). There is no safe knob to raise real Gram+ beyond removing the extrapolations, which
+  feat-037 does.
+
+**Validator status.** The `top.fasta` changed, so the official validator MUST be **re-run on the final pushed commit**
+(`scripts/verify_submission.py <repo-url>`) — this is **PENDING and not yet claimed passed**; local two-run byte-repro
+on the capped default is being re-confirmed. Everything else about the entry (library body, generator, checkpoints,
+selectivity model, compliance) is unchanged from feat-033.

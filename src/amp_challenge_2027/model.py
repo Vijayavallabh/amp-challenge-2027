@@ -179,6 +179,7 @@ class ApexRanker:
         lys_hedge: float = 0.0,
         composition_weight: float = 0.0,
         aromatic_weight: float = 0.5,
+        max_cationic_fraction: float | None = None,
     ) -> None:
         from .oracle import ApexScorer  # lazy: keeps model.py importable without the oracle
 
@@ -235,6 +236,17 @@ class ApexRanker:
         # corrupting the composition signal. The shipped 0.5 passes through unchanged.
         aw = float(aromatic_weight)
         self._aromw = aw if (aw == aw and aw not in (float("inf"), float("-inf")) and aw >= 0.0) else 0.0
+        # Composition-envelope cap (feat-037; generate.py ships it at 0.444): in composition mode,
+        # demote any APEX-active-band candidate whose cationic fraction (K+R)/len exceeds this threshold
+        # below every in-envelope band member, so the top list backfills from in-envelope candidates
+        # instead of extrapolating past the wet-lab-validated cationic ceiling (max (K+R)/len among the
+        # 46 wet-lab actives = 0.444; the pre-cap feat-033 top-100 put 20/100 -- 13 in the top-50 --
+        # beyond it, where real Gram+/MDR activity collapses on the 46, so removing them lifts the two
+        # hardest boards -- Gram+ +0.029 / MDR +0.026 kNN-SR, 95% bootstrap CI excludes 0). This class
+        # defaults to None = off (a neutral library primitive); generate.py sets the shipped 0.444.
+        # mcf >= 1.0 is a no-op (no peptide has (K+R)/len > 1.0), so 1.0 disables the cap.
+        mcf = None if max_cationic_fraction is None else float(max_cationic_fraction)
+        self._maxcat = mcf if (mcf is None or (mcf == mcf and 0.0 < mcf <= 1.0)) else None
         base = {"category": "apex-success", "balanced": "apex-balanced-success"}.get(
             objective, "apex-broad-potency"
         )
@@ -242,6 +254,8 @@ class ApexRanker:
             self.name = f"wetlab-composition(lysfrac - {self._aromw:g}*aromatic) gated by {base}-active-band"
             if self._hemo is not None and self._lam > 0:
                 self.name += f" - {self._lam:g}*hemolysis"
+            if self._maxcat is not None:  # provenance: an enabled envelope cap must show in the name
+                self.name += f" [cationic-fraction capped at {self._maxcat:g}]"
         else:
             self.name = (
                 f"{base} - {self._lam:g}*hemolysis"
@@ -331,6 +345,16 @@ class ApexRanker:
         final = comp.astype(float)
         if self._hemo is not None and self._lam > 0:
             final = final - self._lam * self._band_phemo(sequences, band, n)
+        maxcat = getattr(self, "_maxcat", None)  # optional; default off (robust to partial construction)
+        if maxcat is not None:  # envelope cap: demote over-cationic band members below in-envelope
+            fcat = np.array(
+                [(s.count("K") + s.count("R")) / len(s) if s else 0.0 for s in sequences]
+            )
+            band_over = band[fcat[band] > maxcat]
+            # 10.0 >> the composition/hemolysis scale (|final| < ~2), so every in-envelope band member
+            # outranks every over-envelope one; relative order among the demoted is preserved, so if the
+            # novelty/diversity screens ever exhaust the in-envelope band the next-best fills the slot.
+            final[band_over] = final[band_over] - 10.0
         # Gate: out-of-band candidates rank strictly below every in-band one. Rather than a single
         # magic sentinel (which would sort APEX-inactive peptides *lexicographically* if the novelty/
         # diversity screens ever exhaust the band, and could be crossed by a large composition_weight),
