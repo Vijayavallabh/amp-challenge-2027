@@ -111,8 +111,8 @@
 > Only **feat-010 (one-shot Kaggle submit)** remains — user-gated (team name + `j_v_v_07` go-ahead; rotate the
 > `KGAT_` token).
 
-**Last Updated:** 2026-09-29 (session 5 — feat-032 ReST generator EXPLORED then REVERTED: apparent domination was ensemble-Goodhart [matched APEX-only control reached the same held-out GN without the wet-lab prior] + a 2.6x near-exact novelty regression; SHIPPED = feat-031, validator-PASSED, clean)
-**Active Feature:** feat-010 SUBMIT (user-gated) — feat-015…feat-020 + **feat-021** (explicit hard
+**Last Updated:** 2026-09-30 (feat-035 — 24h deep-validation pass, NO artifact change: confirmed feat-033 near-optimal [Optimal Selectivity validated on real DBAASP HC50/MIC 92.7 vs 58.5; APEX active-band gate tested keep-vs-drop and KEPT; a learned/TabPFN-style ranker collapses out-of-distribution while composition transfers +0.448; no validated Gram+/MDR lever] and raised two user flags to confirm with the organizers before submit — the top-50-vs-top-100 draw ambiguity and the institutional-email registration requirement. SHIPPED = feat-033 + feat-034, validator-PASSED on 1c091e5; latest commit 0adffbc.)
+**Active Feature:** feat-010 SUBMIT (user-gated). **The current shipped/validated state is feat-033 + feat-034, deep-validated by feat-035 (2026-09-30) — see the Current State block at the top of this file; the feat-015…feat-025 narrative that follows is HISTORICAL (feat-021-era), kept for its lessons.** feat-015…feat-020 + **feat-021** (explicit hard
 Gram- term, top-50 Gram- 0.54→0.58 at zero Gram+/MDR cost) DONE and **official-validator PASS on the
 pushed commit 15c3b5e**. **feat-022** (submodel-cross-validated directed-evolution GA) and **feat-023**
 (maximin top-list selection, `--select maximin`) were both explored extensively on the free GPUs and

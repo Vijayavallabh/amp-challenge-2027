@@ -107,12 +107,22 @@ All of this is enforced at generation time by `src/amp_challenge_2027/constraint
    distributions, plus exact and near-exact matching against DBAASP, dbAMP and APD. If more teams
    qualify than there is experimental capacity for, this phase ranks them and the **top 20 advance**.
 3. **Experimental validation** — from each advancing team's top-100 list, **25 peptides are drawn
-   at random from the top 50** and synthesized, giving a cohort of 500 peptides. Candidates above
+   at random from the top 50** *(disputed — the organizers' own materials elsewhere say the top 100;
+   see the note below the list)* and synthesized, giving a cohort of 500 peptides. Candidates above
    80% identity to the reference set are treated as invalid and replaced by the next valid one.
    The random draw is deliberate: it measures whether a model is reliably good, not whether it
    produced one lucky sequence.
 4. **Results and publication** — all MIC and HC50 measurements are done in one lab under
    identical protocols, blinded to team identity and in randomized order.
+
+> **Note (2026-09-30) — the wet-lab draw pool (top 50 vs top 100) is unconfirmed.** The
+> organizers' own materials disagree: the website How-It-Works section and the design PDF say the
+> 25 wet-lab peptides are "drawn at random from the top 100," while the website FAQ says the top 50.
+> Nothing we have found reconciles the two, so **confirm the pool with the organizers** — a GitHub
+> issue on the [official repo](https://github.com/szczurek-lab/amp-challenge-2027/issues) or email —
+> before relying on either. Until it is confirmed, the safe hedge is a **uniformly strong top-100**:
+> if the draw is from the top 100, list positions 51–100 are assayed too, so a top list that is
+> strong only through position 50 loses on any peptide pulled from the tail.
 
 ### Categories
 

@@ -61,6 +61,15 @@ The competing account is **username `vijayavallabhj`, display name `j_v_v_07`**.
 `userHasEntered=True`, `auth_method=ACCESS_TOKEN`, 0 submissions so far. The CC BY 4.0 write-up is
 attributed to the **display name**, `j_v_v_07`.
 
+**OPEN FLAG — institutional-email requirement (confirm with the organizers before the one-shot
+submit).** The competition materials reportedly require an **institutional email** to register
+("gmail/hotmail/yahoo not accepted"), yet our entry uses a **gmail** account (display name
+`j_v_v_07`, `vallabh2006@gmail.com`). The `userHasEntered=True` check above is consistent with the
+entry already having been accepted, so this may already be settled — but a joined-competition flag
+does not by itself prove the institutional-email rule was met or waived. Confirm eligibility with
+the organizers (Discussion page or email) **before** the one-shot submit; there is no resubmission
+to undo an eligibility rejection. Status: **human**.
+
 One trap to keep in mind on this machine: the default token at `~/.kaggle/kaggle.json` belongs to a
 **different account** (`prakashchhipa`, the machine owner). Queried through it, this competition
 reports `userHasEntered=False` and returns HTTP 403 for the data endpoint — answers about that

@@ -195,7 +195,10 @@ pre-filtered to the competition constraints (20 standard residues, length 8–50
 ## Selection and ranking of the top 100
 
 This is a required deliverable and it is what the competition measures — 25 peptides are drawn at
-random from the top 50 and assayed.
+random from the top 50 and assayed. (*The organizers' own materials disagree on this draw: the
+How-It-Works section and the design PDF say the top **100**, while the website FAQ says the top **50** —
+flagged in the checklist to confirm before submit; if it is the top 100, list positions 51–100 are also
+assayed and our composition ranking tapers there.*)
 
 - **Scoring function (feat-033):** within an **APEX-active-band gate**, `score = composition_score −
   1.5·P(hemolytic)`, where `composition_score = lys_fraction − 0.5·aromatic_fraction`, applied to a
@@ -327,7 +330,15 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       — *"All checks passed. Submission is valid!"*, all 8 checks incl. byte-identical reproducibility, the ≤80%
       novelty gate, and the real ESM++/ESMC selectivity path; fresh-clone output library `06e30960`, top
       `dc37c540` (byte-identical to local, and to the pre-fix `84e2b78` — the fix is byte-neutral on the shipped
-      parallel path). Subsequent commits are docs-only atop the validated `1c091e5`. **Re-run once more on the
+      parallel path). Subsequent commits are docs-only atop the validated `1c091e5` (latest main `0adffbc`;
+      the local test suite is green — 156 tests). **feat-035 (2026-09-30): a 24-hour deep-validation pass with
+      no artifact change confirmed feat-033 is near-optimal** — the composition chemotype's Optimal-Selectivity
+      safety window was validated on real DBAASP HC50/MIC (92.7 vs 58.5 baseline), the APEX active-band gate
+      was tested keep-vs-drop and **kept** (the 46-peptide "gate-harmful" signal is not statistically robust,
+      and the DBAASP "gate-helpful" result is circular because APEX was trained on DBAASP), and a
+      learned/TabPFN-style ranker was shown to collapse out-of-distribution on novel peptides while the
+      composition formula transfers (Spearman +0.448); no validated Gram+/MDR lever was found. See
+      `docs/RESEARCH.md` (feat-035). **Re-run once more on the
       final pushed commit immediately before submitting.** History: the earlier **feat-031 APEX-ranked
       default PASSED** the official validator on commit `f4eed63` (fresh-clone output `9a3278c9`/`61becbab`);
       recover it with `--composition-weight 0`. **feat-032 (a Lys-conditioned Gram--ReST generator) was
@@ -341,3 +352,13 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       [@szymczakpau](https://github.com/szymczakpau) — satisfied by the repo being public
 - [x] Top 100 confirmed to be a subset of the submitted 50,000-sequence library (enforced in code)
 - [ ] Only one entry for this model; if a second model is planned, organizers contacted in advance
+- [ ] **Confirm the wet-lab draw size with the organizers before the one-shot submit** — their own
+      materials disagree: the website How-It-Works section and the design PDF say **25 are drawn at random
+      from the top 100**, while the website FAQ says **top 50**. If it is the top 100, list positions 51–100
+      are also assayed and our composition ranking tapers there. Resolve before submitting; see
+      `docs/COMPLIANCE.md`.
+- [ ] **Confirm the institutional-email registration requirement is satisfied** — the competition
+      materials reportedly require an institutional email ("gmail/hotmail/yahoo not accepted"); our Kaggle
+      account (`j_v_v_07` / `vallabh2006@gmail.com`) registered with a gmail address, though the listed
+      contact is institutional (`be23b041@smail.iitm.ac.in`). Confirm acceptance with the organizers before
+      submitting; see `docs/COMPLIANCE.md` § Account identity.
