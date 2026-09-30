@@ -196,12 +196,11 @@ differ, 31/50 in the top-50). Detail: `docs/RESEARCH.md` "feat-037".
 
 **Standing blockers (one-shot submission — get these exactly right):**
 
-- [ ] **One entry, no resubmission** — **feat-037 changed the code (new `--max-cationic-fraction 0.4445`
-      default) and the artifact (`top.fasta` → new hashes `86639c72…`/`a4153d03…`), so the official validator
-      re-run is REQUIRED and PENDING on the final feat-037 commit** (this is a code+artifact change, not
-      docs-only). The pre-cap feat-033 artifact had PASSED all 8 checks on `a7ed06f` (2026-09-30, fresh-clone
-      byte-identical `dc37c540`/`06e30960`); re-run `scripts/verify_submission.py <repo-url>` on the final commit
-      before submitting. Submit only from **`j_v_v_07`** (never the machine-default token, which belongs to a
+- [x] **Official validator re-run DONE on the final feat-037 commit** — feat-037 changed the code (new
+      `--max-cationic-fraction 0.4445` default) and the artifact (`top.fasta` → new hashes `86639c72…`/`a4153d03…`);
+      `scripts/verify_submission.py` **PASSED all 8 checks** on a fresh clone of `da7ae56` (fresh-clone output
+      byte-identical to the shipped artifact). As standard practice, re-run it once more immediately before
+      submitting. Submit only from **`j_v_v_07`** (never the machine-default token, which belongs to a
       different account — a one-account-rule breach).
 - [ ] **Rotate the exposed `KGAT_` token** before submitting (it goes in `KAGGLE_API_TOKEN`, not
       `kaggle.json`).
@@ -217,9 +216,10 @@ further modelling scope (headroom is bounded; every apparent lever, incl. learne
 and amphipathicity, collapses OOD). The two user flags are **set aside per the participant**. Remaining actions:
 
 1. Rotate the `KGAT_` token.
-2. **Re-run `scripts/verify_submission.py <repo-url>` on the final feat-037 commit — REQUIRED and PENDING**
-   (feat-037 changed the code + `top.fasta`; the pre-cap `a7ed06f` pass no longer covers the shipped artifact).
-   Expect the new hashes `86639c72…`/`a4153d03…`.
+2. **Official validator: PASSED** on the final feat-037 commit `da7ae56` (all 8 checks, fresh-clone byte-identical
+   `86639c72…`/`a4153d03…`) — as standard practice, re-run `scripts/verify_submission.py <repo-url>` once more
+   immediately before submitting.
+3. Provide the **team name** and authorize the one-shot submit from **`j_v_v_07`** (user-gated — not autonomous).
 3. Submit from **`j_v_v_07`** with the participant's team name and explicit go-ahead.
 
 ## Startup

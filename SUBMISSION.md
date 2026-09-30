@@ -337,8 +337,9 @@ Required disclosure. State plainly what was applied, including "none".
   eval mode on CPU; `torch.use_deterministic_algorithms`). The shipped default is the **feat-037
   composition-envelope-capped** selection — current hashes **top `86639c72df6849b096dc91fbada0e0bb`,
   library `a4153d03d98d9e568c4b3c8122bc15af`** (pre-cap feat-033 was `dc37c540`/`06e30960`, recoverable
-  with `--max-cationic-fraction 1.0`). Because the cap changed `top.fasta`, the official validator must be
-  **re-run on the final pushed commit before submitting — pending, not yet re-confirmed for feat-037.**
+  with `--max-cationic-fraction 1.0`). The cap changed `top.fasta`, and the official validator has **PASSED on
+  the final feat-037 commit** (`da7ae56`, all 8 checks, fresh-clone output byte-identical to the shipped hashes);
+  as standard practice, re-run it once more immediately before submitting.
 - Python 3.11, pinned in `.python-version`; dependencies locked in `uv.lock`. The APEX oracle is an
   isolated `uv` project (`oracle/apex`, its own lock) invoked as a subprocess; it syncs on first
   call. Weights (`checkpoint/generator.pt`, `checkpoint/selectivity_esmc.pt`, `checkpoint/hemolysis.pt`,
