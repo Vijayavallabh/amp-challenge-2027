@@ -1344,3 +1344,24 @@ HemoPI2-class proxy.
   composition chemotype (SW 92.7; our regime 133–175 µM), not any single predictor's point estimate**. Do NOT
   ensemble HemoPI2 into selection: filtering on a model just shown OOD-unreliable would be the feat-032
   ensemble-Goodhart trap. **No artifact change.**
+
+## feat-036 — amphipathicity (muH) tested as a potency lever, REJECTED on the OOD test (2026-09-30)
+
+Profiled the shipped feat-033 top-100's structure (a documented gap — earlier ESMFold checks were on the old
+APEX-ranked peptides, a different chemotype; `scratchpad/amphipathicity_finding.md`). The composition top-100 is
+**charge-driven and only modestly amphipathic**: hydrophobic moment median **muH 0.29** (below every classic AMP
+control — melittin 0.35, magainin2 0.46, LL-37 0.56), net charge ~7, net hydrophilic. Max-composition does *not*
+sacrifice amphipathicity (within-top-100 Spearman(comp, muH) = +0.14) — the low muH is a chemotype property, and
+it confirms the old feat-020 flag.
+
+That raised a sharp question feat-035's blanket "hydrophobicity destroys the safety window" did not settle: is our
+low muH leaving *safely-recoverable* real potency on the table? On real data **within our high-composition band**,
+it looked like a genuine lever — muH → real Gram− SR **+0.192** (monotone) *and* muH → real HC50 **+0.131**
+(positive! the highest-muH bin has the best HC50), because muH is the amphipathic *arrangement* of few hydrophobic
+residues, not total hydrophobicity, so within a Lys-rich low-hydrophobicity context it adds potency without the
+hemolysis cost. **But the decisive OOD test (the 46 novel peptides = our regime) rejects it:** muH → realGN/realALL
+**collapses to +0.007 / +0.004** (vs +0.19 on DBAASP), while composition holds at +0.50 / +0.47, and a comp+muH
+top-10 does not beat comp-only on real broad (0.455 vs 0.464). Amphipathicity is **another in-distribution mirage**
+(like APEX, net_charge, HemoPI2) that does not transfer to novel peptides, so the low muH of our top-100 is **not a
+deficiency to fix** — adopting a muH preference would be the feat-032 Goodhart trap. ~9th independent angle; all
+converge on **ship feat-033**. No artifact change.
