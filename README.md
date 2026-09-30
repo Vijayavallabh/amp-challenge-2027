@@ -7,13 +7,21 @@ Competition Track challenge on discovering new antibiotics against drug-resistan
 `uv run generate` produces the two files the organizers validate: a 50,000-sequence library and a
 ranked top-100 list, reproducibly from a fixed seed.
 
-> **Status: activity-fine-tuned generator + wet-lab-calibrated composition ranking (feat-033).**
+> **Status: activity-fine-tuned generator + wet-lab-calibrated composition ranking under a wet-lab composition-envelope cap (feat-037, official-validator-passed).**
 > `uv run generate` samples from an autoregressive Transformer (`checkpoint/generator.pt`) **fine-tuned
 > toward predicted activity/selectivity by rejection sampling (ReST)** on the H100s (so its samples are
 > mostly predicted-active, not the ~6% of the pre-trained base), then ranks the top-100 (from an 8×/400k
 > oversampled pool) **not by APEX-predicted potency but by a wet-lab-calibrated composition score** —
 > `lys_fraction − 0.5·aromatic_fraction` within an **APEX-active-band gate**, minus an **ESMC-600M
 > selectivity** penalty (latest-SOTA protein LM, held-out AUROC 0.905), with a within-list diversity screen.
+> **feat-037 then caps that top-100 to the wet-lab composition envelope** (`--max-cationic-fraction 0.4445`):
+> any candidate whose cationic fraction `(K+R)/len` exceeds `4/9` (~0.4444, the maximum among our 46 wet-lab
+> actives) is demoted below every in-envelope candidate, so the list backfills from in-envelope peptides
+> rather than extrapolating past the validated cationic ceiling. This changes only the top-100 *selection* —
+> the 50k library stays byte-identical to feat-033, so phase-2 is untouched — and it is a **principled
+> envelope cap** that removes unvalidated over-cationic extrapolations at no measured cost: feat-037
+> directionally at least matches feat-033 on every board, but its value is the cap itself, not a
+> robustly-measured activity gain. `--max-cationic-fraction 1.0` recovers the pre-cap feat-033 selection.
 > We validated every ranking signal against *real* activity — our 46 wet-lab MICs **and** 946 independent
 > DBAASP peptides — and found that inside the high-activity band the top-100 is drawn from, **APEX loses its
 > ranking power** (Spearman +0.06) while **Lysine-richness predicts real activity** (+0.27); so APEX is kept
@@ -75,7 +83,7 @@ Every flag has a default, so a bare `uv run generate` is a complete run.
 | `--top-p` | `1.0` | Nucleus sampling cutoff (trained generator) |
 | `--oversample` | `8.0` | Pick the top-100 from this multiple of `--n-sequences` candidates (larger pool → stronger top list); `1.0` disables |
 | `--rank` | `apex` | Top-100 ranking backbone: `apex` (APEX oracle, used as the active-band gate) or `likelihood` (generator) |
-| `--composition-weight` | `1.0` | **Shipped ranking (feat-033):** within the APEX-active band, rank by `composition-weight·(lys_fraction − aromatic-weight·aromatic_fraction)`; `0` recovers the earlier APEX-potency ranking |
+| `--composition-weight` | `1.0` | **Composition ranking (feat-033):** within the APEX-active band, rank by `composition-weight·(lys_fraction − aromatic-weight·aromatic_fraction)`; `0` recovers the earlier APEX-potency ranking |
 | `--aromatic-weight` | `0.5` | Aromatic (F/W/Y) penalty inside the composition score — aromatics anti-predict real activity and track hemolysis |
 | `--rank-objective` | `balanced` | APEX active-band score: `balanced` (hard Gram+/MDR/Gram− Success Rate + broad tie-break), `category`, or `broad` (potency margin) |
 | `--gp-weight` | `1.0` | Gram-positive up-weight in the APEX active-band objective |
@@ -83,6 +91,7 @@ Every flag has a default, so a bare `uv run generate` is a complete run.
 | `--hemolysis-penalty` | `1.5` | Selectivity weight λ: subtract `λ·P(hemolytic)` (ESMC) from the rank score, keeping the top-50 non-hemolytic; `0` disables |
 | `--apex-dir` | `oracle/apex` | APEX oracle project (isolated env), used when `--rank apex` |
 | `--diversity-max-identity` | `0.6` | Cap pairwise identity within the top-100; `>=1` disables |
+| `--max-cationic-fraction` | `0.4445` | **Shipped selection cap (feat-037):** demote any composition-ranked top-100 candidate whose cationic fraction `(K+R)/len` exceeds this below every in-envelope band member; the default `0.4445` sits just above `4/9` (~0.4444, the max among the 46 wet-lab actives), keeping at-ceiling peptides and demoting only stricter extrapolations. `1.0` disables (recovers the pre-cap feat-033 selection) |
 | `--baseline` | off | Force the random-baseline generator (no checkpoint / no torch needed) |
 | `--skip-validation` | off | Write the files without the local compliance check |
 
