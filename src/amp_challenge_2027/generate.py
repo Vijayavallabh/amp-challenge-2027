@@ -104,9 +104,20 @@ def build_ranker(model: PeptideGenerator, args: argparse.Namespace):
             # fall back to APEX activity ranking (the validated feat-031 path) instead of that.
             comp_w = args.composition_weight
             if comp_w > 0 and hemo is None:
-                print("WARNING: composition ranking needs the selectivity model to stay non-hemolytic "
-                      "and it is unavailable; falling back to APEX activity ranking (feat-031).",
-                      file=sys.stderr)
+                # Distinguish the two ways hemo can be None (review #2): the user DISABLED the penalty
+                # (--hemolysis-penalty 0), vs the selectivity model FAILED to load. Both force the
+                # APEX-ranking fallback (a pure-composition top-50 is 22% ESMC-hemolytic), but the
+                # reason -- and the fix -- differ, so report them honestly instead of always blaming
+                # an "unavailable" model.
+                if args.hemolysis_penalty <= 0:
+                    print("WARNING: composition ranking needs the selectivity penalty to stay "
+                          "non-hemolytic, but --hemolysis-penalty is 0; falling back to APEX activity "
+                          "ranking (feat-031). Pass --hemolysis-penalty > 0 to use composition ranking.",
+                          file=sys.stderr)
+                else:
+                    print("WARNING: composition ranking needs the selectivity model to stay non-hemolytic "
+                          "and it is unavailable; falling back to APEX activity ranking (feat-031).",
+                          file=sys.stderr)
                 comp_w = 0.0
             ranker = ApexRanker(
                 args.apex_dir,
@@ -584,6 +595,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.composition_weight > 0:
             print("  NOTE: --composition-weight applies to --select score only; the maximin selector "
                   "ranks by per-category rates and ignores it (no composition ranking applied)")
+        # Provenance (review #3): the 'Ranking:' line above names the SCORE ranker, but maximin does
+        # not use it to order the top-list -- state the selection method that actually ran, so the
+        # recorded provenance is not mislabelled.
+        print("  SELECTION: maximin over per-category Success Rates + ESMC selectivity (supersedes the "
+              "'Ranking:' scoring signal above for the top-list order)")
         top = select_maximin(rank_pool, ranker, args.top_k, reference,
                              diversity_max_identity=args.diversity_max_identity)
     else:

@@ -2,6 +2,25 @@
 
 ## Current State
 
+> **feat-036 (2026-09-30) — CODE-REVIEW CLOSEOUT + INDEPENDENT CROSS-CHECKS + BYTE-NEUTRAL HARDENING; NO shipped-output change.**
+> A same-day follow-up to feat-035. A background `/code-review` found **no surviving correctness bug** (156 tests). Its
+> top finding + two more independent, ground-truth-anchored experiments all reconfirm feat-033; the shipped artifact is
+> **byte-unchanged** (2× `generate` on the patched code → `dc37c540`/`06e30960`), now **158 tests**. (1) **The selectivity
+> λ=1.5 is a GATE, not a miscalibration:** on the shipped band `phemo` is bimodal, λ clears the ~54% hemolytic mode, and
+> the top-100 is 99% clean and **composition-ordered** (Spearman(final,comp)=+0.90 vs (final,−phemo)=+0.06; overlap with a
+> selectivity-only ranking = 0%). The review's "rescale λ to the composition scale" would re-admit hemolytic peptides for
+> ~0 composition gain — **no λ change.** (2) **Byte-neutral honesty fixes** (#2/#3/#5: penalty-disabled vs model-unavailable
+> message; explicit `SELECTION:` line under `--select maximin`; a `physchem._frac` formula-pinning test) — stdout/test-only
+> on paths the default never runs. (3) **Independent HemoPI2 selectivity cross-check** (reconstructed RF, R 0.702 vs paper
+> 0.739) disagreed with our ESMC head on the top-100, but the **real-HC50 arbiter** resolves it in our favour (our Lys
+> regime is in-distribution and safe, median real HC50 133 µM); the disagreement is generated-peptide OOD — a *third* learned
+> model (after APEX, ESMC) failing OOD on novel peptides, while composition-on-real-data transfers. (4) **No safe Gram+
+> lever:** no physchem feature specifically predicts real Gram+; net_charge helps Gram− more and *reverses sign OOD* (+0.22
+> natural vs −0.31 on the 46 novel), and our top-100 is already well-charged — chasing Gram+ would backfire. Honest caveat
+> recorded: "top-50 0% hemolytic" is an ESMC learned-model OOD estimate; trust the real-HC50-validated chemotype, not a
+> per-peptide guarantee. Detail: `docs/RESEARCH.md` (code-review closeout + selectivity cross-check); `scratchpad/codereview_finding1.md`,
+> `hemopi2_finding.md`, `grampos_finding.md`. **Recommendation unchanged: ship feat-033 as-is.** Both feat-035 user flags remain open.
+>
 > **feat-035 (2026-09-30) — 24-HOUR DEEP VALIDATION; feat-033 confirmed near-optimal; NO artifact change.**
 > A full-day GPU-backed pass (ground truth + a 5-agent literature deep-research + offline GPU experiments; the
 > shipped artifact `dc37c540` untouched) found **no safe, robustly-supported, shippable improvement** over feat-033
@@ -34,8 +53,8 @@
 > R/(R+K) 0.60→**0.33** (Lys>Arg 14%→94%), aromatic 0.20→0.10, **0% predicted-hemolytic (ESMC max 0.038, better
 > than feat-031's 0.073)**, novelty 0/50 >0.80 (top-50 median 0.69, top-100 max 0.80), diversity clean. Library
 > **byte-identical to feat-031's save the top-100**, so Phase-2 (diversity 91% NN<0.6 / novelty median 0.60, 1.3%
-> >0.80 / uniqueness 1.0) is unchanged. **156 tests pass** (feat-033/034 hardening added `tests/test_composition.py`
-> + an APEX thread-pinning guard, for previously-untested paths); compliance PASS; **byte-reproducible** (two default runs →
+> >0.80 / uniqueness 1.0) is unchanged. **158 tests pass** (feat-033/034 + feat-036 hardening added `tests/test_composition.py`
+> + an APEX thread-pinning guard + penalty-disabled-message & `_frac` formula-pinning tests, for previously-untested paths); compliance PASS; **byte-reproducible** (two default runs →
 > top `dc37c540` / lib `06e30960`). APEX-*predicted* profile Broad 0.64/GN 0.85/GP 0.26/MDR 0.33 — the GP/MDR drop
 > is APEX mis-scoring the Lysine chemotype; on every real-data test composition selection ties-or-beats APEX
 > selection on all 4 categories. **Adopted with the participant's explicit go-ahead** (a strategic call on the

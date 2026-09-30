@@ -6,13 +6,15 @@
   deadline. The design work is complete — the reproducible 50k library + top-100 (active, selective,
   novel, diverse) is shipped and validator-PASSED. The only work left is the **user-gated Kaggle
   submit**.
-- **Current status (through feat-035):** **SHIPPED = feat-033 (wet-lab-calibrated COMPOSITION
+- **Current status (through feat-036):** **SHIPPED = feat-033 (wet-lab-calibrated COMPOSITION
   ranking) + feat-034 (adversarial-audit hardening + a byte-reproducibility fix; the shipped peptides
   are UNCHANGED).** The latest session, **feat-035 (2026-09-30)**, was a 24-hour deep-validation pass
   with **no artifact change** that **confirmed feat-033 is near-optimal** (see below). No safe,
-  robustly-supported, shippable improvement over feat-033 exists. Full feat-001…feat-035 record lives
-  in `progress.md` + `feature_list.json`; historical feat-016…feat-032 notes there are point-in-time
-  and correct as-of-their-date — do not rewrite them.
+  robustly-supported, shippable improvement over feat-033 exists. A same-day follow-up, **feat-036**,
+  closed out a background code review and ran two more independent ground-truth cross-checks — all
+  confirming ship feat-033, artifact byte-unchanged (see the feat-036 block below). Full feat-001…feat-036
+  record lives in `progress.md` + `feature_list.json`; historical feat-016…feat-032 notes there are
+  point-in-time and correct as-of-their-date — do not rewrite them.
 - **Branch / commit:** `main` @ **`0adffbc`** (docs atop the validated artifact). Official validator
   **PASSED on `1c091e5`** (feat-034; byte-identical to the feat-033 artifact `84e2b78`). Submission
   remains **user-gated** — team name + explicit go-ahead from **`j_v_v_07`** only, never the
@@ -61,6 +63,35 @@ shippable improvement. Detail: `docs/RESEARCH.md` "feat-035" + `scratchpad/SESSI
   (Gram−/Broad/Selectivity) without sacrificing them.
 - **Recommendation: ship feat-033 as-is.**
 
+## feat-036 (2026-09-30): code-review closeout + independent cross-checks + byte-neutral hardening
+
+A same-day follow-up to feat-035. A background `/code-review` found no surviving correctness bug; its top
+finding + two further independent, ground-truth-anchored experiments all reconfirm feat-033. The shipped
+artifact is **byte-unchanged** (a 2× `generate` run on the patched code reproduced `dc37c540`/`06e30960`);
+**158 tests** pass (156 + 2). Detail: `docs/RESEARCH.md` "feat-035 code-review closeout" and "independent
+selectivity cross-check"; `scratchpad/codereview_finding1.md`, `hemopi2_finding.md`, `grampos_finding.md`.
+
+- **The selectivity λ=1.5 is a GATE, not a miscalibration.** The review flagged λ (calibrated for the
+  larger `balanced_success_score` scale) as maybe dominating composition. On the shipped band it acts as a
+  gate: band `phemo` is bimodal, λ clears the ~54% hemolytic mode, and the top-100 is 99% clean and
+  **composition-ordered** (Spearman(final,comp)=+0.90 vs (final,−phemo)=+0.06; overlap with a
+  selectivity-only ranking = 0%). Rescaling λ to the composition scale (the review's suggestion) would
+  re-admit hemolytic peptides for ~zero composition gain — **no λ change.**
+- **Byte-neutral honesty fixes applied** (review #2/#3/#5): distinguish "penalty disabled" from "model
+  unavailable" in the `build_ranker` fallback message; add an explicit `SELECTION:` provenance line under
+  `--select maximin`; pin the `lys/aromatic_fraction` formula to `physchem._frac` with a test. All are
+  stdout/test-only on paths the shipped default never runs — output byte-identical.
+- **Independent selectivity cross-check (HemoPI2 recipe) → corroborates feat-033.** A reconstructed
+  HemoPI2-class RF (independent-set R 0.702 vs paper 0.739) rated the top-100 mildly hemolytic, disagreeing
+  with our ESMC head — but the **real-HC50 arbiter** resolves it in our favour (our Lys regime is
+  in-distribution and genuinely safe, median real HC50 133 µM). The disagreement is generated-peptide OOD:
+  a *third* learned model (after APEX, ESMC) failing OOD on novel peptides, while composition-on-real-data
+  transfers. Honest caveat recorded: our own "0% hemolytic" is likewise an ESMC OOD estimate — trust the
+  real-HC50-validated chemotype, never a per-peptide guarantee.
+- **No safe Gram+ lever (uncontested board) — confirmed.** No physchem feature specifically predicts real
+  Gram+; the strongest (net_charge) helps Gram− more and *reverses sign* OOD (DBAASP +0.22 vs the 46 novel
+  −0.31), and our top-100 is already well-charged (median 7.0) — chasing Gram+ with charge would backfire.
+
 ## Final submission characterisation (feat-033, local full 50k run, seed 42)
 
 - **Top-50:** R/(R+K) **0.33** (Lys>Arg in 94%), aromatic fraction **0.10**, **0% predicted-hemolytic**
@@ -75,7 +106,7 @@ shippable improvement. Detail: `docs/RESEARCH.md` "feat-035" + `scratchpad/SESSI
 
 | Check | Command | Result |
 |---|---|---|
-| Tests | `uv run pytest -q` | **156 passed** (feat-033/034 added `tests/test_composition.py` + an APEX thread-pinning guard) |
+| Tests | `uv run pytest -q` | **158 passed** (feat-033/034 added `tests/test_composition.py` + an APEX thread-pinning guard; feat-036 added a penalty-disabled-message test + a `physchem._frac` formula-pinning test) |
 | Full 50k reproducibility (APEX + ESMC PLM on GPU) | two `uv run generate` runs | **byte-identical** (top `dc37c540`, library `06e30960`) |
 | Official validator | `verify_submission.py <repo-url>` | **All 8 checks passed** on `1c091e5` (fresh clone + `uv sync` + generate ×2; fresh-clone output byte-identical `06e30960`/`dc37c540`) |
 | Compliance | `docs/COMPLIANCE.md` rule-by-rule audit | **PASS** |

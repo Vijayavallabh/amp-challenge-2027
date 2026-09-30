@@ -330,15 +330,25 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       — *"All checks passed. Submission is valid!"*, all 8 checks incl. byte-identical reproducibility, the ≤80%
       novelty gate, and the real ESM++/ESMC selectivity path; fresh-clone output library `06e30960`, top
       `dc37c540` (byte-identical to local, and to the pre-fix `84e2b78` — the fix is byte-neutral on the shipped
-      parallel path). Subsequent commits are docs-only atop the validated `1c091e5` (latest main `0adffbc`;
-      the local test suite is green — 156 tests). **feat-035 (2026-09-30): a 24-hour deep-validation pass with
-      no artifact change confirmed feat-033 is near-optimal** — the composition chemotype's Optimal-Selectivity
-      safety window was validated on real DBAASP HC50/MIC (92.7 vs 58.5 baseline), the APEX active-band gate
-      was tested keep-vs-drop and **kept** (the 46-peptide "gate-harmful" signal is not statistically robust,
-      and the DBAASP "gate-helpful" result is circular because APEX was trained on DBAASP), and a
-      learned/TabPFN-style ranker was shown to collapse out-of-distribution on novel peptides while the
-      composition formula transfers (Spearman +0.448); no validated Gram+/MDR lever was found. See
-      `docs/RESEARCH.md` (feat-035). **Re-run once more on the
+      parallel path). Commits atop the validated `1c091e5` are docs plus one **byte-neutral** review-response
+      commit (feat-036 — stdout/test-only changes on non-default paths; a 2× `generate` run reproduced
+      `dc37c540`/`06e30960`); the local test suite is green — **158 tests**. **feat-035 (2026-09-30): a
+      24-hour deep-validation pass with no artifact change confirmed feat-033 is near-optimal** — the
+      composition chemotype's Optimal-Selectivity safety window was validated on real DBAASP HC50/MIC (92.7 vs
+      58.5 baseline), the APEX active-band gate was tested keep-vs-drop and **kept** (the 46-peptide
+      "gate-harmful" signal is not statistically robust, and the DBAASP "gate-helpful" result is circular
+      because APEX was trained on DBAASP), and a learned/TabPFN-style ranker was shown to collapse
+      out-of-distribution on novel peptides while the composition formula transfers (Spearman +0.448); no
+      validated Gram+/MDR lever was found. **feat-036 (2026-09-30):** a background code review found no
+      correctness bug; its top finding + two more independent ground-truth cross-checks reconfirm feat-033
+      (artifact byte-unchanged): the selectivity λ=1.5 acts as a *gate* (the top-100 is 99% clean and
+      **composition**-ordered, not selectivity-ordered), an independent HemoPI2-recipe hemolysis model
+      corroborated the safe chemotype once arbitrated by **real HC50** (a third learned model that fails OOD on
+      novel peptides, while composition-on-real-data transfers), and no safe Gram+ lever exists (net-charge
+      reverses sign OOD). *Honest caveat:* the "0% predicted-hemolytic" figure is an ESMC estimate on novel
+      peptides — the trustworthy basis is the real-HC50-validated composition chemotype, never a per-peptide
+      guarantee. See `docs/RESEARCH.md` (feat-035; code-review closeout; selectivity cross-check).
+      **Re-run once more on the
       final pushed commit immediately before submitting.** History: the earlier **feat-031 APEX-ranked
       default PASSED** the official validator on commit `f4eed63` (fresh-clone output `9a3278c9`/`61becbab`);
       recover it with `--composition-weight 0`. **feat-032 (a Lys-conditioned Gram--ReST generator) was

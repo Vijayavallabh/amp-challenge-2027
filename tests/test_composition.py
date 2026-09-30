@@ -72,6 +72,15 @@ class TestCompositionPrimitives:
         seqs = ["KWKLFKKIGAVLKVL", "RRRWWRR", "KKKKKAAAAA"]
         np.testing.assert_array_equal(O.composition_score(seqs), O.composition_score(seqs))
 
+    def test_fraction_formula_matches_physchem_frac(self):
+        # #5: pin the fraction FORMULA (not just the aromatic SET) to physchem._frac, the shared
+        # count/len definition, so lys_fraction/aromatic_fraction cannot silently diverge from it --
+        # including the empty-string -> 0.0 convention. Divergence here would shift the shipped signal.
+        from amp_challenge_2027 import physchem
+        for s in ["KWKLFKKIGAVLKVL", "RRRWWRR", "KKKKKAAAAA", "FWYFWY", "", "K", "AAAA"]:
+            assert O.lys_fraction([s])[0] == physchem._frac(s, {"K"})
+            assert O.aromatic_fraction([s])[0] == physchem._frac(s, physchem._AROMATIC)
+
 
 class TestCompositionRank:
     def test_lys_rich_outranks_aromatic_rich_in_band(self):
@@ -134,7 +143,21 @@ class TestBuildRankerCompositionWiring:
         ranker = build_ranker(object(), args)
         assert isinstance(ranker, ApexRanker)
         assert ranker._compw == 0.0
-        assert "falling back to APEX activity ranking" in capsys.readouterr().err
+        err = capsys.readouterr().err
+        assert "falling back to APEX activity ranking" in err
+        assert "it is unavailable" in err  # a genuine load failure IS reported as unavailable
+
+    def test_penalty_zero_reports_disabled_not_unavailable(self, monkeypatch, capsys):
+        # #2: with --hemolysis-penalty 0 the selectivity model is intentionally NOT loaded, so hemo is
+        # None for a different reason than a load failure. The fallback message must say the penalty is
+        # disabled (and how to re-enable it), NOT misreport the model as "unavailable".
+        monkeypatch.setattr("amp_challenge_2027.oracle.ApexScorer", _StubScorer)
+        args = parse_args(["--rank", "apex", "--composition-weight", "1.0", "--hemolysis-penalty", "0"])
+        ranker = build_ranker(object(), args)
+        assert ranker._compw == 0.0
+        err = capsys.readouterr().err
+        assert "--hemolysis-penalty is 0" in err
+        assert "unavailable" not in err
 
     def test_composition_mode_discloses_superseded_legacy_flags(self, monkeypatch, capsys):
         # #8: composition mode ignores the enabled-by-default amphipathicity-bonus / lys-hedge; say so.

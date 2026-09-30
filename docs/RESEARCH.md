@@ -1262,3 +1262,85 @@ entry uses a gmail account. Both need the participant to check with the organize
 Recommendation: **ship feat-033 as-is.** It optimizes the three boards we can validate (Gram−, Broad,
 Selectivity), does not sacrifice them chasing the two we cannot (Gram+, MDR), and is differentiated from the
 APEX-first field. Full session detail: `scratchpad/SESSION_FINDINGS.md`.
+
+## feat-035 code-review closeout — the selectivity λ is a GATE, not a miscalibration (quantified) (2026-09-30)
+
+A background `/code-review` of the feat-033/034 delta (3 independent finder forks + a conventions pass +
+empirical gate verification + full test runs) found **no surviving correctness bug** — all three correctness
+analyses independently confirmed the composition/gate math and both refactors are behaviour-faithful, and the
+suite passes. Its top finding questioned the shipped default directly, so it earned an empirical answer.
+
+**Finding #1: does `λ=1.5` (documented as calibrated for `balanced_success_score`'s ~[0,2.5] scale) dominate
+`composition_score` (std 0.062, spread 0.222) and secretly make the top-100 selectivity-ranked, not
+composition-ranked?** Tested on the shipped band itself (`scratchpad/verify_lambda_bandphemo.npz` = the exact
+`comp`/`phemo` for the 20 000 in-band candidates; analysis `scratchpad/codereview_finding1.md`):
+
+- The band's `P(hemolytic)` is **strongly bimodal** — 46% < 0.02 (clean), 14% > 0.9 (very hemolytic), a sparse
+  valley between. Band-wide, `1.5·phemo` (std 0.55) *does* out-swing `comp` (std 0.15), so the reviewer's
+  mechanical point holds in isolation.
+- **But the penalty acts as a selectivity GATE, not a fine-order term.** It pushes the ~54% hemolytic-mode band
+  down and out, so the selected top-100 is **99% clean** (phemo std 0.0085, max 0.077). *Within* the top-100,
+  `std(comp)=0.040` beats `std(1.5·phemo)=0.013`, and Spearman(final, comp)=**+0.90** vs (final, −phemo)=**+0.06**.
+- **Triangulation settles it.** shipped top-100 ∩ composition-only top-100 = **69%**; shipped top-100 ∩
+  selectivity-only (−phemo) top-100 = **0%** (same at top-50: 68% / 0%). The shipped list shares nothing with a
+  selectivity ranking and most of its mass with a composition ranking → it is **gate-then-compose**, exactly the
+  two-mode behaviour feat-034 recorded ("bimodal → de-facto gate"), now quantified — NOT "selectivity-primary
+  with composition as a tiebreak."
+- **The gate is nearly free.** Mean `comp` across a λ-sweep: 0.510 (λ=0) → 0.495 (λ=1.5) → 0.493 (λ=3.0). The
+  clean mode is rich in high-composition peptides, so excluding the hemolytic mode costs ~3% relative composition.
+- **The reviewer's suggested fix — rescale λ to the composition scale (~0.15) — would be harmful.** λ-sweep
+  (top-100 by `comp − λ·phemo`): at λ≈0.10–0.15 the top-100 admits hemolytic peptides (max phemo 0.077 → 0.222,
+  up to 0.92 at λ=0.10; %phemo>0.05 goes 1% → 15%) for **+0.011** composition. A large λ on a different scale is
+  *deliberate and load-bearing*: it is the gate that clears the bimodal hemolytic mass; a "scale-matched" λ would
+  turn the clean gate into a soft trade-off that ships hemolytic peptides — directly hurting the Optimal
+  Selectivity board (our best). **No artifact change; no λ change.** The docs' "composition ranking within the
+  APEX band, minus a selectivity penalty" is substantively correct; this addendum sharpens *penalty = selectivity
+  gate* with the numbers.
+
+**Findings #2/#3/#5 — byte-neutral honesty fixes (applied); shipped output unchanged.** The review's other
+surviving items are non-default-path or maintainability issues that never touch the artifact: (#2) `build_ranker`
+conflated "user set `--hemolysis-penalty 0`" with "selectivity model failed to load" — both leave `hemo=None`
+and force the safe APEX fallback, but the message wrongly blamed an "unavailable" model; it now distinguishes the
+two and says how to re-enable composition ranking. (#3) under `--select maximin` the `Ranking:` provenance line
+named the composition score-ranker even though maximin ignores it; an explicit `SELECTION:` line now records the
+method that actually ran. (#5) `lys_fraction`/`aromatic_fraction` already share the aromatic SET with `physchem`;
+a new test also pins their fraction FORMULA to `physchem._frac`, so it cannot silently diverge. All three are
+stdout- or test-only on paths the shipped default (`--composition-weight 1.0 --hemolysis-penalty 1.5 --select
+score`) never executes; **158 tests pass** (156 + 2 new), and a 2× `generate` run on the patched code reproduced
+the shipped artifact **byte-identical** (`dc37c540`/`06e30960`). #4 (compute composition on the band only — a
+~1 s micro-opt on the hot path) and #6/#7 (defensive gate/branch complexity) were reviewed and left unchanged:
+correct as-is and not worth re-opening frozen, byte-validated code. No λ, generator, checkpoint, or shipped-output
+change.
+
+## feat-035 — independent selectivity cross-check: a second learned hemolysis model also fails OOD (2026-09-30)
+
+The deep-research report's #2 recommendation was to stand up an **independent** hemolysis model (HemoPI2,
+Rathore *Commun Biol* 2025 — open SOTA HC50 regressor, RF-on-composition, R 0.739) as a non-ESMC cross-check
+of the shipped top-100, since our own "0% hemolytic" verdict comes from the ESMC head we *selected* with.
+HemoPI2's release model needs a Zenodo/sklearn-1.3.1 pickle + MERCI, so instead its published recipe was
+faithfully reconstructed on **its own datasets** (`scratchpad/hemopi2_crosscheck.py`, `hemopi2_finding.md`):
+RF on AAC-20 + 8 physchem, target −ln(HC50 µM), independent-set **Pearson R = 0.702** (paper 0.739) — a valid
+HemoPI2-class proxy.
+
+- **Apparent disagreement.** The independent model rates our top-100 median predicted HC50 **66.8 µM (10%
+  <32 µM "hemolytic")** — mildly hemolytic, even ~ our own library body (75.2 µM), and far from known-safe
+  peptides (149.9 µM). Our ESMC head had called the same top-100 **0% hemolytic** (max phemo 0.038). Two
+  independent hemolysis models disagree about the entry.
+- **The real-HC50 arbiter (1908 peptides) resolves it in our favour.** Our top-100's Lys fraction (p50 0.233,
+  max 0.61) is **in-distribution** (real range p95 0.462, max 0.75); real HC50 rises **monotonically** with Lys
+  (Spearman +0.224, matching HemoPI2's own reported +0.214: 64 → 101 → 101 → 199 → 175 µM across Lys bins), and
+  real peptides in our top-100's Lys regime (≥0.20) have **median real HC50 133 µM, 65% >100 µM — genuinely
+  safe.** That contradicts the RF's pessimistic call on our *novel* peptides.
+- **Disambiguation nails it as OOD distribution shift.** At *matched* Lys, the RF reproduces reality for
+  **natural** held-out peptides (lys[0.25,0.40): natural real 136, natural RF 114) but **under-calls our
+  generated peptides ~40%** (same bin: our RF 69). The RF is well-calibrated on natural sequences and
+  systematically pessimistic on novel generated ones — an **independent learned hemolysis model failing OOD on
+  our peptides, exactly as APEX fails OOD on activity.**
+- **Consequence.** This is a *third* independent confirmation of the session's central thesis (APEX, and now
+  a HemoPI2-class model, are both OOD-unreliable on novel peptides; the ground-truth-anchored composition →
+  safety relationship is what transfers), so the feat-033 selectivity thesis is **corroborated**. It also adds
+  an honest caveat: our own ESMC "0% hemolytic" is *likewise* a learned-model OOD estimate — the two models
+  bracket the truth, and the trustworthy basis for the selectivity claim is the **real-HC50-validated
+  composition chemotype (SW 92.7; our regime 133–175 µM), not any single predictor's point estimate**. Do NOT
+  ensemble HemoPI2 into selection: filtering on a model just shown OOD-unreliable would be the feat-032
+  ensemble-Goodhart trap. **No artifact change.**
