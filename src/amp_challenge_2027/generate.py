@@ -526,14 +526,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--aromatic-weight", type=float, default=0.5,
                         help="weight on the aromatic-fraction penalty inside --composition-weight ranking "
                              "(default: %(default)s). Only used when --composition-weight > 0.")
-    parser.add_argument("--max-cationic-fraction", type=float, default=0.444,
+    parser.add_argument("--max-cationic-fraction", type=float, default=0.4445,
                         help="demote composition-ranked candidates whose cationic fraction (K+R)/len "
                              "exceeds this below every in-envelope band member, so the top list stays "
-                             "inside the wet-lab-validated cationic envelope (the max (K+R)/len among the "
-                             "46 wet-lab actives is 0.444) instead of extrapolating past it into the region "
-                             "where real Gram+/MDR activity collapses on the 46 (feat-037). Only used when "
-                             "--composition-weight > 0. Default: %(default)s (the shipped selection). Pass "
-                             "1.0 to disable the cap (recovers the pre-cap feat-033 selection).")
+                             "inside the wet-lab-validated cationic envelope. The max (K+R)/len among the "
+                             "46 wet-lab actives is 4/9 ~= 0.4444, so the 0.4445 default keeps peptides AT "
+                             "that ceiling and demotes only strictly-more-cationic extrapolations -- the "
+                             "region where real Gram+/MDR activity collapses on the 46 (feat-037). Only "
+                             "used when --composition-weight > 0. Default: %(default)s (the shipped "
+                             "selection). Pass 1.0 to disable the cap (recovers the pre-cap feat-033 "
+                             "selection).")
 
     args = parser.parse_args(argv)
     if args.length is not None:
@@ -606,6 +608,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.composition_weight > 0:
             print("  NOTE: --composition-weight applies to --select score only; the maximin selector "
                   "ranks by per-category rates and ignores it (no composition ranking applied)")
+        if args.max_cationic_fraction is not None and args.max_cationic_fraction < 1.0:
+            print("  NOTE: --max-cationic-fraction applies to --select score only; the maximin selector "
+                  "ranks by per-category rates and ignores the cationic-envelope cap (no cap applied)")
         # Provenance (review #3): the 'Ranking:' line above names the SCORE ranker, but maximin does
         # not use it to order the top-list -- state the selection method that actually ran, so the
         # recorded provenance is not mislabelled.

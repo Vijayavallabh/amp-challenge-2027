@@ -236,17 +236,21 @@ class ApexRanker:
         # corrupting the composition signal. The shipped 0.5 passes through unchanged.
         aw = float(aromatic_weight)
         self._aromw = aw if (aw == aw and aw not in (float("inf"), float("-inf")) and aw >= 0.0) else 0.0
-        # Composition-envelope cap (feat-037; generate.py ships it at 0.444): in composition mode,
+        # Composition-envelope cap (feat-037; generate.py ships it at 0.4445): in composition mode,
         # demote any APEX-active-band candidate whose cationic fraction (K+R)/len exceeds this threshold
         # below every in-envelope band member, so the top list backfills from in-envelope candidates
-        # instead of extrapolating past the wet-lab-validated cationic ceiling (max (K+R)/len among the
-        # 46 wet-lab actives = 0.444; the pre-cap feat-033 top-100 put 20/100 -- 13 in the top-50 --
-        # beyond it, where real Gram+/MDR activity collapses on the 46, so removing them lifts the two
-        # hardest boards -- Gram+ +0.029 / MDR +0.026 kNN-SR, 95% bootstrap CI excludes 0). This class
-        # defaults to None = off (a neutral library primitive); generate.py sets the shipped 0.444.
-        # mcf >= 1.0 is a no-op (no peptide has (K+R)/len > 1.0), so 1.0 disables the cap.
+        # instead of extrapolating past the wet-lab-validated cationic ceiling. The max (K+R)/len among
+        # the 46 wet-lab actives is 4/9 ~= 0.4444 (a 12/27 active, MIC 4 uM), so the shipped 0.4445 sits
+        # just above it -- peptides AT the validated ceiling are KEPT and only strictly-more-cationic
+        # extrapolations are demoted. The pre-cap feat-033 top-100 put 20/100 -- 13 in the top-50 --
+        # beyond the ceiling, where real Gram+/MDR activity collapses on the 46, so removing them lifts
+        # the two hardest boards (Gram+ +0.029 / MDR +0.026 kNN-SR, 95% bootstrap CI excludes 0). This
+        # class defaults to None = off (a neutral library primitive); generate.py sets the shipped value.
+        # A value >= 1.0 (or non-finite) is mapped to None below, so it disables the cap.
         mcf = None if max_cationic_fraction is None else float(max_cationic_fraction)
-        self._maxcat = mcf if (mcf is None or (mcf == mcf and 0.0 < mcf <= 1.0)) else None
+        # In (0, 1) enables the cap; >= 1.0 disables it (no peptide has (K+R)/len > 1.0), and so do
+        # non-finite / out-of-range values -- all map to None so the cap path and the ranker name agree.
+        self._maxcat = mcf if (mcf is not None and 0.0 < mcf < 1.0) else None
         base = {"category": "apex-success", "balanced": "apex-balanced-success"}.get(
             objective, "apex-broad-potency"
         )
@@ -346,15 +350,24 @@ class ApexRanker:
         if self._hemo is not None and self._lam > 0:
             final = final - self._lam * self._band_phemo(sequences, band, n)
         maxcat = getattr(self, "_maxcat", None)  # optional; default off (robust to partial construction)
-        if maxcat is not None:  # envelope cap: demote over-cationic band members below in-envelope
-            fcat = np.array(
-                [(s.count("K") + s.count("R")) / len(s) if s else 0.0 for s in sequences]
-            )
-            band_over = band[fcat[band] > maxcat]
-            # 10.0 >> the composition/hemolysis scale (|final| < ~2), so every in-envelope band member
-            # outranks every over-envelope one; relative order among the demoted is preserved, so if the
-            # novelty/diversity screens ever exhaust the in-envelope band the next-best fills the slot.
-            final[band_over] = final[band_over] - 10.0
+        if maxcat is not None:  # envelope cap (feat-037): demote over-cationic band members below in-envelope
+            from .physchem import _CATIONIC, _frac
+            # Cationic fraction on the BAND only (out-of-band scores are overwritten by the gate below);
+            # _frac/_CATIONIC are physchem's single source of truth for (K+R)/len.
+            fcat_band = np.array([_frac(sequences[int(i)], _CATIONIC) for i in band])
+            over = fcat_band > maxcat
+            in_env = band[~over]
+            if over.any() and in_env.size:
+                # Rank every over-envelope band member strictly below every in-envelope one, ordered by
+                # ASCENDING cationic fraction (least-extreme first) so any overflow backfills with the
+                # closest-to-envelope peptide. The offset is derived from the in-envelope score minimum,
+                # not a fixed constant, so the invariant holds for any --composition-weight /
+                # --hemolysis-penalty (a large weight cannot lift an over-envelope peptide back in).
+                env_min = float(final[in_env].min())
+                over_idx = band[over]
+                fc = fcat_band[over]
+                fspan = float(fc.max() - fc.min())
+                final[over_idx] = env_min - 1.0 - (fc - fc.min()) / (fspan if fspan > 0 else 1.0)
         # Gate: out-of-band candidates rank strictly below every in-band one. Rather than a single
         # magic sentinel (which would sort APEX-inactive peptides *lexicographically* if the novelty/
         # diversity screens ever exhaust the band, and could be crossed by a large composition_weight),

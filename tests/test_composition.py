@@ -172,25 +172,51 @@ class TestBuildRankerCompositionWiring:
 
 
 class TestCompositionEnvelopeCap:
-    """The optional --max-cationic-fraction envelope cap (session-2): over-cationic band members are
-    demoted below every in-envelope one, so the top list stays inside the wet-lab-validated cationic
-    envelope instead of extrapolating past it. None (the default) recovers the exact feat-033 order."""
+    """The --max-cationic-fraction envelope cap (feat-037): over-cationic band members are demoted
+    below every in-envelope one, so the top list stays inside the wet-lab-validated cationic envelope
+    (the max (K+R)/len among the 46 actives is 4/9). None or >= 1.0 disables it, recovering feat-033."""
 
-    def test_cap_demotes_over_cationic_below_in_envelope(self):
-        # seqA has the highest composition (pure Lys) but is over the cationic ceiling; seqB is lower
-        # composition but in-envelope. Uncapped, seqA wins; capped at 0.444, seqB must outrank seqA.
-        seqs = ["KKKKKKKKKK", "KKKLLLLLLL"]   # fcat 1.0 (over) vs 0.3 (in); lys 1.0 vs 0.3
-        activity = np.array([1.0, 0.9])       # both inside the active band
+    def test_cap_demotes_over_cationic_below_every_in_envelope(self):
+        # seqA is pure-Lys (top composition) but over the ceiling; seqB/seqC are in-envelope.
+        seqs = ["KKKKKKKKKK", "KKKLLLLLLL", "KKLLLLLLLL"]  # fcat 1.0 (over), 0.3 (in), 0.2 (in)
+        activity = np.array([1.0, 0.9, 0.8])
         uncapped = _bare_ranker(refine_k=10)._composition_rank(seqs, activity)
-        assert uncapped[0] > uncapped[1]      # pure-Lys wins without the cap
+        assert uncapped[0] > uncapped[1] > uncapped[2]     # pure-Lys wins uncapped
         capped = _bare_ranker(refine_k=10, maxcat=0.444)._composition_rank(seqs, activity)
-        assert capped[1] > capped[0]          # the cap flips it: in-envelope outranks the extrapolation
-        assert capped[0] < uncapped[0] - 5.0  # the over-cationic member is demoted (by ~10)
+        assert capped[0] < min(capped[1], capped[2])       # over-cationic below EVERY in-envelope one
+
+    def test_cap_boundary_keeps_peptide_at_the_validated_max(self):
+        # A peptide at exactly 4/9 (the max (K+R)/len among the 46 wet-lab actives) must be KEPT by the
+        # shipped 0.4445 cap and only DEMOTED by a naive 0.444 truncation (code-review #1).
+        seqs = ["KKKKLLLLL", "KKKLLLLLL"]     # fcat 4/9=0.4444 (the ceiling) vs 3/9=0.333 (in)
+        activity = np.array([1.0, 0.9])
+        kept = _bare_ranker(refine_k=10, maxcat=0.4445)._composition_rank(seqs, activity)
+        assert kept[0] > kept[1]              # at the ceiling -> kept; higher composition still wins
+        truncated = _bare_ranker(refine_k=10, maxcat=0.444)._composition_rank(seqs, activity)
+        assert truncated[1] > truncated[0]    # 0.444 wrongly demotes the ceiling peptide
+
+    def test_cap_offset_holds_under_large_composition_weight(self):
+        # The demotion is derived from the in-envelope score minimum, not a fixed constant, so a large
+        # --composition-weight cannot lift an over-envelope peptide back in (code-review #2: a fixed
+        # -10 offset broke here).
+        seqs = ["KKKKKKKKKK", "KKKLLLLLLL"]   # fcat 1.0 (over) vs 0.3 (in)
+        activity = np.array([1.0, 0.9])
+        capped = _bare_ranker(refine_k=10, compw=20.0, maxcat=0.444)._composition_rank(seqs, activity)
+        assert capped[1] > capped[0]          # in-envelope still outranks the extrapolation at compw=20
+
+    def test_cap_backfill_order_is_least_cationic_first(self):
+        # Among demoted over-envelope members the LEAST cationic (closest to the envelope) ranks highest,
+        # so overflow backfills with the closest-to-envelope peptide (code-review #5).
+        seqs = ["KRKRKRKRKR", "KKKKKKKKKA", "KKKLLLLLLL"]  # fcat 1.0, 0.9 (both over), 0.3 (in)
+        activity = np.array([1.0, 0.9, 0.8])
+        capped = _bare_ranker(refine_k=10, maxcat=0.444)._composition_rank(seqs, activity)
+        assert capped[1] > capped[0]                       # less-cationic (0.9) outranks more (1.0)
+        assert min(capped[0], capped[1]) < capped[2]       # both demoted below the in-envelope member
 
     def test_cap_leaves_in_envelope_scores_unchanged(self):
         seqs = ["KKKLLLLLLL", "KLLLLLLLLL"]   # fcat 0.3, 0.1 -- both in-envelope, untouched by the cap
         activity = np.array([1.0, 0.9])
-        assert (_bare_ranker(refine_k=10, maxcat=0.444)._composition_rank(seqs, activity)
+        assert (_bare_ranker(refine_k=10, maxcat=0.4445)._composition_rank(seqs, activity)
                 == _bare_ranker(refine_k=10)._composition_rank(seqs, activity))
 
     def test_cap_none_recovers_feat033_order(self):
@@ -198,3 +224,10 @@ class TestCompositionEnvelopeCap:
         activity = np.array([1.0, 0.9])
         assert (_bare_ranker(refine_k=10, maxcat=None)._composition_rank(seqs, activity)
                 == _bare_ranker(refine_k=10)._composition_rank(seqs, activity))
+
+    def test_max_cationic_fraction_ge_one_disables_and_names_off(self, monkeypatch):
+        # >= 1.0 disables the cap (code-review #3): _maxcat maps to None and the name must not claim a cap.
+        monkeypatch.setattr("amp_challenge_2027.oracle.ApexScorer", _StubScorer)
+        assert ApexRanker("x", composition_weight=1.0, max_cationic_fraction=1.0)._maxcat is None
+        assert "capped" not in ApexRanker("x", composition_weight=1.0, max_cationic_fraction=1.0).name
+        assert ApexRanker("x", composition_weight=1.0, max_cationic_fraction=0.4445)._maxcat == 0.4445

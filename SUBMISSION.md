@@ -83,16 +83,17 @@ van der Walt 2025): median R/(R+K) **0.286** (Lysine exceeds Arginine in **88%**
 under APEX ranking), aromatic fraction 0.10, net charge +7, length 18.
 
 As a **final selection step we cap this composition ranking to the wet-lab-validated cationic envelope**
-(feat-037, the new `uv run generate` default `--max-cationic-fraction 0.444`). The unconstrained ranker pushed
-~20 of the top-100 past the most cationic of our 46 wet-lab actives (cationic fraction (K+R)/len = 0.444),
-concentrated in the assayed head of the list — and on those 46 the beyond-envelope region is exactly where **real
-Gram-positive activity collapses**, so demoting the extrapolations below every in-envelope candidate lifts the
-capped top-50's expected **Gram+/MDR Success Rate by +0.029 / +0.026** (an honest kNN arbiter on the 46, 95%
-bootstrap CI excludes 0). This **supersedes feat-033 as the shipped default** while leaving its core (rank by
+(feat-037, the new `uv run generate` default `--max-cationic-fraction 0.4445`). The unconstrained ranker pushed
+16 of the top-100 strictly past the most cationic of our 46 wet-lab actives (cationic fraction (K+R)/len = 4/9 ≈ 0.4444),
+concentrated in the assayed head of the list (11 of the top-50) — and on those 46 the beyond-envelope region is where real
+Gram-positive activity is weakest, so demoting these unvalidated extrapolations below every in-envelope candidate is a
+principled risk-reduction. On an honest kNN arbiter on the 46 the capped top-50 is **directionally ≥ feat-033 on all four
+boards** (Broad +0.013 / Gram− +0.015 / Gram+ +0.009 / MDR +0.011, k=5) at every k, but **none of these gains is
+CI-robust** (every 95% bootstrap CI includes 0) — the value is the principled envelope-cap, not a robust measured gain. This **supersedes feat-033 as the shipped default** while leaving its core (rank by
 Lysine-richness within the APEX band) unchanged and the 50k library body **byte-identical** — only the top-100
-selection changes, so the top-50 characterization above is the capped one (fcat median 0.400, max 0.438, was
-0.667). *Honest caveat, carried throughout:* this gain is a **kNN-model estimate on n=46**, and the removed
-peptides are extrapolations with **no direct wet-lab measurement** — a modest (~+0.02–0.03 SR), explicit,
+selection changes, so the top-50 characterization above is the capped one (fcat median 0.4118, max 0.4444 = the 4/9
+ceiling, vs 0.667 uncapped). *Honest caveat, carried throughout:* this gain is a **kNN-model estimate on n=46**, and the removed
+peptides are extrapolations with **no direct wet-lab measurement** — a small (~+0.01 SR, not CI-robust), explicit,
 ground-truth-supported, one-shot-appropriate refinement that *removes a known extrapolation risk*, **not a measured
 wet-lab improvement** (`--max-cationic-fraction 1.0` recovers the pre-cap feat-033 selection). See
 `docs/RESEARCH.md` (feat-037).
@@ -218,7 +219,7 @@ assayed and our composition ranking tapers there.*)
 - **Scoring function (feat-033, capped by feat-037):** within an **APEX-active-band gate**, `score =
   composition_score − 1.5·P(hemolytic)`, where `composition_score = lys_fraction − 0.5·aromatic_fraction`,
   applied to a large **8× (400k)** oversampled candidate pool, and then a **composition-envelope cap** (feat-037,
-  `--max-cationic-fraction 0.444`) demotes any candidate with cationic fraction `(K+R)/len > 0.444` below every
+  `--max-cationic-fraction 0.4445`) demotes any candidate with cationic fraction `(K+R)/len > 4/9 ≈ 0.4444` below every
   in-envelope one. The top-100 is ranked by **wet-lab-calibrated composition**, not by APEX-predicted potency — a
   deliberate inversion we justify by testing every candidate signal against *real* activity.
   - *APEX-active-band gate* — from **APEX-pathogen** (`oracle/apex`, isolated `uv` subprocess), which
@@ -243,17 +244,18 @@ assayed and our composition ranking tapers there.*)
     data show APEX *ordering* is worthless-to-harmful inside the band, so composition is made the primary
     key rather than a small subtraction. Set `--composition-weight 0` to recover the feat-031 APEX
     ranking (and `--aromatic-weight` tunes the aromatic term).
-  - *Composition-envelope cap* (feat-037, `--max-cationic-fraction 0.444`, the shipped default) — a final
+  - *Composition-envelope cap* (feat-037, `--max-cationic-fraction 0.4445`, the shipped default) — a final
     selection step that keeps the assayed top-100 **inside the wet-lab-validated cationic envelope**.
     Maximising Lysine-richness runs off the end of the data it was calibrated on: the uncapped ranker pushed
-    **~20 of the top-100** past the most cationic of our 46 wet-lab actives (`fcat = (K+R)/len` up to 0.667),
-    concentrated at the head (13 of the top-50), and on the 46 that beyond-envelope region is where **real
-    Gram-positive activity collapses** (fcat>0.40 → Gram+ SR ~0.07 vs a peak ~0.36). The cap demotes any
-    candidate with `fcat > 0.444` (the wet-lab maximum) below every in-envelope candidate, so the top-50 now
-    has `fcat` median **0.400 / max 0.438**. Measured against real activity with an honest kNN arbiter on the
-    46 (LOO-validated), this lifts the capped top-50's expected **Gram+/MDR Success Rate by +0.029 / +0.026**
-    (95% bootstrap CI excludes 0); Gram−/Broad are directionally positive (CI includes 0). 0.444 is optimal —
-    a tighter 0.40 cap loses the Gram− gain and collapses diversity. This **changes only the top-100 ranking**
+    **16 of the top-100** strictly past the most cationic of our 46 wet-lab actives (`fcat = (K+R)/len` up to 0.667),
+    concentrated at the head (11 of the top-50), and on the 46 these extrapolations map to below-average real SR on
+    every board (the declining tail of the charge inverted-U). The cap demotes any candidate with `fcat > 4/9 ≈ 0.4444`
+    (the wet-lab maximum) below every in-envelope candidate, so the top-50 now has `fcat` median **0.4118 / max 0.4444**.
+    Measured against real activity with an honest kNN arbiter on the 46 (LOO-validated), the capped top-50 is
+    **directionally ≥ feat-033 on all four boards** (Broad +0.013 / Gram− +0.015 / Gram+ +0.009 / MDR +0.011, k=5) at
+    every k but **none CI-robust** (every 95% bootstrap CI includes 0; the earlier 0.444 cap's +0.029/+0.026
+    CI-excludes-0 was a 4/9-truncation-bug artifact). 0.4445 (= the 4/9 ceiling) is the principled cap —
+    a tighter 0.40 cap loses the Gram− direction and collapses diversity. This **changes only the top-100 ranking**
     (the 50k library body is byte-identical); `--max-cationic-fraction 1.0` recovers the pre-cap feat-033
     selection. *Honest caveat:* the gain is a **kNN-model estimate on n=46** and the removed peptides are
     extrapolations with **no direct wet-lab measurement** — a modest (~+0.02–0.03 SR), ground-truth-supported,
@@ -316,8 +318,8 @@ Required disclosure. State plainly what was applied, including "none".
   (ESMC-600M model `checkpoint/selectivity_esmc.pt`, HemoPI-2; physicochemical `checkpoint/hemolysis.pt`
   as fallback) applied in ranking; a **wet-lab-calibrated composition ranking** (feat-033 — the top-100 is
   ranked by Lysine-richness minus aromatic content within the APEX-active band, `oracle.composition_score`),
-  with a **composition-envelope cap** (feat-037, `--max-cationic-fraction 0.444`) that demotes any candidate
-  whose cationic fraction (K+R)/len exceeds 0.444 — the maximum among our 46 wet-lab actives — below every
+  with a **composition-envelope cap** (feat-037, `--max-cationic-fraction 0.4445`) that demotes any candidate
+  whose cationic fraction (K+R)/len exceeds 4/9 ≈ 0.4444 — the maximum among our 46 wet-lab actives — below every
   in-envelope candidate; and a **within-list diversity cap** (0.60 Levenshtein identity). The composition term
   and the envelope cap are *ranking* keys, **not** hard windows — they reorder the top-100 (the 50k library body
   is unaffected) and exclude no candidate from the library; beyond the APEX-active-band gate no charge/pI,
@@ -333,8 +335,8 @@ Required disclosure. State plainly what was applied, including "none".
 
 - `uv sync` then `uv run generate` regenerates both files exactly (fixed seed 42; APEX runs in
   eval mode on CPU; `torch.use_deterministic_algorithms`). The shipped default is the **feat-037
-  composition-envelope-capped** selection — current hashes **top `21fd02b7aa928f32c1ac6f6aeb1faa2b`,
-  library `bba245dccc21be693a80c1b114748bb5`** (pre-cap feat-033 was `dc37c540`/`06e30960`, recoverable
+  composition-envelope-capped** selection — current hashes **top `86639c72df6849b096dc91fbada0e0bb`,
+  library `a4153d03d98d9e568c4b3c8122bc15af`** (pre-cap feat-033 was `dc37c540`/`06e30960`, recoverable
   with `--max-cationic-fraction 1.0`). Because the cap changed `top.fasta`, the official validator must be
   **re-run on the final pushed commit before submitting — pending, not yet re-confirmed for feat-037.**
 - Python 3.11, pinned in `.python-version`; dependencies locked in `uv.lock`. The APEX oracle is an
@@ -365,7 +367,7 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
 - [ ] `./init.sh` green, including the two-run byte-identical check
 - [ ] **feat-037 changed `top.fasta`, so the official validator MUST be re-run on the final pushed commit —
       PENDING, not yet claimed passed.** The shipped artifact is now the **composition-envelope-capped** selection
-      (**top `21fd02b7aa928f32c1ac6f6aeb1faa2b`, library `bba245dccc21be693a80c1b114748bb5`**); the pre-cap feat-033
+      (**top `86639c72df6849b096dc91fbada0e0bb`, library `a4153d03d98d9e568c4b3c8122bc15af`**); the pre-cap feat-033
       output (`dc37c540`/`06e30960`, recoverable via `--max-cationic-fraction 1.0`) is what the passes below
       validated, and local two-run byte-repro on the capped default is being re-confirmed. History:
       `scripts/verify_submission.py` **PASSED on the byte-repro-hardened commit `1c091e5`** (pre-cap feat-033 default,
@@ -378,7 +380,7 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       `dc37c540`/`06e30960`); the local test suite is green — **158 tests**. The **official validator was
       re-run on the pre-cap commit `a7ed06f` (2026-09-30) → all 8 checks PASSED, fresh-clone byte-identical
       `dc37c540`/`06e30960`** — but that validated the **pre-cap feat-037** artifact; the feat-037 cap changed
-      `top.fasta` (new hashes `21fd02b7…`/`bba245dc…`), so the validator **must be re-run on the final feat-037
+      `top.fasta` (new hashes `86639c72…`/`a4153d03…`), so the validator **must be re-run on the final feat-037
       commit before this box can be checked.** **feat-035 (2026-09-30): a
       24-hour deep-validation pass with no artifact change confirmed feat-033 is near-optimal** — the
       composition chemotype's Optimal-Selectivity safety window was validated on real DBAASP HC50/MIC (92.7 vs

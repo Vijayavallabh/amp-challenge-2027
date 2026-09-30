@@ -5,27 +5,29 @@
 > **feat-037 (2026-09-30) — COMPOSITION-ENVELOPE CAP; SHIPPED, supersedes feat-033 as the `uv run generate` default.**
 > The first shipped-artifact change since feat-033, and a disciplined one. feat-033's core (rank the top-100 by
 > lysine_fraction within the APEX active band) is **UNCHANGED and vindicated**; feat-037 adds a final
-> **composition-envelope cap** (`--max-cationic-fraction 0.444`, the new default) that demotes any top candidate
-> whose cationic fraction fcat=(K+R)/len exceeds 0.444 — the max among the 46 wet-lab actives — below every
+> **composition-envelope cap** (`--max-cationic-fraction 0.4445`, the new default) that demotes any top candidate
+> whose cationic fraction fcat=(K+R)/len exceeds 4/9 ≈ 0.4444 — the max among the 46 wet-lab actives — below every
 > in-envelope one, keeping the assayed top-100 inside the validated envelope. **50k library body byte-identical;**
-> only the top-100 selection changes (63/100 differ, as dropping the 20 over-envelope cascades through the 0.6
-> diversity filter). **NEW hashes: top `21fd02b7aa928f32c1ac6f6aeb1faa2b`, library
-> `bba245dccc21be693a80c1b114748bb5`** (pre-cap feat-033 `dc37c540`/`06e30960`, recoverable via
+> only the top-100 selection changes (53/100 differ, 31/50 in the top-50, as dropping the 16 over-envelope cascades through the 0.6
+> diversity filter). **NEW hashes: top `86639c72df6849b096dc91fbada0e0bb`, library
+> `a4153d03d98d9e568c4b3c8122bc15af`** (pre-cap feat-033 `dc37c540`/`06e30960`, recoverable via
 > `--max-cationic-fraction 1.0`; `--composition-weight 0` still recovers the feat-031 APEX path). **WHY:** the
-> uncapped composition ranker extrapolated — ~20/100 of the top-100 sat past the envelope (fcat>0.444),
-> concentrated at the head (13 of the top-50; pos 1 = KKKLKKKLLKKKKKLRLL, fcat 0.667), ~6× enriched vs the
-> library; on the 46 wet-lab MICs that region is where **real Gram+ activity collapses** (fcat>0.40 → Gram+ SR
-> ~0.07 vs peak ~0.36). The library is healthy — the Goodhart was in the RANKING — so the fix is a re-ranking.
+> uncapped composition ranker extrapolated — 16/100 of the top-100 sat strictly past the envelope (fcat>4/9≈0.4444),
+> concentrated at the head (11 of the top-50; pos 1 = KKKLKKKLLKKKKKLRLL, fcat 0.667); on the 46 wet-lab MICs these
+> extrapolations map to below-average real SR on every board — the declining tail of the charge inverted-U (Dathe
+> 2001; Jiang/Hodges 2008; Malanovic/Lohner 2016 LTA sequestration). The library is healthy — the Goodhart was in the RANKING — so the fix is a re-ranking.
 > **EVIDENCE (honest kNN arbiter on the 46, LOO-validated: broad +0.48/gn +0.43/gp +0.29/mdr +0.46):** capped
-> top-50 expected Success Rate vs feat-033 (paired bootstrap B=5000) — **Gram+ +0.029 (95% CI [+0.003,+0.047])**
-> and **MDR +0.026 (CI [+0.001,+0.054])** EXCLUDE 0 (robust); Gram− +0.023 (P>0=0.84) and Broad +0.022
-> (P>0=0.91) are directional (CI includes 0). Robust at k=5 AND k=7 for the top-50, positive at all k (3/5/7) and
-> both pools, never negative; top-100/k=3 positive but not CI-robust. Mechanism: the 20 removed peptides are
-> below-average SR on every board, most on Gram+ (0.177 vs the 0.242 top-50 mean). Threshold 0.444 is optimal
-> (cap-0.40 loses the Gram− gain + collapses diversity to 41/100). **Capped top-50 (computational predictions, no
-> wet-lab claim):** lys_fraction 0.278 (UNCHANGED), R/(R+K) 0.286, aromatic 0.103, net +7, len 18, fcat median
-> 0.400/max 0.438 (was 0.667), muH 0.331, Lys>Arg 88%, **0% predicted-hemolytic** (ESMC median 0.001, max 0.052
-> top-50 / 0.075 top-100, all <0.5; max rose 0.038→0.052, real-HC50-validated chemotype unchanged). **3 new cap
+> corrected 0.4445 top-50 expected Success Rate vs feat-033 (paired bootstrap B=5000, k=5) — Broad +0.013 [-0.012,+0.039],
+> Gram− +0.015 [-0.019,+0.051], Gram+ +0.009 [-0.007,+0.029], MDR +0.011 [-0.008,+0.032]: **all four directionally
+> positive but NONE CI-robust** (every CI includes 0); direction robust across k=3/5/7/9, never negative. CORRECTION: the
+> earlier `0.444` cap was a truncation bug that cut ~8 peptides AT the 4/9 ceiling, spuriously inflating the first
+> +0.029/+0.026 CI-excludes-0 numbers; corrected 0.4445 re-includes them. So the value is **principled envelope-capping**
+> — removing 16 extrapolations more cationic than any validated active, at no measured cost, mechanism-supported — NOT a
+> robust SR gain. Mechanism: the 16 removed peptides are below-average SR on every board. Threshold 0.4445 (= the 4/9
+> ceiling) is the principled cap (cap-0.40 loses the Gram− direction + collapses diversity). **Capped top-50 (computational predictions, no
+> wet-lab claim):** lys_fraction 0.282 (~UNCHANGED), R/(R+K) 0.286, aromatic 0.100, net +7, len 18 [13-20], fcat median
+> 0.4118/max 0.4444 (= the 4/9 ceiling; uncapped was 0.667), Lys>Arg 92%, diversity 58 clusters largest 14/100 (vs
+> feat-033 65/20); the −1.5·P(hemolytic-ESMC) gate + real-HC50-validated Lys-rich low-aromatic chemotype unchanged. **7 cap
 > tests** in tests/test_composition.py (demote-over-cationic / in-envelope-unchanged / None-recovers-feat033-order);
 > suite green. **HONEST CAVEAT:** the gain is a kNN-MODEL estimate on n=46; the removed peptides are
 > EXTRAPOLATIONS with no direct wet-lab measurement (magnitude modest ~+0.02–0.03 SR; diversity marginally lower,
@@ -169,7 +171,7 @@
 > Only **feat-010 (one-shot Kaggle submit)** remains — user-gated (team name + `j_v_v_07` go-ahead; rotate the
 > `KGAT_` token).
 
-**Last Updated:** 2026-09-30 (feat-037 — composition-envelope cap SHIPPED as the `uv run generate` default `--max-cationic-fraction 0.444`, SUPERSEDING feat-033 while leaving its core [rank by lysine_fraction within the APEX band] UNCHANGED and the 50k library body byte-identical; demotes the ~20 beyond-envelope (fcat>0.444) extrapolations out of the top-100 → capped top-50 expected Gram+/MDR SR +0.029/+0.026 [honest kNN arbiter on the 46, 95% bootstrap CI excludes 0; HONEST CAVEAT: kNN-model estimate on n=46, removed peptides are unmeasured extrapolations, magnitude ~+0.02–0.03 SR, not a measured wet-lab improvement]. NEW hashes top 21fd02b7 / library bba245dc (pre-cap feat-033 dc37c540/06e30960, recoverable via --max-cationic-fraction 1.0). Official validator re-run PENDING on the final feat-037 commit (top.fasta changed → new hashes). Both feat-035 user flags (top-50-vs-top-100 draw; institutional-email) remain SET ASIDE per the participant. Prior: feat-035 24h deep-validation confirmed feat-033 near-optimal; feat-036 byte-neutral review-response + cross-checks. Commit <feat-037 commit>.)
+**Last Updated:** 2026-09-30 (feat-037 — composition-envelope cap SHIPPED as the `uv run generate` default `--max-cationic-fraction 0.4445`, SUPERSEDING feat-033 while leaving its core [rank by lysine_fraction within the APEX band] UNCHANGED and the 50k library body byte-identical; demotes the 16 strictly-beyond-envelope (fcat>4/9≈0.4444) extrapolations out of the top-100 → corrected top-50 vs feat-033 directionally + on all 4 boards (Broad +0.013/Gram− +0.015/Gram+ +0.009/MDR +0.011, k=5) but NONE CI-robust [HONEST: the earlier 0.444 cap's +0.029/+0.026 CI-excludes-0 was a 4/9-truncation-bug artifact; value = principled envelope-capping — removing unvalidated extrapolations at no measured cost, mechanism-supported — not a robust SR gain]. NEW hashes top 86639c72 / library a4153d03 (pre-cap feat-033 dc37c540/06e30960, recoverable via --max-cationic-fraction 1.0). Official validator re-run PENDING on the final feat-037 commit (top.fasta changed → new hashes). Both feat-035 user flags (top-50-vs-top-100 draw; institutional-email) remain SET ASIDE per the participant. Prior: feat-035 24h deep-validation confirmed feat-033 near-optimal; feat-036 byte-neutral review-response + cross-checks. Commit abdf759.)
 **Active Feature:** feat-010 SUBMIT (user-gated). **The current shipped/validated state is feat-033 + feat-034, deep-validated by feat-035 (2026-09-30) — see the Current State block at the top of this file; the feat-015…feat-025 narrative that follows is HISTORICAL (feat-021-era), kept for its lessons.** feat-015…feat-020 + **feat-021** (explicit hard
 Gram- term, top-50 Gram- 0.54→0.58 at zero Gram+/MDR cost) DONE and **official-validator PASS on the
 pushed commit 15c3b5e**. **feat-022** (submodel-cross-validated directed-evolution GA) and **feat-023**

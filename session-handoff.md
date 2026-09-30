@@ -8,24 +8,24 @@
   feat-037 cap changed `top.fasta`, the **official validator must be re-run on the final commit
   (PENDING)**, after which the only work left is the **user-gated Kaggle submit**.
 - **Current status (through feat-037):** **SHIPPED = feat-037 — the composition-envelope cap
-  (`uv run generate` default `--max-cationic-fraction 0.444`), which SUPERSEDES feat-033 as the shipped
+  (`uv run generate` default `--max-cationic-fraction 0.4445`), which SUPERSEDES feat-033 as the shipped
   default.** feat-033's core (wet-lab-calibrated COMPOSITION ranking — rank by Lysine-richness within the
-  APEX active band) is **UNCHANGED and vindicated**; feat-037 only demotes the ~20 beyond-envelope
-  (fcat>0.444) extrapolations out of the top-100, so the **50k library body is byte-identical** and only the
-  top-100 selection changes. New hashes: **top `21fd02b7aa928f32c1ac6f6aeb1faa2b`, library
-  `bba245dccc21be693a80c1b114748bb5`** (pre-cap feat-033 `dc37c540`/`06e30960`, recoverable via
+  APEX active band) is **UNCHANGED and vindicated**; feat-037 only demotes the 16 strictly-beyond-envelope
+  (fcat>4/9≈0.4444) extrapolations out of the top-100, so the **50k library body is byte-identical** and only the
+  top-100 selection changes. New hashes: **top `86639c72df6849b096dc91fbada0e0bb`, library
+  `a4153d03d98d9e568c4b3c8122bc15af`** (pre-cap feat-033 `dc37c540`/`06e30960`, recoverable via
   `--max-cationic-fraction 1.0`). feat-034 (adversarial-audit hardening + byte-reproducibility fix) sits
   unchanged underneath. The prior session, **feat-035 (2026-09-30)**, was a 24-hour deep-validation pass
   with **no artifact change** that confirmed feat-033's *ranking* is near-optimal (see below) — they tested
-  re-ranking *within* the validated range, which is within noise. **feat-037 (this session) found the one
-  robustly-supported improvement they had not tested: removing the beyond-envelope (fcat>0.444)
-  extrapolations, which lifts the two hardest boards (Gram+/MDR).** A same-day follow-up, **feat-036**,
+  re-ranking *within* the validated range, which is within noise. **feat-037 (this session) removes the beyond-envelope (fcat>4/9≈0.4444)
+  extrapolations — a principled envelope-cap: directionally ≥ feat-033 on all boards but NOT CI-robust (the earlier
+  '0.444' cap's apparent robust Gram+/MDR gain was a 4/9-truncation-bug artifact).** A same-day follow-up, **feat-036**,
   closed out a background code review and ran two more independent ground-truth cross-checks — all
   confirming ship feat-033, artifact byte-unchanged (see the feat-036 block below). Full feat-001…feat-036
   record lives in `progress.md` + `feature_list.json`; historical feat-016…feat-032 notes there are
   point-in-time and correct as-of-their-date — do not rewrite them.
-- **Branch / commit:** `main` @ **`<feat-037 commit>`** (composition-envelope cap, atop the feat-036
-  validated code). **feat-037 changed `top.fasta` (new hashes `21fd02b7…`/`bba245dc…`), so the official
+- **Branch / commit:** `main` @ **`abdf759`** (composition-envelope cap, atop the feat-036
+  validated code). **feat-037 changed `top.fasta` (new hashes `86639c72…`/`a4153d03…`), so the official
   validator MUST be re-run on this final commit — PENDING, not yet re-confirmed for feat-037**; local
   two-run byte-repro on the capped default is being re-confirmed. The **pre-cap feat-033 artifact**
   (`dc37c540`/`06e30960`) had PASSED the official validator on `a7ed06f` (2026-09-30: fresh clone + `uv sync`
@@ -36,11 +36,11 @@
 ## Shipped submission (current truth — feat-037: feat-033 ranking + envelope cap + feat-034)
 
 - `uv run generate` defaults to **`--composition-weight 1.0 --aromatic-weight 0.5 --max-cationic-fraction
-  0.444`** on the feat-020/021 generator (`checkpoint/generator.pt` = `da70fb42`, unchanged). It ranks the
+  0.4445`** on the feat-020/021 generator (`checkpoint/generator.pt` = `da70fb42`, unchanged). It ranks the
   top-100 by **`lys_fraction − 0.5·aromatic_fraction − 1.5·P(hemolytic)` within an APEX-active-band gate**,
   NOT by APEX potency, and then **caps the selection to the wet-lab-validated cationic envelope (feat-037)**
-  — demoting any candidate with `(K+R)/len > 0.444` below every in-envelope one, which keeps the assayed
-  top-100 inside the validated envelope. Shipped hashes: top **`21fd02b7…`**, library **`bba245dc…`**
+  — demoting any candidate with `(K+R)/len > 4/9 ≈ 0.4444` below every in-envelope one, which keeps the assayed
+  top-100 inside the validated envelope. Shipped hashes: top **`86639c72…`**, library **`a4153d03…`**
   (`--max-cationic-fraction 1.0` recovers the pre-cap feat-033 selection `dc37c540`/`06e30960`).
 - **Why composition, not APEX potency (feat-033, docs/RESEARCH.md):** scored against **real** activity
   on 46 wet-lab MICs + 946 independent DBAASP peptides, APEX ranks real activity across the full range
@@ -113,25 +113,26 @@ selectivity cross-check"; `scratchpad/codereview_finding1.md`, `hemopi2_finding.
 
 The first shipped-artifact change since feat-033, and a disciplined one: feat-033's core (rank by
 Lysine-richness within the APEX band) is unchanged and vindicated; feat-037 adds a final **composition-envelope
-cap** (`--max-cationic-fraction 0.444`, the new default) that demotes any top candidate whose cationic fraction
-`(K+R)/len` exceeds 0.444 — the max among the 46 wet-lab actives — below every in-envelope one, so the assayed
-top-100 stays inside the validated envelope. Library body byte-identical; only the top-100 changes (63/100
-differ). Detail: `docs/RESEARCH.md` "feat-037".
+cap** (`--max-cationic-fraction 0.4445`, the new default) that demotes any top candidate whose cationic fraction
+`(K+R)/len` exceeds 4/9 ≈ 0.4444 — the max among the 46 wet-lab actives — below every in-envelope one, so the assayed
+top-100 stays inside the validated envelope. Library body byte-identical; only the top-100 changes (53/100
+differ, 31/50 in the top-50). Detail: `docs/RESEARCH.md` "feat-037".
 
-- **Why.** The uncapped composition ranker extrapolated — ~20/100 of the top-100 sat past the validated envelope
-  (fcat>0.444), concentrated at the head (13 of the top-50; pos 1 = `KKKLKKKLLKKKKKLRLL`, fcat 0.667), ~6×
+- **Why.** The uncapped composition ranker extrapolated — 16/100 of the top-100 sat strictly past the validated envelope
+  (fcat>4/9≈0.4444), concentrated at the head (11 of the top-50; pos 1 = `KKKLKKKLLKKKKKLRLL`, fcat 0.667), ~6×
   enriched vs the library. On the 46 wet-lab MICs that region is where **real Gram+ activity collapses**
   (fcat>0.40 → Gram+ SR ~0.07 vs peak ~0.36). The library is healthy; the Goodhart was in the *ranking*, so the
   fix is a re-ranking.
-- **Evidence (honest kNN arbiter on the 46, LOO-validated: broad +0.48/gn +0.43/gp +0.29/mdr +0.46).** Capped
-  top-50 expected Success Rate vs feat-033 (paired bootstrap B=5000): **Gram+ +0.029 (95% CI [+0.003,+0.047])**
-  and **MDR +0.026 (CI [+0.001,+0.054])** exclude 0; Gram− +0.023 and Broad +0.022 are directional (CI includes
-  0). Robust at k=5 and k=7 for the top-50, positive at all k (3/5/7) and both pools, never negative. 0.444 is
-  optimal — a 0.40 cap loses the Gram− gain and collapses diversity to 41/100. Mechanism: the 20 removed peptides
-  are below-average SR on every board, most on Gram+ (0.177 vs the 0.242 top-50 mean).
-- **New hashes:** top **`21fd02b7aa928f32c1ac6f6aeb1faa2b`**, library **`bba245dccc21be693a80c1b114748bb5`**.
-  3 new cap tests in `tests/test_composition.py` (demote-over-cationic / in-envelope-unchanged /
-  None-recovers-feat033-order); suite green. Recovery: `--max-cationic-fraction 1.0` (pre-cap feat-033),
+- **Evidence (honest kNN arbiter on the 46, LOO-validated: broad +0.48/gn +0.43/gp +0.29/mdr +0.46).** Corrected
+  0.4445 top-50 expected Success Rate vs feat-033 (paired bootstrap B=5000, k=5): Broad +0.013 [-0.012,+0.039],
+  Gram− +0.015 [-0.019,+0.051], Gram+ +0.009 [-0.007,+0.029], MDR +0.011 [-0.008,+0.032] — all four directionally
+  positive but **NONE CI-robust** (every CI includes 0); direction robust across k=3/5/7/9, never negative. (The
+  earlier '0.444' cap's +0.029/+0.026 CI-excludes-0 was a 4/9-truncation-bug artifact.) 0.4445 (= the 4/9 ceiling)
+  is the principled cap — a 0.40 cap loses the Gram− direction and collapses diversity. Mechanism: the 16 removed
+  peptides are below-average SR on every board.
+- **New hashes:** top **`86639c72df6849b096dc91fbada0e0bb`**, library **`a4153d03d98d9e568c4b3c8122bc15af`**.
+  7 cap tests in `tests/test_composition.py` (incl. 4/9-boundary keep-vs-demote, ascending-fcat backfill,
+  None-recovers-feat033); suite green (165 passed, 3 skipped). Recovery: `--max-cationic-fraction 1.0` (pre-cap feat-033),
   `--composition-weight 0` (feat-031 APEX).
 - **Honest caveat.** The gain is a **kNN-model estimate on n=46**; the removed peptides are extrapolations with
   **no direct wet-lab measurement** (magnitude modest, ~+0.02–0.03 SR; top-100/k=3 not CI-robust; diversity
@@ -162,8 +163,8 @@ differ). Detail: `docs/RESEARCH.md` "feat-037".
 | Check | Command | Result |
 |---|---|---|
 | Tests | `uv run pytest -q` | **161 passed** (158 + feat-037's 3 cap tests in `tests/test_composition.py`: demote-over-cationic / in-envelope-unchanged / None-recovers-feat033-order; earlier: feat-033/034 composition + APEX thread-pinning guard, feat-036 penalty-disabled-message + `physchem._frac` formula-pinning) |
-| Full 50k reproducibility (APEX + ESMC PLM on GPU) | two `uv run generate` runs | feat-037 capped: top `21fd02b7…`, library `bba245dc…` (two-run byte-repro being re-confirmed); pre-cap feat-033 was byte-identical top `dc37c540` / library `06e30960` |
-| Official validator | `verify_submission.py <repo-url>` | **Re-run PENDING on the final feat-037 commit** (top.fasta changed → new hashes `21fd02b7…`/`bba245dc…`). Pre-cap feat-033 PASSED all 8 checks on `a7ed06f` (2026-09-30, fresh clone + `uv sync` + generate ×2; byte-identical `dc37c540`/`06e30960`) and earlier on `1c091e5` |
+| Full 50k reproducibility (APEX + ESMC PLM on GPU) | two `uv run generate` runs | feat-037 capped: top `86639c72…`, library `a4153d03…` (two-run byte-repro being re-confirmed); pre-cap feat-033 was byte-identical top `dc37c540` / library `06e30960` |
+| Official validator | `verify_submission.py <repo-url>` | **Re-run PENDING on the final feat-037 commit** (top.fasta changed → new hashes `86639c72…`/`a4153d03…`). Pre-cap feat-033 PASSED all 8 checks on `a7ed06f` (2026-09-30, fresh clone + `uv sync` + generate ×2; byte-identical `dc37c540`/`06e30960`) and earlier on `1c091e5` |
 | Compliance | `docs/COMPLIANCE.md` rule-by-rule audit | **PASS** |
 
 ## Key decisions / devil's-advocate findings
@@ -196,8 +197,8 @@ differ). Detail: `docs/RESEARCH.md` "feat-037".
 
 **Standing blockers (one-shot submission — get these exactly right):**
 
-- [ ] **One entry, no resubmission** — **feat-037 changed the code (new `--max-cationic-fraction 0.444`
-      default) and the artifact (`top.fasta` → new hashes `21fd02b7…`/`bba245dc…`), so the official validator
+- [ ] **One entry, no resubmission** — **feat-037 changed the code (new `--max-cationic-fraction 0.4445`
+      default) and the artifact (`top.fasta` → new hashes `86639c72…`/`a4153d03…`), so the official validator
       re-run is REQUIRED and PENDING on the final feat-037 commit** (this is a code+artifact change, not
       docs-only). The pre-cap feat-033 artifact had PASSED all 8 checks on `a7ed06f` (2026-09-30, fresh-clone
       byte-identical `dc37c540`/`06e30960`); re-run `scripts/verify_submission.py <repo-url>` on the final commit
@@ -210,8 +211,8 @@ differ). Detail: `docs/RESEARCH.md` "feat-037".
 
 ## Recommended next step
 
-The shipped artifact is now the **feat-037 composition-envelope-capped** selection (top `21fd02b7…`, library
-`bba245dc…`); feat-035/036 confirmed feat-033 near-optimal across ~9 independent angles, and feat-037 removes the
+The shipped artifact is now the **feat-037 composition-envelope-capped** selection (top `86639c72…`, library
+`a4153d03…`); feat-035/036 confirmed feat-033 near-optimal across ~9 independent angles, and feat-037 removes the
 one identified extrapolation risk (beyond-envelope peptides) without adding modelling scope. Do **not** add
 further modelling scope (headroom is bounded; every apparent lever, incl. learned rankers, net-charge, HemoPI2
 and amphipathicity, collapses OOD). The two user flags are **set aside per the participant**. Remaining actions:
@@ -219,7 +220,7 @@ and amphipathicity, collapses OOD). The two user flags are **set aside per the p
 1. Rotate the `KGAT_` token.
 2. **Re-run `scripts/verify_submission.py <repo-url>` on the final feat-037 commit — REQUIRED and PENDING**
    (feat-037 changed the code + `top.fasta`; the pre-cap `a7ed06f` pass no longer covers the shipped artifact).
-   Expect the new hashes `21fd02b7…`/`bba245dc…`.
+   Expect the new hashes `86639c72…`/`a4153d03…`.
 3. Submit from **`j_v_v_07`** with the participant's team name and explicit go-ahead.
 
 ## Startup
