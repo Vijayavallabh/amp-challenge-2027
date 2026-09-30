@@ -332,7 +332,9 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       `dc37c540` (byte-identical to local, and to the pre-fix `84e2b78` — the fix is byte-neutral on the shipped
       parallel path). Commits atop the validated `1c091e5` are docs plus one **byte-neutral** review-response
       commit (feat-036 — stdout/test-only changes on non-default paths; a 2× `generate` run reproduced
-      `dc37c540`/`06e30960`); the local test suite is green — **158 tests**. **feat-035 (2026-09-30): a
+      `dc37c540`/`06e30960`); the local test suite is green — **158 tests**. The **official validator was
+      re-run on the latest commit `a7ed06f` (2026-09-30) → all 8 checks PASSED, fresh-clone byte-identical
+      `dc37c540`/`06e30960`**, so the latest commit is itself submit-ready. **feat-035 (2026-09-30): a
       24-hour deep-validation pass with no artifact change confirmed feat-033 is near-optimal** — the
       composition chemotype's Optimal-Selectivity safety window was validated on real DBAASP HC50/MIC (92.7 vs
       58.5 baseline), the APEX active-band gate was tested keep-vs-drop and **kept** (the 46-peptide

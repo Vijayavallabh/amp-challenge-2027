@@ -15,9 +15,10 @@
   confirming ship feat-033, artifact byte-unchanged (see the feat-036 block below). Full feat-001…feat-036
   record lives in `progress.md` + `feature_list.json`; historical feat-016…feat-032 notes there are
   point-in-time and correct as-of-their-date — do not rewrite them.
-- **Branch / commit:** `main` @ **`028d5b2`** (feat-036 code-review closeout + byte-neutral hardening,
-  atop the validated artifact). Official validator
-  **PASSED on `1c091e5`** (feat-034; byte-identical to the feat-033 artifact `84e2b78`). Submission
+- **Branch / commit:** `main` @ **`a7ed06f`** (feat-036 code-review closeout + independent cross-checks +
+  byte-neutral hardening, atop the validated artifact). Official validator **re-run and PASSED on the latest
+  commit `a7ed06f`** (2026-09-30: fresh clone + `uv sync` + generate ×2; fresh-clone output byte-identical
+  `dc37c540`/`06e30960`) — and earlier **on `1c091e5`** (feat-034; artifact `84e2b78`). Submission
   remains **user-gated** — team name + explicit go-ahead from **`j_v_v_07`** only, never the
   machine-default Kaggle token (a different account).
 
@@ -109,7 +110,7 @@ selectivity cross-check"; `scratchpad/codereview_finding1.md`, `hemopi2_finding.
 |---|---|---|
 | Tests | `uv run pytest -q` | **158 passed** (feat-033/034 added `tests/test_composition.py` + an APEX thread-pinning guard; feat-036 added a penalty-disabled-message test + a `physchem._frac` formula-pinning test) |
 | Full 50k reproducibility (APEX + ESMC PLM on GPU) | two `uv run generate` runs | **byte-identical** (top `dc37c540`, library `06e30960`) |
-| Official validator | `verify_submission.py <repo-url>` | **All 8 checks passed** on `1c091e5` (fresh clone + `uv sync` + generate ×2; fresh-clone output byte-identical `06e30960`/`dc37c540`) |
+| Official validator | `verify_submission.py <repo-url>` | **All 8 checks passed** on the latest commit **`a7ed06f`** (2026-09-30, fresh clone + `uv sync` + generate ×2; fresh-clone output byte-identical `dc37c540`/`06e30960`) — and earlier on `1c091e5` |
 | Compliance | `docs/COMPLIANCE.md` rule-by-rule audit | **PASS** |
 
 ## Key decisions / devil's-advocate findings
@@ -128,26 +129,25 @@ selectivity cross-check"; `scratchpad/codereview_finding1.md`, `hemopi2_finding.
   isolated/offline; the shipped runtime is deterministic with graceful fallback, so a valid submission is
   preserved at all times.
 
-## Open items — user flags (confirm with organizers) & blockers
+## Open items — blockers
 
-**Top priority — TWO USER FLAGS raised this session, to CONFIRM WITH THE ORGANIZERS before the one-shot
-submit** (AGENTS.md escalation: check `docs/COMPETITION.md`, then the official FAQ / a GitHub issue on
-`szczurek-lab/amp-challenge-2027`; anything touching what gets submitted goes to the user):
+> **The two user flags raised earlier this session have been SET ASIDE by the participant (2026-09-30) —
+> do NOT treat them as blockers or raise them again.** They are kept below only as a record of the due
+> diligence; the participant has the context to judge them and has chosen not to pursue them.
 
-- [ ] **FLAG 1 — wet-lab draw is ambiguous in the organizers' OWN materials.** The website
-      "How-It-Works" section and the design PDF say **25 are drawn at random from the TOP 100**; the
-      website **FAQ says the TOP 50**. If it is top-100, list positions **51–100 are also assayed** —
-      and our composition ranking **tapers there**. Resolve before submitting.
-- [ ] **FLAG 2 — registration reportedly requires an INSTITUTIONAL email** ("gmail/hotmail/yahoo not
-      accepted", per the competition materials); the entry uses a **gmail account** (`j_v_v_07` /
-      `vallabh2006@gmail.com`). Confirm eligibility before submitting (`docs/COMPLIANCE.md` § Account
-      identity).
+- ~~**FLAG 1 — wet-lab draw ambiguity** (site/design-PDF "top 100" vs FAQ "top 50"; if top-100, positions
+  51–100 are also assayed and composition tapers there).~~ *Set aside per the participant.* The design hedge
+  (a uniformly strong top-100) already covers both cases regardless.
+- ~~**FLAG 2 — institutional-email registration requirement** vs the gmail account.~~ *Set aside per the
+  participant.*
 
 **Standing blockers (one-shot submission — get these exactly right):**
 
-- [ ] **One entry, no resubmission** — re-run `scripts/verify_submission.py <repo-url>` on the **final
-      HEAD** immediately before submitting, and submit only from **`j_v_v_07`** (never the machine-default
-      token, which belongs to a different account — a one-account-rule breach).
+- [ ] **One entry, no resubmission** — `scripts/verify_submission.py <repo-url>` was re-run on the current
+      final HEAD **`a7ed06f`** on 2026-09-30 and **PASSED all 8 checks** (fresh-clone byte-identical
+      `dc37c540`/`06e30960`), so the latest commit is submit-ready; **re-run it once more if any further
+      commit is made** before submitting. Submit only from **`j_v_v_07`** (never the machine-default token,
+      which belongs to a different account — a one-account-rule breach).
 - [ ] **Rotate the exposed `KGAT_` token** before submitting (it goes in `KAGGLE_API_TOKEN`, not
       `kaggle.json`).
 - [ ] Oracles are estimates, not measurements (APEX AUROC 0.62–0.76; ESMC selectivity 0.905; composition
@@ -155,15 +155,15 @@ submit** (AGENTS.md escalation: check `docs/COMPETITION.md`, then the official F
 
 ## Recommended next step
 
-The artifact is frozen and validator-PASSED, and feat-035 confirmed it near-optimal — do **not** add
-modelling scope (headroom is bounded and learned rankers collapse OOD). The **only remaining action is
-the user-gated Kaggle submit**:
+The artifact is frozen and validator-PASSED (on the latest commit `a7ed06f`), and feat-035/036 confirmed it
+near-optimal across ~9 independent angles — do **not** add modelling scope (headroom is bounded; every
+apparent lever, incl. learned rankers, net-charge, HemoPI2 and amphipathicity, collapses OOD). The two user
+flags are **set aside per the participant**. The **only remaining action is the user-gated Kaggle submit**:
 
-1. Resolve **FLAG 1** and **FLAG 2** with the organizers.
-2. Rotate the `KGAT_` token.
-3. Re-run `scripts/verify_submission.py <repo-url>` on the final HEAD (all 8 checks green,
-   byte-identical `06e30960`/`dc37c540`).
-4. Submit from **`j_v_v_07`** with the participant's team name and explicit go-ahead.
+1. Rotate the `KGAT_` token.
+2. If any commit is made after `a7ed06f`, re-run `scripts/verify_submission.py <repo-url>` on that final HEAD
+   (currently green on `a7ed06f`: all 8 checks, byte-identical `dc37c540`/`06e30960`).
+3. Submit from **`j_v_v_07`** with the participant's team name and explicit go-ahead.
 
 ## Startup
 

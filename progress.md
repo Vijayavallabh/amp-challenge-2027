@@ -5,7 +5,8 @@
 > **feat-036 (2026-09-30) — CODE-REVIEW CLOSEOUT + INDEPENDENT CROSS-CHECKS + BYTE-NEUTRAL HARDENING; NO shipped-output change.**
 > A same-day follow-up to feat-035. A background `/code-review` found **no surviving correctness bug** (156 tests). Its
 > top finding + two more independent, ground-truth-anchored experiments all reconfirm feat-033; the shipped artifact is
-> **byte-unchanged** (2× `generate` on the patched code → `dc37c540`/`06e30960`), now **158 tests**. (1) **The selectivity
+> **byte-unchanged** (2× `generate` on the patched code → `dc37c540`/`06e30960`), now **158 tests**; the **official
+> validator was re-run on the latest commit `a7ed06f` → all 8 checks PASSED, fresh-clone byte-identical**. (1) **The selectivity
 > λ=1.5 is a GATE, not a miscalibration:** on the shipped band `phemo` is bimodal, λ clears the ~54% hemolytic mode, and
 > the top-100 is 99% clean and **composition-ordered** (Spearman(final,comp)=+0.90 vs (final,−phemo)=+0.06; overlap with a
 > selectivity-only ranking = 0%). The review's "rescale λ to the composition scale" would re-admit hemolytic peptides for
@@ -130,7 +131,7 @@
 > Only **feat-010 (one-shot Kaggle submit)** remains — user-gated (team name + `j_v_v_07` go-ahead; rotate the
 > `KGAT_` token).
 
-**Last Updated:** 2026-09-30 (feat-035 — 24h deep-validation pass, NO artifact change: confirmed feat-033 near-optimal [Optimal Selectivity validated on real DBAASP HC50/MIC 92.7 vs 58.5; APEX active-band gate tested keep-vs-drop and KEPT; a learned/TabPFN-style ranker collapses out-of-distribution while composition transfers +0.448; no validated Gram+/MDR lever] and raised two user flags to confirm with the organizers before submit — the top-50-vs-top-100 draw ambiguity and the institutional-email registration requirement. SHIPPED = feat-033 + feat-034 (feat-036 added a byte-neutral review-response commit + independent HemoPI2/Gram+ cross-checks, artifact byte-unchanged), validator-PASSED on 1c091e5; latest commit 028d5b2.)
+**Last Updated:** 2026-09-30 (feat-035 — 24h deep-validation pass, NO artifact change: confirmed feat-033 near-optimal [Optimal Selectivity validated on real DBAASP HC50/MIC 92.7 vs 58.5; APEX active-band gate tested keep-vs-drop and KEPT; a learned/TabPFN-style ranker collapses out-of-distribution while composition transfers +0.448; no validated Gram+/MDR lever] and raised two user flags (top-50-vs-top-100 draw ambiguity; institutional-email registration) that the participant has since SET ASIDE (2026-09-30 — not blockers). SHIPPED = feat-033 + feat-034 (feat-036: byte-neutral review-response + independent HemoPI2/Gram+/amphipathicity cross-checks, artifact byte-unchanged), validator-PASSED on 1c091e5 and re-confirmed on the latest commit a7ed06f; latest commit a7ed06f.)
 **Active Feature:** feat-010 SUBMIT (user-gated). **The current shipped/validated state is feat-033 + feat-034, deep-validated by feat-035 (2026-09-30) — see the Current State block at the top of this file; the feat-015…feat-025 narrative that follows is HISTORICAL (feat-021-era), kept for its lessons.** feat-015…feat-020 + **feat-021** (explicit hard
 Gram- term, top-50 Gram- 0.54→0.58 at zero Gram+/MDR cost) DONE and **official-validator PASS on the
 pushed commit 15c3b5e**. **feat-022** (submodel-cross-validated directed-evolution GA) and **feat-023**
