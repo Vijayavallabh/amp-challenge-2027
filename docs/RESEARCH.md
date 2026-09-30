@@ -1450,6 +1450,37 @@ suite green (165 passed, 3 skipped). Recovery: `--max-cationic-fraction
   for a hedged library only** — under the competition's mean-over-random-draw scoring the expected score is set by the
   composition signal, not by generator choice; using them would require a risky Tier-2 library change; and their
   activity is **unproven** (no trusted oracle for novel peptides, per feat-035). **Not shipped.**
+- **Hydrophobicity / aggregation penalty (S1 real-HC50 analysis + an independent AGGRESCAN cross-check — the two converge).**
+  Penalizing aliphatic hydrophobicity (`frac_hydrophobic` over `{AILMFWVC}`, beyond the aromatic term; w ≈ 0.5) is a
+  **real but trade-not-free** lever. S1's byte-faithful reconstruction (regenerated feat-037's exact 400k rank-pool,
+  matched the shipped top-100 100/100) raises the **real-HC50 safety window ~1.1–1.4×** (P 0.80–0.90, directional, not
+  CI-robust), and on the kNN-MIC activity arbiter it lifts **Gram+ (+0.014, P=0.90 — our weakest board, the first lever
+  to move it)**, but it **costs Gram− (−0.017) and Broad (−0.006)** (our stronger activity boards) and within-list
+  diversity (largest ≥0.6 cluster 23 vs 14); at w=1.0 it clearly regresses (Gram− −0.043, P=0.05). Because one ranking
+  serves all five **separately-ranked** per-board leaderboards, trading a strong board (Gram−) for a weak-board Gram+
+  gain plus already-strong Selectivity is not a clear win — feat-037, by contrast, is directionally ≥ feat-033 on **all**
+  boards (no trade). Consistent with S1's own verdict (the decisive selectivity headroom is **upstream in the generator**,
+  not in re-ranking) and with the aggregation premise test (non-robust at the realistic top-50-of-20k selection ratio).
+  **Not shipped** (`physchem._HYDROPHOBIC` + `_frac` are present if revisited).
+- **Upstream generator ReST toward low-hydrophobicity (feat-039-explored — NO-GO).** Directly tested S1's "the
+  decisive lever is upstream in the generator" hypothesis: a 3-round rejection-sampling fine-tune (`scratchpad/rest_lohyd.py`,
+  reward = composition + a hydrophobicity hinge, hard envelope gate, **no APEX/ESMC in the reward** so no feat-032
+  ensemble-Goodhart) with a **matched control** (identical minus the low-hydrophobicity term). **NO-GO on three grounds:**
+  (1) *fails the matched control* — composition steering (Lys↑, aromatic↓) inherently lowers `frac_hydrophobic` (K
+  displaces hydrophobics; F/W *are* hydrophobic), so the control reached the same/**lower** hydrophobicity (fh 0.333 vs
+  candidate 0.400) *without* the low-hydro term; the explicit term adds nothing CI-robust beyond composition. (2) *fails
+  "robustly beats feat-037"* — a safety-for-activity **trade**: both candidate and control over-extrapolate to top-50
+  lys 0.41–0.43 (past feat-037's validated 0.28) and **lose the activity boards** (kNN-MIC gp −0.033 / mdr −0.031;
+  DBAASP-LOOSE broad SR **−0.267, CI-robust-negative**, potency 1.79× worse) for a safety gain that is non-CI-robust,
+  inconsistent across DBAASP STRICT (2.07×) / LOOSE (0.71×), and partly circular. (3) Phase-2 **preserved** (diversity
+  0.839, novelty 0.998, near-exact known-AMP 1.13% — *better* than the shipped 1.67% and far below feat-032's failed
+  4.08%; the composition reward avoided the feat-032 near-exact-regeneration trap) — necessary but insufficient. **New
+  durable insight (strengthens feat-037):** low-hydrophobicity is *downstream* of composition, not an independent lever;
+  **generation-time enrichment** of a good-direction feature lets the composition ranker **overshoot** the wet-lab-validated
+  envelope on the *un-capped* axis (lys 0.42 vs validated 0.28, where the activity boards degrade), whereas feat-037's
+  **selection-time cap** stops at the validated composition — cheaper, reversible, and with no whole-library Phase-2 risk.
+  Checkpoint `generator.pt` (`da70fb42`) unchanged; artifacts in `scratchpad/` (`rest_lohyd.py`, `select_gen.py`,
+  `rest_cand/`, `rest_ctrl/`).
 - **D3 — Gram+ physchem lever search.** An MC-corrected 16-feature battery found **no transferable Gram+ physchem
   lever**: every DBAASP signal sign-flips OOD, reconfirming feat-035/036 (net_charge reverses sign, amphipathicity is
   an in-distribution mirage). There is no safe knob to raise real Gram+ beyond removing the extrapolations, which
