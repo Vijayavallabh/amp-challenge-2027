@@ -1486,7 +1486,9 @@ suite green (165 passed, 3 skipped). Recovery: `--max-cationic-fraction
   an in-distribution mirage). There is no safe knob to raise real Gram+ beyond removing the extrapolations, which
   feat-037 does.
 
-**Validator status.** The `top.fasta` changed, so the official validator MUST be **re-run on the final pushed commit**
-(`scripts/verify_submission.py <repo-url>`) — this is **PENDING and not yet claimed passed**; local two-run byte-repro
-on the capped default is being re-confirmed. Everything else about the entry (library body, generator, checkpoints,
-selectivity model, compliance) is unchanged from feat-033.
+**Validator status.** The official validator **PASSED** on a fresh clone of the pushed feat-037 commit
+(`scripts/verify_submission.py <repo-url>`, `da7ae56`; artifact byte-identical at HEAD): **"All checks passed.
+Submission is valid!"** — all 8 checks incl. the ≤80% novelty gate and generate-×2 byte-reproducibility; the
+fresh-clone output is byte-identical to the shipped artifact (top `86639c72` / lib `a4153d03`), the 3rd independent
+clean reproduction. Everything else about the entry (library body, generator, checkpoints, selectivity model,
+compliance) is unchanged from feat-033.

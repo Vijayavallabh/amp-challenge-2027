@@ -365,11 +365,12 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       API, `userHasEntered=True` (feat-004)
 - [ ] Submitting from `j_v_v_07`, not from the machine's default token account
 - [ ] `./init.sh` green, including the two-run byte-identical check
-- [ ] **feat-037 changed `top.fasta`, so the official validator MUST be re-run on the final pushed commit —
-      PENDING, not yet claimed passed.** The shipped artifact is now the **composition-envelope-capped** selection
-      (**top `86639c72df6849b096dc91fbada0e0bb`, library `a4153d03d98d9e568c4b3c8122bc15af`**); the pre-cap feat-033
-      output (`dc37c540`/`06e30960`, recoverable via `--max-cationic-fraction 1.0`) is what the passes below
-      validated, and local two-run byte-repro on the capped default is being re-confirmed. History:
+- [x] **Official validator PASSED on the final feat-037 commit** (`da7ae56`, artifact byte-identical at HEAD `09a1f88`):
+      *"All checks passed. Submission is valid!"* — fresh GitHub clone + `uv sync` + generate ×2, all 8 checks incl.
+      byte-identical reproducibility, the ≤80% novelty gate, and the real ESM++/ESMC path; fresh-clone output byte-identical
+      to the shipped **composition-envelope-capped** artifact (**top `86639c72df6849b096dc91fbada0e0bb`, library
+      `a4153d03d98d9e568c4b3c8122bc15af`**; pre-cap feat-033 `dc37c540`/`06e30960` recoverable via `--max-cationic-fraction 1.0`).
+      History:
       `scripts/verify_submission.py` **PASSED on the byte-repro-hardened commit `1c091e5`** (pre-cap feat-033 default,
       after the adversarial-audit fix to the sequential APEX path): fresh GitHub clone + `uv sync` + generate ×2
       — *"All checks passed. Submission is valid!"*, all 8 checks incl. byte-identical reproducibility, the ≤80%
@@ -379,9 +380,8 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       commit (feat-036 — stdout/test-only changes on non-default paths; a 2× `generate` run reproduced
       `dc37c540`/`06e30960`); the local test suite is green — **158 tests**. The **official validator was
       re-run on the pre-cap commit `a7ed06f` (2026-09-30) → all 8 checks PASSED, fresh-clone byte-identical
-      `dc37c540`/`06e30960`** — but that validated the **pre-cap feat-037** artifact; the feat-037 cap changed
-      `top.fasta` (new hashes `86639c72…`/`a4153d03…`), so the validator **must be re-run on the final feat-037
-      commit before this box can be checked.** **feat-035 (2026-09-30): a
+      `dc37c540`/`06e30960`**; the feat-037 cap changed `top.fasta` (new hashes `86639c72…`/`a4153d03…`) and the
+      validator was **re-run and PASSED on the final feat-037 commit `da7ae56`** (above). **feat-035 (2026-09-30): a
       24-hour deep-validation pass with no artifact change confirmed feat-033 is near-optimal** — the
       composition chemotype's Optimal-Selectivity safety window was validated on real DBAASP HC50/MIC (92.7 vs
       58.5 baseline), the APEX active-band gate was tested keep-vs-drop and **kept** (the 46-peptide

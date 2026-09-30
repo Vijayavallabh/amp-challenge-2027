@@ -5,8 +5,8 @@
 - **Goal:** Get the improved **feat-037** entry validated and submitted cleanly by the
   **2026-09-30 22:00 UTC** deadline. The design work is complete — the reproducible 50k library +
   top-100 (active, selective, novel, diverse) is shipped and locally byte-reproducible; because the
-  feat-037 cap changed `top.fasta`, the **official validator must be re-run on the final commit
-  (PENDING)**, after which the only work left is the **user-gated Kaggle submit**.
+  feat-037 cap changed `top.fasta`, and the **official validator has now PASSED on the final commit** (`da7ae56`,
+  all 8 checks, fresh-clone byte-identical), so the only work left is the **user-gated Kaggle submit**.
 - **Current status (through feat-037):** **SHIPPED = feat-037 — the composition-envelope cap
   (`uv run generate` default `--max-cationic-fraction 0.4445`), which SUPERSEDES feat-033 as the shipped
   default.** feat-033's core (wet-lab-calibrated COMPOSITION ranking — rank by Lysine-richness within the
@@ -24,10 +24,10 @@
   confirming ship feat-033, artifact byte-unchanged (see the feat-036 block below). Full feat-001…feat-036
   record lives in `progress.md` + `feature_list.json`; historical feat-016…feat-032 notes there are
   point-in-time and correct as-of-their-date — do not rewrite them.
-- **Branch / commit:** `main` @ **`abdf759`** (composition-envelope cap, atop the feat-036
-  validated code). **feat-037 changed `top.fasta` (new hashes `86639c72…`/`a4153d03…`), so the official
-  validator MUST be re-run on this final commit — PENDING, not yet re-confirmed for feat-037**; local
-  two-run byte-repro on the capped default is being re-confirmed. The **pre-cap feat-033 artifact**
+- **Branch / commit:** `main` @ **`09a1f88`** (docs-only follow-up atop the feat-037 artifact commit
+  **`da7ae56`**, which superseded the buggy-0.444 `abdf759`). **The official validator PASSED on the feat-037
+  commit** (`da7ae56`, artifact byte-identical at HEAD): all 8 checks (fresh GitHub clone + `uv sync` + generate ×2),
+  fresh-clone output byte-identical (top `86639c72…` / lib `a4153d03…`) — the 3rd independent clean reproduction. The **pre-cap feat-033 artifact**
   (`dc37c540`/`06e30960`) had PASSED the official validator on `a7ed06f` (2026-09-30: fresh clone + `uv sync`
   + generate ×2) and earlier on `1c091e5` (feat-034; artifact `84e2b78`). Submission remains **user-gated** —
   team name + explicit go-ahead from **`j_v_v_07`** only, never the machine-default Kaggle token (a different
@@ -135,11 +135,11 @@ differ, 31/50 in the top-50). Detail: `docs/RESEARCH.md` "feat-037".
   None-recovers-feat033); suite green (165 passed, 3 skipped). Recovery: `--max-cationic-fraction 1.0` (pre-cap feat-033),
   `--composition-weight 0` (feat-031 APEX).
 - **Honest caveat.** The gain is a **kNN-model estimate on n=46**; the removed peptides are extrapolations with
-  **no direct wet-lab measurement** (magnitude modest, ~+0.02–0.03 SR; top-100/k=3 not CI-robust; diversity
-  marginally lower). An explicit, ground-truth-supported, one-shot-appropriate refinement, **not a measured
+  **no direct wet-lab measurement** (magnitude small, ~+0.01 SR and NOT CI-robust; the value is principled envelope-capping). An explicit, ground-truth-supported, one-shot-appropriate refinement, **not a measured
   wet-lab improvement** — the standing "all figures are computational predictions" caveat holds.
-- **Validator.** `top.fasta` changed → the official validator MUST be **re-run on the final pushed commit
-  (PENDING, not yet claimed passed)**.
+- **Validator.** Official validator **PASSED** on a fresh clone of the pushed feat-037 commit (`da7ae56`,
+  artifact byte-identical at HEAD): *"All checks passed. Submission is valid!"* — all 8 checks incl. generate-×2
+  byte-repro; fresh-clone output byte-identical to the shipped artifact (top `86639c72` / lib `a4153d03`).
 - **Also explored, not shipped:** D1 (ESM-C 600M masked-infill ~46k) + ProGen2 (from
   `anthropics/uplifting-biomolecular-modeling`, ~42k in-envelope/novel/diverse) diversification pools —
   floor-play material for a hedged library only, activity unproven, needs a risky Tier-2 library change; D3 — an
@@ -148,11 +148,10 @@ differ, 31/50 in the top-50). Detail: `docs/RESEARCH.md` "feat-037".
 
 ## Final submission characterisation (feat-037 capped, local full 50k run, seed 42)
 
-- **Top-50 (capped):** R/(R+K) **0.286** (Lys>Arg in 88%), aromatic fraction **0.103**, `fcat` median
-  **0.400 / max 0.438** (was 0.667), lys_fraction 0.278 (unchanged), net charge +7, length 18, muH 0.331,
-  **0% predicted-hemolytic** (ESMC median 0.001, max **0.052** — still <0.5, and better than feat-031's
-  0.073), novelty **0/50 > 0.80** (top-50 median identity 0.69; top-100 max 0.80, rule ≤0.80), within-list
-  diversity clean. APEX-*predicted* profile ≈ Broad 0.64 / GN 0.85 / GP 0.26 / MDR 0.33 (same Lysine
+- **Top-50 (capped 0.4445):** R/(R+K) **0.286** (Lys>Arg in 92%), aromatic fraction **0.100**, `fcat` median
+  **0.4118 / max 0.4444** (= the 4/9 ceiling; uncapped was 0.667), lys_fraction 0.282 (~unchanged), net charge +7,
+  length median 18 [13–20], within-list diversity **58 clusters @0.6 (largest 14/100)**; the −1.5·P(hemolytic-ESMC)
+  selectivity gate + the real-HC50-validated Lys-rich low-aromatic chemotype are unchanged; novelty top-100 max ≤0.80. APEX-*predicted* profile ≈ Broad 0.64 / GN 0.85 / GP 0.26 / MDR 0.33 (same Lysine
   chemotype; the GP/MDR figures are APEX mis-scoring the Lysine chemotype, not a real regression —
   composition ties-or-beats APEX on all 4 real-data boards).
 - **Library:** 50,000 unique/valid/novel; **byte-identical to feat-031's save the top-100**, so Phase-2
@@ -162,9 +161,9 @@ differ, 31/50 in the top-50). Detail: `docs/RESEARCH.md` "feat-037".
 
 | Check | Command | Result |
 |---|---|---|
-| Tests | `uv run pytest -q` | **161 passed** (158 + feat-037's 3 cap tests in `tests/test_composition.py`: demote-over-cationic / in-envelope-unchanged / None-recovers-feat033-order; earlier: feat-033/034 composition + APEX thread-pinning guard, feat-036 penalty-disabled-message + `physchem._frac` formula-pinning) |
-| Full 50k reproducibility (APEX + ESMC PLM on GPU) | two `uv run generate` runs | feat-037 capped: top `86639c72…`, library `a4153d03…` (two-run byte-repro being re-confirmed); pre-cap feat-033 was byte-identical top `dc37c540` / library `06e30960` |
-| Official validator | `verify_submission.py <repo-url>` | **Re-run PENDING on the final feat-037 commit** (top.fasta changed → new hashes `86639c72…`/`a4153d03…`). Pre-cap feat-033 PASSED all 8 checks on `a7ed06f` (2026-09-30, fresh clone + `uv sync` + generate ×2; byte-identical `dc37c540`/`06e30960`) and earlier on `1c091e5` |
+| Tests | `uv run pytest -q` | **165 passed, 3 skipped** (feat-037's 7 cap tests in `tests/test_composition.py` incl. 4/9-boundary keep-vs-demote, env_min-relative offset, ascending-fcat backfill; earlier: feat-033/034 composition + APEX thread-pinning guard, feat-036 checks) |
+| Full 50k reproducibility (APEX + ESMC PLM on GPU) | two `uv run generate` runs | feat-037 capped: top `86639c72…`, library `a4153d03…` — **byte-repro CONFIRMED** (3 independent fresh runs incl. the validator's generate ×2, all byte-identical); pre-cap feat-033 was `dc37c540` / `06e30960` |
+| Official validator | `verify_submission.py <repo-url>` | **PASSED on the feat-037 commit** (`da7ae56`, artifact byte-identical at HEAD): *"All checks passed. Submission is valid!"*, all 8 checks incl. generate-×2 byte-repro + ≤80% novelty gate; fresh-clone output byte-identical (top `86639c72` / lib `a4153d03`). Pre-cap feat-033 had passed on `a7ed06f`/`1c091e5` |
 | Compliance | `docs/COMPLIANCE.md` rule-by-rule audit | **PASS** |
 
 ## Key decisions / devil's-advocate findings
