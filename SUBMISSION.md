@@ -338,7 +338,8 @@ Required disclosure. State plainly what was applied, including "none".
   composition-envelope-capped** selection — current hashes **top `86639c72df6849b096dc91fbada0e0bb`,
   library `a4153d03d98d9e568c4b3c8122bc15af`** (pre-cap feat-033 was `dc37c540`/`06e30960`, recoverable
   with `--max-cationic-fraction 1.0`). The cap changed `top.fasta`, and the official validator has **PASSED on
-  the final feat-037 commit** (`da7ae56`, all 8 checks, fresh-clone output byte-identical to the shipped hashes);
+  the feat-037 commit** (`da7ae56`) and been **re-confirmed on the current HEAD `10936bb`** (all 8 checks,
+  fresh-clone output byte-identical to the shipped hashes — the 4th independent clean reproduction);
   as standard practice, re-run it once more immediately before submitting.
 - Python 3.11, pinned in `.python-version`; dependencies locked in `uv.lock`. The APEX oracle is an
   isolated `uv` project (`oracle/apex`, its own lock) invoked as a subprocess; it syncs on first
@@ -366,7 +367,7 @@ Full rule-by-rule audit: [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
       API, `userHasEntered=True` (feat-004)
 - [ ] Submitting from `j_v_v_07`, not from the machine's default token account
 - [ ] `./init.sh` green, including the two-run byte-identical check
-- [x] **Official validator PASSED on the final feat-037 commit** (`da7ae56`, artifact byte-identical at HEAD `09a1f88`):
+- [x] **Official validator PASSED on the feat-037 commit** (`da7ae56`) and **re-confirmed on current HEAD `10936bb`** (artifact byte-identical):
       *"All checks passed. Submission is valid!"* — fresh GitHub clone + `uv sync` + generate ×2, all 8 checks incl.
       byte-identical reproducibility, the ≤80% novelty gate, and the real ESM++/ESMC path; fresh-clone output byte-identical
       to the shipped **composition-envelope-capped** artifact (**top `86639c72df6849b096dc91fbada0e0bb`, library

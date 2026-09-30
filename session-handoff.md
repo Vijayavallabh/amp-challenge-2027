@@ -213,14 +213,15 @@ The shipped artifact is now the **feat-037 composition-envelope-capped** selecti
 `a4153d03…`); feat-035/036 confirmed feat-033 near-optimal across ~9 independent angles, and feat-037 removes the
 one identified extrapolation risk (beyond-envelope peptides) without adding modelling scope. Do **not** add
 further modelling scope (headroom is bounded; every apparent lever, incl. learned rankers, net-charge, HemoPI2
-and amphipathicity, collapses OOD). The two user flags are **set aside per the participant**. Remaining actions:
+amphipathicity, 3D structure and sequence patterning, collapses OOD). The two user flags are **set aside per the participant**. Remaining actions:
 
 1. Rotate the `KGAT_` token.
-2. **Official validator: PASSED** on the final feat-037 commit `da7ae56` (all 8 checks, fresh-clone byte-identical
-   `86639c72…`/`a4153d03…`) — as standard practice, re-run `scripts/verify_submission.py <repo-url>` once more
-   immediately before submitting.
-3. Provide the **team name** and authorize the one-shot submit from **`j_v_v_07`** (user-gated — not autonomous).
-3. Submit from **`j_v_v_07`** with the participant's team name and explicit go-ahead.
+2. **Official validator: PASSED** on the feat-037 artifact commit `da7ae56` and **re-confirmed on the current HEAD
+   `10936bb`** (all 8 checks; fresh-clone regenerated artifact byte-identical `86639c72…`/`a4153d03…` — the 4th
+   independent clean reproduction) — as standard practice, re-run `scripts/verify_submission.py <repo-url>` once
+   more immediately before submitting.
+3. Provide the **team name** and authorize the one-shot submit from **`j_v_v_07`** only (user-gated — not
+   autonomous; never the machine-default Kaggle token).
 
 ## Startup
 
